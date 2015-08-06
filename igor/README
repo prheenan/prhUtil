@@ -1,0 +1,14 @@
+==== Requirements (General)
+-Igor 6.37 (exact preferable, or above). Igor 6.35A has confirmed save problems
+----(see http://www.igorexchange.com/node/6588#comment-11690)
+-SQL XOP is activated (See: File->Example Experiments->Feature Demos->SQL Demo)
+-SQL ODBC connection is established. See: TODO
+==== Requirements model
+—Model parameter names must be OK by rigors standards for waves
+-preprocessing suffixes should follow proper/Asylum suffix ending (i.e.: Z sensor ends in Zsnsr, or has ZSnsr in it)
+==== Requirements (database, for automated generation)
+-Name of Database table+key should not exceed 31 characters 
+-Database ids should start with ‘id’
+-First field is the primary key. there is only one primary key
+-Foreign keys come last.
+-Ids must start at *1* and work their way up

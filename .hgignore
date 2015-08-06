@@ -1,0 +1,25 @@
+syntax: glob
+
+*~
+*.DS_Store
+*.pyc
+*.docx
+*.pdf
+*.png
+*.o
+*.png
+*/.git/*
+*.DS_Store
+*.txt
+*.csv
+*py~
+*~
+*.pkl
+*.npz
+*.npy
+*.svg
+*.*\#*.*
+*.*\#
+*.orig
+*.ibw
+*.pxp
