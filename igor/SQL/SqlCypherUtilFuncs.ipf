@@ -1,10 +1,10 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3
 #pragma ModuleName=ModSqlCypherUtilFuncs
-#include ".:SqlUtil"
-#include ".:..:Util:Defines"
-#include ".:..:Util:ErrorUtil"
-#include ".:SqlCypherAutoDefines"
+"#include ":.:SqlUtil"
+"#include ":.:..:Util:Defines"
+"#include ":.:..:Util:ErrorUtil"
+"#include ":.:SqlCypherAutoDefines"
 //Column names and types
 Static Function /Wave GetColsOfExpMeta([IncludeId])
 	Variable IncludeId

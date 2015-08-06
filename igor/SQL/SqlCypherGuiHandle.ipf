@@ -1,13 +1,13 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3
 #pragma ModuleName=ModSqlCypherGuiHandle
-#include ".:SqlUtil"
-#include ".:..:Util:Defines"
-#include ".:..:Util:ErrorUtil"
-#include ".:SqlCypherAutoDefines"
-#include ".:SqlCypherInterface"
-#include ".:SqlCypherUtilFuncs"
-#include ".:SqlCypherAutoFuncs"
+"#include ":.:SqlUtil"
+"#include ":.:..:Util:Defines"
+"#include ":.:..:Util:ErrorUtil"
+"#include ":.:SqlCypherAutoDefines"
+"#include ":.:SqlCypherInterface"
+"#include ":.:SqlCypherUtilFuncs"
+"#include ":.:SqlCypherAutoFuncs"
 //Defined Handlers
 Static Function /S GetMenuByTable(mTab)
 	String mTab

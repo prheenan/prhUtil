@@ -1,8 +1,8 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3	
 #pragma ModuleName = ModViewUtil
-#include "..:Util:IoUtil"
-#include "..:Model:ModelDefines"
+"#include ":..:Util:IoUtil"
+"#include ":..:Model:ModelDefines"
 
 // Default for ListBox
 Constant VIEW_DEF_LISTBOX_RESIZE = 1

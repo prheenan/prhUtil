@@ -1,9 +1,9 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3	
 #pragma ModuleName = ModPreprocess
-#include "..:Util:IoUtil"
-#include "..:MVC_Common:MvcDefines"
-#include "..:Util:CypherUtil"
+"#include ":..:Util:IoUtil"
+"#include ":..:MVC_Common:MvcDefines"
+"#include ":..:Util:CypherUtil"
 
 Static StrConstant XNAMEPRE = "XWave"
 Static StrConstant YNAMEPRE = "YWave"

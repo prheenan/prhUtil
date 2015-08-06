@@ -1,6 +1,6 @@
 #pragma rtGlobals=3        // Use strict wave reference mode
-#include ".:Defines"
-#include ".:DataStructures"
+"#include ":.:Defines"
+"#include ":.:DataStructures"
 
 #pragma ModuleName=ModErrorUtil
 

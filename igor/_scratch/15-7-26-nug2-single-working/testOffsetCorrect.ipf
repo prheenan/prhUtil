@@ -2,8 +2,8 @@
 #pragma rtGlobals=3	
 
 #pragma ModuleName = ModTestOffsetCorrect
-#include "..:..:Util:PlotUtil"
-#include "..:..:Model:PreProcess"
+"#include ":..:..:Util:PlotUtil"
+"#include ":..:..:Model:PreProcess"
 
 Static Function Main()
 	// Get the offsets we need.

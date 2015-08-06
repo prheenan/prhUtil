@@ -2,8 +2,8 @@
 #pragma rtGlobals=3	
 
 #pragma ModuleName = ModCypherUtil
-#include ".:ErrorUtil"
-#include "..:Util:IoUtil"
+"#include ":.:ErrorUtil"
+"#include ":..:Util:IoUtil"
 
 
 // How to get the Asylum notes values
