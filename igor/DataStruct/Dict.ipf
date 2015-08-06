@@ -2,8 +2,8 @@
 #pragma rtGlobals=3	
 
 #pragma ModuleName = ModDictionary
-"#include ":..:Util:IoUtil"
-"#include ":..:Util:DataStructures"
+#include "::Util:IoUtil"
+#include "::Util:DataStructures"
 
 //  Adapted from:
 // http://www.igorexchange.com/node/5066

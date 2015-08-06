@@ -1,18 +1,18 @@
 
 #pragma rtGlobals=3        // Use strict wave reference mode
 #pragma ModuleName = ModView
-"#include ":..:Util:GlobalObject"
-"#include ":..:Util:Defines"
-"#include ":..:Util:IoUtil"
-"#include ":..:Util:PlotUtil"
-#include  "..:Util:CypherUtil"
-"#include ":..:Model:ModelDefines"
-"#include ":..:ModelInstances:DnaWlc"
-"#include ":..:ModelInstances:Nug2"
-"#include ":..:MVC_Common:MvcDefines"
-"#include ":..:Model:Model"		
-"#include ":.:ViewUtil"
-"#include ":.:ViewGlobal"
+#include "::Util:GlobalObject"
+#include "::Util:Defines"
+#include "::Util:IoUtil"
+#include "::Util:PlotUtil"
+#include  "::Util:CypherUtil"
+#include "::Model:ModelDefines"
+#include "::ModelInstances:DnaWlc"
+#include "::ModelInstances:Nug2"
+#include "::MVC_Common:MvcDefines"
+#include "::Model:Model"		
+#include ":ViewUtil"
+#include ":ViewGlobal"
 // Constants for the common handler of meta information
 Static Constant HANDLE_META_REGEX = 0
 Static Constant HANDLE_META_SET_X = 1

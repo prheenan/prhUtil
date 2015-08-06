@@ -2,10 +2,10 @@
 #pragma rtGlobals=3	
 
 #pragma ModuleName = ScratchWoodsideDisplay
-"#include ":..:Util:IoUtil"
-"#include ":..:Util:ErrorUtil"
-"#include ":..:Util:PlotUtil"
-"#include ":..:View:ViewUtil"
+#include "::Util:IoUtil"
+#include "::Util:ErrorUtil"
+#include "::Util:PlotUtil"
+#include "::View:ViewUtil"
 
 Constant DEF_SMOOTH_NPOINTS = 33
 Constant DEF_SMOOTH_ORDER = 2

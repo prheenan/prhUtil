@@ -3,9 +3,9 @@
 
 #pragma ModuleName = ScratchTestCorrectionPipeline
 
-"#include ":..:View:ViewGlobal"
+#include "::View:ViewGlobal"
 #Include "..\Model\ModelDefines"
-"#include ":..:Util:CypherUtil"
+#include "::Util:CypherUtil"
 Static Function Main()
 	// hand-picked values for the times
 	Variable t0Fast =0.6332784

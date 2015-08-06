@@ -1,9 +1,9 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3
 #pragma ModuleName=ModSqlCypherAutoDefines
-"#include ":.:SqlUtil"
-"#include ":.:..:Util:Defines"
-"#include ":.:..:Util:ErrorUtil"
+#include ":SqlUtil"
+#include "::Util:Defines"
+#include "::Util:ErrorUtil"
 Constant MAX_NAME_LEN=100
 Constant MAX_DESCRIPTION_LEN=200
 // Defined table names

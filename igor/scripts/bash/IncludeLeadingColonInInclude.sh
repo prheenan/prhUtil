@@ -10,12 +10,18 @@ IFS=$'\n\t'
 dateStr=`date +%Y-%m-%d:%H:%M:%S`
 
 
+#include ":ViewUtil" // replace ".: with ":
+#include "::Sql:SqlCypherInterface" // replace ".." with "::"
+
 mDir="../../"
 fileRegex='*ipf'
-# /^#include/             -- this selects lines that start with include
-# s/(#include ")/"\1:/g'  -- adds a colon to an include followed by a quote
-# XXX should check for a alpha character?
-mRegex='/^#include/s/(#include ")/"\1:/g'
+# apply to double colons, starting with a dot
+mRegex='/^#include/s/"\.:\.\.:/"::/g'
 bash ./ApplySedToFiles.sh $mDir $fileRegex $mRegex
-
+# aplly to double colons, not starting with a dot
+mRegex='/^#include/s/"\.\.:/"::/g'
+bash ./ApplySedToFiles.sh $mDir $fileRegex $mRegex
+# apply to single colons
+mRegex='/^#include/s/"\.:/":/g'
+bash ./ApplySedToFiles.sh $mDir $fileRegex $mRegex
 

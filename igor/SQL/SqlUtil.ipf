@@ -3,8 +3,8 @@
 #pragma ModuleName = ModSqlUtil
 
 #include <SQLUtils>
-"#include ":..:Util:Defines"
-"#include ":..:Util:IoUtil"
+#include "::Util:Defines"
+#include "::Util:IoUtil"
 // XXX remove these, just here for compilation
 Static StrConstant DB_NAME = "CypherAFM"
 StrConstant SCHEMA_NAME = "INFORMATION_SCHEMA"

@@ -1,6 +1,6 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3	
-"#include ":..:ViewTraverse"
+#include "::ViewTraverse"
 #pragma ModuleName = MainUtilTraverse
 
 StrConstant mRoot = "root:packages:View_DNAWLC:"

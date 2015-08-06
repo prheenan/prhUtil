@@ -1,7 +1,7 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3	
 
-"#include ":..:MVC_Common:MvcDefines"
+#include "::MVC_Common:MvcDefines"
 
 #pragma ModuleName = ModModelDefines
 

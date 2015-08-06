@@ -11,9 +11,6 @@ dateStr=`date +%Y-%m-%d:%H:%M:%S`
 
 mDir="../../"
 fileRegex='*ipf'
-# /^#include/ -- this selects lines that start with include
-# s/\\/:/g    -- this replaces the literal <\> with a colon literal <:> on 
-# the entire line (global
 mRegex='/^#include/s/\\/:/g'
 bash ./ApplySedToFiles.sh $mDir $fileRegex $mRegex
 

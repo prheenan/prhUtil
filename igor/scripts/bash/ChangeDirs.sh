@@ -16,9 +16,6 @@ mDir="../../"
 fileRegex='*ipf'
 # change to the working directory
 cd $mDir
-# single quotes: don't interpret anything. 
-# http://stackoverflow.com/questions/6697753/difference-between-single-and-double-quotes-in-bash
-mExt='*ipf' 
 # (1) find all the files
 # (2) on the lines where:
 ## (2a) the line starts with '#include'
@@ -28,8 +25,7 @@ mExt='*ipf'
 # /^#include/ -- this selects lines that start with include
 # s/\\/:/g    -- this replaces the literal <\> with a colon literal <:> on 
 # the entire line (global
-mRegex='/^#include/s/\\/:/g'
-find . -type f -iname "$mExt" | xargs sed -E -i .bak $mRegex
+find . -type f -iname '*ipf' | xargs sed -E -i .bak '/^#include/s/\\/:/g'
 # go back to the original directory
 cd $original
 

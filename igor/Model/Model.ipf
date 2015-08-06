@@ -1,11 +1,11 @@
 #pragma rtGlobals=3	
 #pragma ModuleName = ModModel
 
-"#include ":..:Util:ErrorUtil"
-"#include ":..:Model:ModelDefines"
-"#include ":..:Util:GlobalObject"
-"#include ":..:Util:StatUtil"
-"#include ":.:PreProcess"
+#include "::Util:ErrorUtil"
+#include "::Model:ModelDefines"
+#include "::Util:GlobalObject"
+#include "::Util:StatUtil"
+#include ":PreProcess"
 
 // Model Object
 Structure ModelObject

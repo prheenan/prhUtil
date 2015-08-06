@@ -7,13 +7,13 @@ Static Constant MODEL_WLC_IDX_END_WLC = 2
 Static Constant MODEL_WLC_IDX_OSTR_START = 3
 Static Constant MODEL_WLC_IDX_OSTR_END = 4
 
-"#include ":..:Util:ErrorUtil"
-"#include ":..:Model:ModelDefines"
-"#include ":..:Util:GlobalObject"
-"#include ":..:Util:StatUtil"
-"#include ":..:Util:IoUtil"
-"#include ":..:Model:Model"
-"#include ":..:MVC_Common:MvcDefines"
+#include "::Util:ErrorUtil"
+#include "::Model:ModelDefines"
+#include "::Util:GlobalObject"
+#include "::Util:StatUtil"
+#include "::Util:IoUtil"
+#include "::Model:Model"
+#include "::MVC_Common:MvcDefines"
 
 
 Function InitDNAModel(ToInit)

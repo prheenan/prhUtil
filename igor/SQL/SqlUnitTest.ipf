@@ -2,9 +2,9 @@
 #pragma rtGlobals=3	
 #pragma ModuleName = ModSqlUnitTest
 
-"#include ":.:SqlUtil"
-"#include ":.:SqlCypherBootstrap"
-"#include ":.:SqlCypherAutoFuncs"
+#include ":SqlUtil"
+#include ":SqlCypherBootstrap"
+#include ":SqlCypherAutoFuncs"
 
 Static Function Main([Debugging])
 	Variable Debugging
