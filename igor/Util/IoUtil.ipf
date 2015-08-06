@@ -1,8 +1,8 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3	
 #pragma ModuleName = ModIoUtil
-#include ".\DataStructures"
-#include ".\ErrorUtil"
+#include ".:DataStructures"
+#include ".:ErrorUtil"
 
 // Name for root directory
 StrConstant DEF_ROOTNAME = "root"

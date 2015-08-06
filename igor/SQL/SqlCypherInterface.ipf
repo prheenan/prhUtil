@@ -5,11 +5,11 @@
 //
 #pragma ModuleName = ModSqlCypherInterface
 // XXX add in connection support? should speed up.
-#include ".\SqlUtil"
-#include "..\Util\IoUtil"
-#include "..\Util\ErrorUtil"
-#include "..\Util\DataStructures"
-#include ".\SqlCypherAutoDefines"
+#include ".:SqlUtil"
+#include "..:Util:IoUtil"
+#include "..:Util:ErrorUtil"
+#include "..:Util:DataStructures"
+#include ".:SqlCypherAutoDefines"
 
 // Defaults for each type, for the setters
 StrConstant SQL_DEF_NAME = "<Name>"

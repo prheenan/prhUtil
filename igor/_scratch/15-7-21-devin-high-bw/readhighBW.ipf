@@ -2,7 +2,7 @@
 #pragma rtGlobals=3	
 
 #pragma ModuleName = ScratchReadHighBW
-#include "..\..\Util\IoUtil"
+#include "..:..:Util:IoUtil"
 
 Static Function Main()
 	String mFolder

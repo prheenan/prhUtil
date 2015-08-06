@@ -2,10 +2,10 @@
 #pragma rtGlobals=3	
 
 #pragma ModuleName = ModViewSetter
-#include ".\ViewUtil"
-#include ".\..\Sql\SqlCypherInterface"
-#include ".\..\Sql\SqlCypherUtilFuncs"
-#include ".\..\Sql\SqlCypherGuiHandle"
+#include ".:ViewUtil"
+#include ".:..:Sql:SqlCypherInterface"
+#include ".:..:Sql:SqlCypherUtilFuncs"
+#include ".:..:Sql:SqlCypherGuiHandle"
 
 Static StrConstant SET_DEFAULT_STR = ""
 Static Constant SET_DEFAULT_NUM = 0

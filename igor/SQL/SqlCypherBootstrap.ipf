@@ -2,9 +2,9 @@
 #pragma rtGlobals=3	
 
 #pragma ModuleName = ModSqlCypherBootstrap
-#include ".\SqlCypherAutoFuncs"
-#include ".\SqlCypherInterface"
-#include ".\SqlUtil"
+#include ".:SqlCypherAutoFuncs"
+#include ".:SqlCypherInterface"
+#include ".:SqlUtil"
 
 Constant SQL_BOOT_CYPHER_DEF_SAMPLE_PREP = 1
 Constant SQL_BOOT_CYPHER_DEF_SAMPLE_TYPE = 1

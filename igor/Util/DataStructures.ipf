@@ -1,6 +1,6 @@
 #pragma rtGlobals=3        // Use strict wave reference mode
 #pragma ModuleName=ModDataStruct
-#include ".\Defines"
+#include ".:Defines"
 
 Constant CMPSTR_EQ = 0
 

@@ -1,7 +1,7 @@
 #pragma rtGlobals=3	
-#include ".\GlobalObject"	
-#include ".\IoUtil"
-#include ".\PlotUtil"
+#include ".:GlobalObject"	
+#include ".:IoUtil"
+#include ".:PlotUtil"
 
 Static Function FilterDisplay(rawWaveX,rawWaveY,boxSize,id,RGB)
 	// Let Igor know this is a wave

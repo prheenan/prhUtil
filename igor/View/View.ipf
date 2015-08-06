@@ -1,17 +1,18 @@
 
 #pragma rtGlobals=3        // Use strict wave reference mode
 #pragma ModuleName = ModView
-#include "..\Util\GlobalObject"
-#include "..\Util\Defines"
-#include "..\Util\IoUtil"
-#include "..\Util\PlotUtil"
-#include  "..\Util\CypherUtil"
-#include "..\Model\ModelDefines"
-#include "..\ModelInstances\DnaWlc"
-#include "..\ModelInstances\Nug2"
-#include "..\Model\Model"
-#include ".\ViewUtil"
-#include ".\ViewGlobal"
+#include "..:Util:GlobalObject"
+#include "..:Util:Defines"
+#include "..:Util:IoUtil"
+#include "..:Util:PlotUtil"
+#include  "..:Util:CypherUtil"
+#include "..:Model:ModelDefines"
+#include "..:ModelInstances:DnaWlc"
+#include "..:ModelInstances:Nug2"
+#include "..:MVC_Common:MvcDefines"
+#include "..:Model:Model"		
+#include ".:ViewUtil"
+#include ".:ViewGlobal"
 // Constants for the common handler of meta information
 Static Constant HANDLE_META_REGEX = 0
 Static Constant HANDLE_META_SET_X = 1
@@ -27,9 +28,10 @@ Static Constant HANDLE_META_REG_EXP = 7
 // XXX TODO: clean this up
 // Add in objects for saving information about everything 
 // (parameters and wave IDs...)
-Static Function AnalyzeSingle(dataFolder,FitFunc)
+Static Function AnalyzeSingle(dataFolder,FitFunc,mStruct)
 	// Datafolder is the name of a folder having the meta information,
 	// parameter folder, and data folder for a single trace
+	Struct ViewModelStruct & mStruct
 	String dataFolder
 	FuncRef ModelFitProto FitFunc
 	// Data folder has the meta data we care about within this folder
@@ -60,14 +62,16 @@ Static Function AnalyzeSingle(dataFolder,FitFunc)
 	 	 yRef = ModIoUtil#AppendedPath(mCache,yFile)
 	 EndIf
 	 // XXX make this less kludgey wrt parameter passing
-	FitFunc(xRef,yRef,mObj)
+	FitFunc(xRef,yRef,mObj,mStruct)
 //	return L0Ret
 End Function
 
-Static Function AnalyzeAll(dataFolder,analysisFuncs)
+Static Function AnalyzeAll(dataFolder,analysisFuncs,mStruct)
 	// XXX Data folder exists (should check this everywhere
+	// PRE: mStruct has the folder where we should output
 	String dataFolder
 	Struct ModelFunctions & analysisFuncs
+	Struct ViewModelStruct & mStruct
 	Variable nObjects =  ModIoUtil#CountDataFolders(Datafolder)
 	String tmpFolder
 	// /O : Overrride, new L0 of length N 
@@ -79,7 +83,7 @@ Static Function AnalyzeAll(dataFolder,analysisFuncs)
 		tmpFolder =  ModIoUtil#GetDataFolderAtIndex(Datafolder,i)
 		// Get the full name of this 'sub' folder
 		String mName = ModIoUtil#AppendedPath(DataFolder,tmpFolder)
-		L0Arr[i] = AnalyzeSingle(mName,mFitter)
+		L0Arr[i] = AnalyzeSingle(mName,mFitter,mStruct)
 	EndFor
 End Function
 
@@ -836,12 +840,19 @@ Function HandleAnalyzeButton(BTN_Struct) : ListboxControl
 			String allTracePath = ModViewGlobal#TraceSavingFolder(mBase)
 			Variable nFolders = ModIoUtil#CountDataFolders(allTracePath)
 			Variable i=0
+			String mFolderSave
+			if (!ModIoUtil#GetFolderInteractive(mFolderSave))
+				return ModDefine#False()
+			EndIf
+			// POST: we have the folder set up
+			// Make the global object
+			Struct ViewModelStruct mStruct
+			mStruct.modelBaseoutputFolder =mFolderSave
 			// loop through all the analysis folders
 			for (i=0; i< nFolders; i +=1)
 				String mFolder  = ModIoUtil#GetDataFolderAtIndex(allTracePath,i)
 				String thisPath = ModIoUtil#AppendedPath(allTracePath,mFolder)
-				print(thisPath)
-				AnalyzeAll(thisPath,analysisFuncs)
+				AnalyzeAll(thisPath,analysisFuncs,mStruct)
 			EndFor
 			// no need to set global data; nothing changed.
 			break

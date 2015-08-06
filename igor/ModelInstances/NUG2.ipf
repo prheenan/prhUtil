@@ -3,15 +3,15 @@
 
 #pragma ModuleName = ModNUG2
 // Used to fit the WLC functions
-#include "..\Util\ErrorUtil"
-#include "..\Model\ModelDefines"
-#include "..\Model\PreProcess"
-#include "..\Util\GlobalObject"
-#include "..\Util\Defines"
-#include "..\Util\StatUtil"
-#include "..\Model\Model"
-#include "..\Util\IoUtil"
-#include "..\Util\CypherUtil"
+#include "..:Util:ErrorUtil"
+#include "..:Model:ModelDefines"
+#include "..:Model:PreProcess"
+#include "..:Util:GlobalObject"
+#include "..:Util:Defines"
+#include "..:Util:StatUtil"
+#include "..:Model:Model"
+#include "..:Util:IoUtil"
+#include "..:Util:CypherUtil"
 
 StrConstant TIME_HIGH_RES_SUFFIX = "Time_Towd"
 StrConstant DEFLV_HIGH_RES_SUFFIX =  "DeflV_Towd"
@@ -189,9 +189,10 @@ Function /Wave CreateRuptureIdx(fitParameters)
 End Function
 
 // Can't be static or funcref gets confused
-Function NUG2Fit(xRef,yRef,fitParameters)
+Function NUG2Fit(xRef,yRef,fitParameters,mStruct)
 	String xRef,yRef
 	Struct ParamObj & fitParameters
+	Struct ViewModelStruct & mStruct
 	String mName = yRef + "UnfoldAndRupt"
 	Duplicate /O $(yRef) $mName
 	Wave srcWave = $mName
@@ -199,8 +200,7 @@ Function NUG2Fit(xRef,yRef,fitParameters)
 	Variable mYOffset = srcWave[fitParameters.params[RUPTURE_OFFSET_0].pointIndex]
 	srcWave -= mYOffset
 	srcWave *= -1
-	String mFolder
-	ModIoUtil#GetFolderInteractive(mFolder)
+	String mFolder = mStruct.modelBaseOutputFolder
 	Wave mRupt = CreateRuptureIdx(fitParameters)
 	SaveRupture(srcWave,mRupt,mFolder)
 	KillWaves /Z mRupt,srcWave

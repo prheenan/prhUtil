@@ -2,7 +2,7 @@
 #pragma rtGlobals=3	
 
 #pragma ModuleName = ScratchConvertToHighRes
-#include "..\ModelInstances\NUG2"
+#include "..:ModelInstances:NUG2"
 
 // Function to test the conversion to high time resolution
 Static Function Main()

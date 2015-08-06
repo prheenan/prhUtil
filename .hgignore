@@ -1,5 +1,7 @@
 syntax: glob
 
+*.git*
+*.bak
 *~
 *.DS_Store
 *.pyc

@@ -1,12 +1,12 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3
 #pragma ModuleName=ModSqlCypherAutoFuncs
-#include ".\SqlUtil"
-#include ".\..\Util\Defines"
-#include ".\..\Util\ErrorUtil"
-#include ".\SqlCypherAutoDefines"
-#include ".\SqlCypherInterface"
-#include ".\SqlCypherUtilFuncs"
+#include ".:SqlUtil"
+#include ".:..:Util:Defines"
+#include ".:..:Util:ErrorUtil"
+#include ".:SqlCypherAutoDefines"
+#include ".:SqlCypherInterface"
+#include ".:SqlCypherUtilFuncs"
 // Defined insert functions
 Static Function InsertFmtExpMeta(mTab)
 	Struct ExpMeta & mTab

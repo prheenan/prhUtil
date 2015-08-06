@@ -1,6 +1,8 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3	
 
+#include "..:MVC_Common:MvcDefines"
+
 #pragma ModuleName = ModModelDefines
 
 // // 
@@ -346,9 +348,10 @@ End Function
 // // 
 
 // Function to fit to xRef and yRef given fitParameters
-Function ModelFitProto(xRef,yRef,fitParameters)
+Function ModelFitProto(xRef,yRef,fitParameters,mStruct)
 	String xRef,yRef
 	Struct ParamObj & fitParameters
+	Struct ViewModelStruct & mStruct
 	// XXX throw error if this ever happens
 End Function
 

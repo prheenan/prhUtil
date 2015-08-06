@@ -1,11 +1,11 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3	
-#include "..\Model\ModelDefines"
-#include "..\Model\Model"
-#include "..\Util\CypherUtil"
-#include ".\ViewUtil"
-#include "..\MVC_Common\MvcDefines"
-#include"..\Model\PreProcess"
+#include "..:Model:ModelDefines"
+#include "..:Model:Model"
+#include "..:Util:CypherUtil"
+#include ".:ViewUtil"
+#include "..:MVC_Common:MvcDefines"
+#include"..:Model:PreProcess"
 #pragma ModuleName = ModViewGlobal
 
 //Data folder under base to import all of the experiments
@@ -51,6 +51,7 @@ Constant VIEW_STRUCT_STRLEN_SHORT = 25
 Constant MAX_NUM_PARAMS = 50
 // Views are disables when enable = 2 
 Constant VIEW_DISABLE =2
+
 
 Structure ViewGlobalDat
 	// The Data Folder (path name) for this view

@@ -1,10 +1,10 @@
 #pragma rtGlobals=3        // Use strict wave reference mode
 #pragma ModuleName=ModGlobal
-#include ".\Defines"
-#include ".\DataStructures"
-#include ".\ErrorUtil"
-#include ".\PlotUtil"
-#include ".\..\Model\ModelDefines"
+#include ".:Defines"
+#include ".:DataStructures"
+#include ".:ErrorUtil"
+#include ".:PlotUtil"
+#include ".:..:Model:ModelDefines"
 
 Structure Global
 	Struct Defines def

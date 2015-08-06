@@ -1,9 +1,9 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3	
 
-#include ".\ViewGlobal"
-#include ".\ViewUtil"
-#include "..\Util\DataStructures"
+#include ".:ViewGlobal"
+#include ".:ViewUtil"
+#include "..:Util:DataStructures"
 
 #pragma ModuleName =ModViewTraverse
 // 

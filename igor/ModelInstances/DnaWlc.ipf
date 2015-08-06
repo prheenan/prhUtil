@@ -7,12 +7,14 @@ Static Constant MODEL_WLC_IDX_END_WLC = 2
 Static Constant MODEL_WLC_IDX_OSTR_START = 3
 Static Constant MODEL_WLC_IDX_OSTR_END = 4
 
-#include "..\Util\ErrorUtil"
-#include "..\Model\ModelDefines"
-#include "..\Util\GlobalObject"
-#include "..\Util\StatUtil"
-#include "..\Util\IoUtil"
-#include "..\Model\Model"
+#include "..:Util:ErrorUtil"
+#include "..:Model:ModelDefines"
+#include "..:Util:GlobalObject"
+#include "..:Util:StatUtil"
+#include "..:Util:IoUtil"
+#include "..:Model:Model"
+#include "..:MVC_Common:MvcDefines"
+
 
 Function InitDNAModel(ToInit)
 	Struct ModelObject & ToInit
@@ -46,9 +48,10 @@ Function InitDNAModel(ToInit)
 	AddParameterFull(ToInit,modDef.type.XYOFF,nano,meter,"Rupture Force, final WLC","RuptureForce")
 End Function
 
-Function FitWLC(xRef,yRef,fitParameters)
+Function FitWLC(xRef,yRef,fitParameters,mStruct)
 	String xRef,yRef
 	Struct ParamObj & fitParameters
+	Struct ViewModelStruct & mStruct
 	Variable saveFitParameters
 	// First parameter is X-Y offset. this point should be one (meta is first)
 	// Next two parameters are WLC linear area. Fit from xOffIdx to the third (second WLC)

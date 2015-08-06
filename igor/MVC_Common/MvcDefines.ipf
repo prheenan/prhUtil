@@ -11,6 +11,10 @@ Constant PLOT_TYPE_X_VS_SEP = 2
 // Global Experiment Data Folder Strings
 StrConstant BASEFOLDER = "root:Packages"
 StrConstant WINDOWNAME = "ViewPRH"
+// struct for communication between view and model
+Structure ViewModelStruct
+	String modelBaseOutputFolder
+EndStructure
 
 Static Function /S GetViewWindowName()
 	return WINDOWNAME
