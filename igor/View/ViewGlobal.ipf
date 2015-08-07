@@ -662,12 +662,13 @@ Static Function SavePreProcWave(mData,mProc)
 	ModPreProcess#SavePreProc(mProc,SaveName)
 End Function
 
-Static Function FindIndexForStub(mData,mStub)
-	Struct ViewGlobalDat &mData 
+Static Function FindPreProcIndexForStub(mProc,mStub)
+	Struct processStruct &mProc 
 	String mStub
 	Variable mIndex
-	Wave /T mStubsWave = $(mData.AllFileWaveStr)
-	if (!ModIoUtil#TextInWave(mStub,mStubsWave,index=mIndex))
+	Wave /T mStubsWave = $(mProc.YLowRes)
+	String fullYLowRes = mStub + mProc.yLowResSuffix
+	if (!ModIoUtil#TextInWave(fullYLowRes,mStubsWave,index=mIndex))
 		String mErr
 		sprintf mErr,"Couldn't find stub %s\r",mStub
 		ModErrorUtil#DevelopmentError(description=mErr)
@@ -681,15 +682,15 @@ Static Function GetYRefsForPreProc(mData,mStub,outputRefLow,outputRefHigh)
 	String mStub
 	String & outputRefLow
 	String & outputRefHigh
-	Variable mIndex = FindIndexForStub(mData,mStub)
+	Struct processStruct mProc 
+	LoadPreProcWave(mData,mProc)
+	Variable mIndex = FindPreProcIndexForStub(mProc,mStub)
 	// POST: have the index
 	// Load the pre-processing object to get the name of the
 	// Low Resolution Y Reference
 	// Note: we *need* to ensure no problems when we 
 	// are loading analyzed curvs, since (presummably) they wont
 	// have the data loaded
-	Struct processStruct mProc 
-	LoadPreProcWave(mData,mProc)
 	// Get a reference to the wave names
 	Wave /T mLowRes = $(mProc.YLowRes)
 	Wave /T mHighRes = $(mProc.YHighRes)
@@ -1104,7 +1105,7 @@ Static Function RunPreprocAndGetSepForce(mData,mSepName,mForceName)
 	String mStub = mData.CurrentTracePathStub
 	Struct ProcessStruct mProc
 	ModViewGlobal#LoadPreProcWave(mData,mProc)
-	Variable index  = ModViewGlobal#FindIndexForStub(mData,mStub)
+	Variable index  = ModViewGlobal#FindPreProcIndexForStub(mProc,mStub)
 	// The force and sep name will be set by reference by 'GetProcessedForceSep"
 	 ModPreProcess#GetProcessedSepForce(mProc,mObj,index,mSepName,mForceName)
 	 // Save the updated processing wave
@@ -1116,6 +1117,17 @@ Static Function PlotVersusTime(mData)
 	return mData.PlotXType == PLOT_TYPE_X_VS_TIME
 End Function
 
+// returns if it matches, sets if so (strToSet is pass by reference)
+Static Function SetandReturnIfMatch(strToMatchAgainstRegex,mRegex,strToSet)
+	String strToMatchAgainstRegex,mRegex,&strToSet
+	if (GrepString(strToMatchAgainstRegex,mRegex))
+		// Our experiment exists
+		SplitString /E=(mRegex) strToMatchAgainstRegex, strToSet
+		return ModDefine#True()
+	EndIf
+	return ModDefine#False()
+End Function
+
 // Looks for an experiment on 'mFilePath' (ie: marked curve) and sets 'toModIfExists' 
 // if we find something. returns true/false if we did/didn't find something
 Static Function GetExperimentFromMarkedIfExists(mFilePath,toModIfExists)
@@ -1123,10 +1135,11 @@ Static Function GetExperimentFromMarkedIfExists(mFilePath,toModIfExists)
 	String & toModIfExists // note: pass by *reference
 	// The first directory after *mark traces* is the experiment name.
 	String mRegex = ".+:" + VIEW_MARKTRACES + ":([^:]+):"
-	if (GrepString(mFilePath,mRegex))
-		// Our experiment exists
-		SplitString /E=(mRegex) mFilePath, toModIfExists
-		return ModDefine#True()
-	EndIf
-	return ModDefine#False()
+	return SetandReturnIfMatch(mFilePath,mRegex,toModIfExists)
+End Function
+
+Static Function GetExperimentFromDataIfExists(mWaveStub,mExp)
+	String mWaveStub, & mExp
+	String mRegex = ".+:" + VIEW_IMPORT_DATA + ":([^:]+):"
+	return SetandReturnIfMatch(mWaveStub,mRegex,mExp)
 End Function

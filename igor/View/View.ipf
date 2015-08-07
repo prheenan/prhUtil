@@ -916,6 +916,8 @@ Function HandleWaveSelect(LB_Struct) : ListboxControl
 				Struct FileSaveInfo meta
 				ModViewGlobal#GetFileSaveInfo(mMetaDataPath,meta)
 	 			ModViewGlobal#SetExperimentUnsafe(mData,meta.ExpName,meta.SourceFileName)
+			elseIf (ModViewGlobal#GetExperimentFromDataIfExists(mWaveStub,mExp))
+	 			ModViewGlobal#SetExperimentUnsafe(mData,mExp,mExp)			
 	 		EndIf
 		 	// Remove the old trace, given its plot name
 			 DisplayNewTrace(mData,mWaveStub)

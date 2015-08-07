@@ -311,12 +311,12 @@ Static Function SetValueFromXY(Param,StringVal,NumVal,X,Y,[getXFromY])
 		// absolute value difference from the numeric value and X
 		// Q: quiet
 		Variable mPoint = numVal
-		Wave tmpRefX = $X
 		Wave tmpRefY = $Y
 		if (getXFromY)
 			NumVal = pnt2x(tmpRefY,mPoint)
 		else
 			// get from x, as normal
+			Wave tmpRefX = $X
 			NumVal = tmpRefX[mPoint]
 		EndIf
 		Param.ArrayValue[ARR_INDEX_X] = NumVal
