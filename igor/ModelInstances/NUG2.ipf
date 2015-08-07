@@ -117,6 +117,7 @@ Function GetInputNamesNUG2(InWave,mProc)
 		Wave /T mExt = CreateRecquiredExtensions()
 		Variable j,nExt=DimSize(mExt,0)
 		Variable allExist = ModDefine#True()
+		Variable MinSize = 5e5 // we need at least half a million points for the high-resolution data (total: 11 million, but in separate pieces)
 		// ensure all the needed waves exist
 		String mWave
 		for (j=0; j<nExt; j+=1)
@@ -126,9 +127,27 @@ Function GetInputNamesNUG2(InWave,mProc)
 				break
 			EndIf
 		EndFor
+		// POST: all the low resolution waves exists is allExist is true.
+		// How about the high resolution
 		if (!allExist)
 			continue
 		else
+			// Check that the high-resolution time wave also exists, and is above the minimum size.
+			Wave mHighY = $(mWaveStem+ DEFLV_HIGH_RES_SUFFIX)
+			// For the NUG2 model, we have 5MHZ data, so the high bandwidth files
+			// (what we are looking for) should be very large.
+			if (!WaveExists(mHighY))
+				allExist=ModDefine#False()
+				break
+			endIf
+			// POST: high wave exists. 
+			// ... but is it the right size?
+			if (DimSize(mHighY,0) < MinSize)
+				allExist=ModDefine#False()
+				break
+			EndIf
+			// POST: both low and high resolution waves (seem to) exist
+			// XXX check for ZSNSR?
 			// /D: double
 			// Low resolution 
 			// Note: we are saving these all as  the high-resolution stem, to avoid confusion later on
