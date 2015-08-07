@@ -23,6 +23,7 @@ Constant EVENT_BUTTON_MUP_OVER= 2
 Constant EVENT_SETVAR_ENTER = 2
 // Keystrokes
 Constant KEYSTROKE_CONTROL_A =  1
+Constant KEYSTROKE_SHIFT_A = 65
 Constant KEYSTROKE_SHIFT_ENTER= 13
 // For Window handler
 Constant EVENT_WINDOW_KEYSTROKE = 11

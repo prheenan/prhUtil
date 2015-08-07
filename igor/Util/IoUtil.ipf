@@ -204,7 +204,6 @@ Static Function  GetWavesWithStems(List,toRet,RecStems,[Sep])
 				allStems = 0
 				break
 			Endif
-			break
 		EndFor
 		// If we had every stem, add this
 		if (allStems == 1)

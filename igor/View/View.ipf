@@ -870,7 +870,9 @@ Function HandleWindow(s)
 				case KEYSTROKE_SHIFT_ENTER:
 					CopyCursorToCurrParamMoveNext()
 					break
+				// on either a control or a shift a, set the axis to autoscale.
 				case KEYSTROKE_CONTROL_A:
+				case KEYSTROKE_SHIFT_A:
 					SetAxis/A
 					break
 			EndSwitch
