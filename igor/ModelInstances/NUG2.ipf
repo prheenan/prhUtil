@@ -13,7 +13,7 @@
 #include "::Util:IoUtil"
 #include "::Util:CypherUtil"
 
-StrConstant TIME_HIGH_RES_SUFFIX = "Time_Towd"
+StrConstant X_HIGH_RES_SUFFIX = ""// no X required; all taken care of by (1) extension of a proper length after the file.
 StrConstant DEFLV_HIGH_RES_SUFFIX =  "DeflV_Towd"
 // See: Inteperpolate Help.ihf
 // you can find this by clicking interpolate --> Help --> Done, then searching
@@ -241,7 +241,7 @@ Function InitNUG2Model(ToInit)
 	// Actually add the functions, parameters, and description to the model object
 	// initialize our model-specific pre-processing
 	// Note: this model cares about plotting versus *time*, to get the rupture force (after pre-processing)
-	InitModelGen(ToInit,mName,mFuncs,"DNA WLC And Overstretching Fitter",TIME_HIGH_RES_SUFFIX,DEFLV_HIGH_RES_SUFFIX,mPreProc=mProc,mPlotType=PLOT_TYPE_X_VS_TIME)
+	InitModelGen(ToInit,mName,mFuncs,"DNA WLC And Overstretching Fitter",X_HIGH_RES_SUFFIX,DEFLV_HIGH_RES_SUFFIX,mPreProc=mProc,mPlotType=PLOT_TYPE_X_VS_TIME)
 	// Load the predefined model stuff
 	Struct ModelDefines modDef 
 	modDef = GlobalDef.modV
