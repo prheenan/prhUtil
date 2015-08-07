@@ -2,3 +2,7 @@
 #pragma rtGlobals=3	
 
 #pragma ModuleName = XXX_REPLACE
+
+Static Function Main()
+
+End Function

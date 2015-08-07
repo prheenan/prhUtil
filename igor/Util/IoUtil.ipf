@@ -569,6 +569,13 @@ Static Function Toc(ticVal,[printTime])
 	return now
 End Function
 
+Static Function FileExists(mFile)
+	String mFile
+	// For flags, see get folder interactive.
+	GetFileFolderInfo /Q/Z=(GETFILEFOLDER_ONLYEXISTING) mFile
+	Return V_FLAG == GETFILEFOLDER_RETSUCESS
+End Functon
+
 Static Function GetFolderInteractive(NameReference)
 	// If user picks a folder, sets NameReference to it, returns true.
 	// Else (doesn't exist, user cancelled), returns false

@@ -3,6 +3,16 @@
 #include ":Defines"
 
 Constant CMPSTR_EQ = 0
+// V-143, You can add selector values to test more than one field at a time or pass -1 to compare all aspects.
+Constant EQUALWAVES_FULL = -1
+
+Static Function WavesAreEqual(WaveA,WaveB,[options])
+	Wave WaveA,WaveB
+	Variable options
+	options = ParamIsDefault(options)? EQUALWAVES_FULL : options
+	// XXX add in tolerance
+	return EqualWaves(WaveA,WaveB,options)	
+End Function
 
 Static Function EnsureTextWaveExists(StrName,[size])
 	String StrName
