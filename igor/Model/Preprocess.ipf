@@ -22,6 +22,58 @@ Static Constant PROC_NAME_SUFFIX_MAXLEN = 20
 Static Constant INTERPOLATE2_TYPE_LINEAR = 1
 Static Constant POLY_DEF_DEG = 20
 
+
+Structure ProcessStruct
+	// BAse directory
+	char baseDir[PROC_NAMEMAX]
+	// Following are preprocessing waves for text names
+	// "X" refers to the x values (e.g. separation, Zsnsr)
+	char XLowRes[PROC_NAMEMAX]
+	char XHighRes[PROC_NAMEMAX]
+	// "Y" refers to the y values (e.g. Force, Defl,DeflV)
+	char YLowRes[PROC_NAMEMAX]
+	char YHighRes[PROC_NAMEMAX]
+	// What the X and Y suffixes are. Must be et by 'FuncGetWaves'
+	char xLowResSuffix[PROC_NAME_SUFFIX_MAXLEN]
+	char xHighResSuffix[PROC_NAME_SUFFIX_MAXLEN]
+	char yLowResSuffix[PROC_NAME_SUFFIX_MAXLEN]
+	char yHighResSuffix[PROC_NAME_SUFFIX_MAXLEN]
+	// Same thing for Force and Sep
+	char ForceSuffix[PROC_NAME_SUFFIX_MAXLEN]
+	char SepSuffix[PROC_NAME_SUFFIX_MAXLEN]
+	// Force and Seapration Waves are populated by "FuncConvert"
+	char Force[PROC_NAMEMAX]
+	char Sep[PROC_NAMEMAX]	
+	// 'FuncGetWaves' is a a function which, given a list of waves, populates 
+	//XLowRes, XHighRes,YLowRes,YHighRes
+	// with a list of exisintg waves, where index I refers to the same experiment.
+	// Note: This does *not* create XHighRes (ie: does not interpolate), it *only*
+	// creates the wave. Interpolation is done below
+	// Follows prototype for "ProtoGetInputNames"
+	char FuncGetWaves[PROC_NAMEMAX]
+	// "FuncInterp" interpolates the low resolution waves into high resolution.
+	// Usually, this will just mean we interpolate the X (ie: Zsensor), since high
+	// resolution Y is already given
+	char FuncInterp[PROC_NAMEMAX]
+	// 'FuncOffset' is a Function which, given a time offset in seconds, aligns all the data.
+	// Follows prototype for 'ProtoAlignByOffset', uses current time offsets
+	// It *must* update the time offsets in this (to be the same, for use by the others)
+	char FuncOffset[PROC_NAMEMAX]
+	// 'FuncCorrect' is a function which corrects for the 'wiggles', given the offsets provided.
+	// Follows prototype for ProtoCorrect
+	char FuncCorrect[PROC_NAMEMAX]
+	// 'FuncConvert is a function which converts all the waves present here into 
+	// Force and Separation Waves, saving the names into ForceFinal and SepFinal
+	// Note that if baseDir is Present, it should copy the waves into baseDir.
+	char FuncConvert[PROC_NAMEMAX] 
+	// The parameter numebrs associated with the pre-processing parameters
+	char paramIdx[MAX_PREPROC_PARAMS]
+	// How many pre-processing parameters there are
+	char NPreProcParams
+	// True if pre-processing should happen
+	char PreProcessingRecquired
+EndStructure
+
 Function  ProtoGetInputNames(InWave,mProc)
 	Wave /T InWave
 	Struct ProcessStruct & mProc
@@ -125,13 +177,13 @@ Function ProtoCorrect(mProc,mParamObj,Index)
 	Variable t0Slow, t0Fast, tfSlow, tfFast
 	GetDefaultPreProc(mParamObj,t0Slow,t0Fast,tfSlow,tfFast)
 	// Correct the high-resolution force using the (converted to force) low resolution Y
-	Wave /T mYWavesLow = $(mProc.YLowRes)
+	Wave /T mYWavesToFit = $(mProc.YLowRes)
 	Wave /T mYWaveHIgh = $(mProc.Force)
 	// Convert the Y, whatever it is, into force for fitting.
 	// XXX check that Y isn't force?
-	Wave lowResY = $(mYWavesLow[index])
-	Make /O/N=(DimSize(lowResY,0)) ForceWaveToFit
-	ModCypherUtil#GetForceInferType(lowResY,ForceWaveToFit)
+	Wave yToFit = $(mYWavesToFit[index])
+	Make /O/N=(DimSize(yToFit,0)) ForceWaveToFit
+	ModCypherUtil#GetForceInferType(yToFit,ForceWaveToFit)
 	Wave ForceWaveToCorrect= $(mYWaveHIgh[index])
 	// get the indices
 	Variable idxInitFit = x2pnt(ForceWaveToFit,t0Slow)
@@ -284,57 +336,6 @@ Static Function LoadPreProc(mProc,mName)
 	// POST: wave exists
 	StructGet /B=(ModDefine#StructFmt()) mProc, $(mName)
 End Function
-
-Structure ProcessStruct
-	// BAse directory
-	char baseDir[PROC_NAMEMAX]
-	// Following are preprocessing waves for text names
-	// "X" refers to the x values (e.g. separation, Zsnsr)
-	char XLowRes[PROC_NAMEMAX]
-	char XHighRes[PROC_NAMEMAX]
-	// "Y" refers to the y values (e.g. Force, Defl,DeflV)
-	char YLowRes[PROC_NAMEMAX]
-	char YHighRes[PROC_NAMEMAX]
-	// What the X and Y suffixes are. Must be et by 'FuncGetWaves'
-	char xLowResSuffix[PROC_NAME_SUFFIX_MAXLEN]
-	char xHighResSuffix[PROC_NAME_SUFFIX_MAXLEN]
-	char yLowResSuffix[PROC_NAME_SUFFIX_MAXLEN]
-	char yHighResSuffix[PROC_NAME_SUFFIX_MAXLEN]
-	// Same thing for Force and Sep
-	char ForceSuffix[PROC_NAME_SUFFIX_MAXLEN]
-	char SepSuffix[PROC_NAME_SUFFIX_MAXLEN]
-	// Force and Seapration Waves are populated by "FuncConvert"
-	char Force[PROC_NAMEMAX]
-	char Sep[PROC_NAMEMAX]	
-	// 'FuncGetWaves' is a a function which, given a list of waves, populates 
-	//XLowRes, XHighRes,YLowRes,YHighRes
-	// with a list of exisintg waves, where index I refers to the same experiment.
-	// Note: This does *not* create XHighRes (ie: does not interpolate), it *only*
-	// creates the wave. Interpolation is done below
-	// Follows prototype for "ProtoGetInputNames"
-	char FuncGetWaves[PROC_NAMEMAX]
-	// "FuncInterp" interpolates the low resolution waves into high resolution.
-	// Usually, this will just mean we interpolate the X (ie: Zsensor), since high
-	// resolution Y is already given
-	char FuncInterp[PROC_NAMEMAX]
-	// 'FuncOffset' is a Function which, given a time offset in seconds, aligns all the data.
-	// Follows prototype for 'ProtoAlignByOffset', uses current time offsets
-	// It *must* update the time offsets in this (to be the same, for use by the others)
-	char FuncOffset[PROC_NAMEMAX]
-	// 'FuncCorrect' is a function which corrects for the 'wiggles', given the offsets provided.
-	// Follows prototype for ProtoCorrect
-	char FuncCorrect[PROC_NAMEMAX]
-	// 'FuncConvert is a function which converts all the waves present here into 
-	// Force and Separation Waves, saving the names into ForceFinal and SepFinal
-	// Note that if baseDir is Present, it should copy the waves into baseDir.
-	char FuncConvert[PROC_NAMEMAX] 
-	// The parameter numebrs associated with the pre-processing parameters
-	char paramIdx[MAX_PREPROC_PARAMS]
-	// How many pre-processing parameters there are
-	char NPreProcParams
-	// True if pre-processing should happen
-	char PreProcessingRecquired
-EndStructure
 
 Static Function InitProcStruct(mProc,ModelName,GetInputNames,[mInterp,AlignByOffset,Correct,Convert])
 	Struct ProcessStruct & mProc
