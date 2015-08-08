@@ -20,7 +20,7 @@ StrConstant DEFLV_HIGH_RES_SUFFIX =  "DeflV_Towd"
 // for interpolate2 in the help menu (on a MAC, Igor 6.37, 7/23/2015, size 12 shoe)
 Constant INTERPOLATE2_LINEAR = 1
 // Window for saving ruptures. Units of high bandwidth. e.g. if 5MHz, then N/5MHz is the amount of time saved
-Constant DEF_NUG2_WINDOW = 150
+Constant DEF_NUG2_WINDOW = 400
 // Indices for the ruptures
 Constant RUPTURE_OFFSET_0 = 4
 Constant RUPTURE_IDX_0 = 5
@@ -171,10 +171,11 @@ Function GetInputNamesNUG2(InWave,mProc)
 End Function
 
 // Save the four ruptures and the final rupture of a given wave
-Function SaveRupture(srcWave,ruptureIdx,mFolder,[windowAround])
-	Wave ruptureIdx,srcWave
-	String mFolder
+Function SaveRupture(srcWave,ruptureIdx,offsetIdx,mStruct,[windowAround])
+	Wave ruptureIdx,offsetIdx,srcWave
+	Struct ViewModelStruct & mStruct
 	Variable windowAround
+	String mFolder = mStruct.modelBaseOutputFolder
 	windowAround = ParamIsDefault(windowAround) ? DEF_NUG2_WINDOW : windowAround
 	Variable nRupt = DimSize(ruptureIdx,0)
 	Variable nPointsPerRupt = WindowAround*2
@@ -185,23 +186,35 @@ Function SaveRupture(srcWave,ruptureIdx,mFolder,[windowAround])
 	Wave /D allRupt = $mWaveName
 	Variable i
 	For (i=0; i<nRupt; i+=1)
-		Variable mIdx = ruptureIdx[i]
-		Duplicate /O/R=[mIdx-WindowAround,mIdx+WindowAround-1] srcWave tmpSaveRupt
+		Variable mIdxRupt = ruptureIdx[i]
+		Variable mIdxOff = offsetIdx[i] // XXX work this in later. may need variable sizes...
+		Duplicate /O/R=[mIdxRupt-WindowAround,mIdxRupt+WindowAround-1] srcWave tmpSaveRupt
 		allRupt[0,nPointsPerRupt-1][i] = tmpSaveRupt[p]
 	EndFor
-	ModIoUtil#SaveWaveDelimited(allRupt, mFolder,name=NameOfWave(srcWave) +".itx")
+	// relative to the start of the slice, where is the end of the rupture (ie: the offset for the next WLC)
+	offsetIdx -= ruptureIdx
+	offsetIdx += WindowAround
+	Make /O/N=(1,nRupt) mRuptIdxToFile
+	mRuptIdxToFile[][] = WindowAround 
+	Redimension /N=(1,nRupt) offsetIdx
+	Concatenate /NP=(0) {mRuptIdxToFile,offsetIdx},allRupt
+	ModIoUtil#SaveWaveDelimited(allRupt, mFolder,name=mStruct.mExp + "_" + NameOfWave(srcWave) +".itx")
 	KillWaves /Z tmpSaveRupt
 End Function
 
-Function /Wave CreateRuptureIdx(fitParameters)
+Function /Wave CreateRuptureIdx(fitParameters,mRuptIdx,mOffIdx)
 	Struct ParamObj & fitParameters
+	Wave mRuptIdx,mOffIdx
 	// XXX todo
-	Make /O mRuptIdx  =  {RUPTURE_IDX_0,RUPTURE_IDX_1,RUPTURE_IDX_2 ,RUPTURE_IDX_3, RUPTURE_IDX_FINAL}
+	mRuptIdx  =  {RUPTURE_IDX_0,RUPTURE_IDX_1,RUPTURE_IDX_2 ,RUPTURE_IDX_3, RUPTURE_IDX_FINAL}
+	Variable nRupt = DimSIze(mRuptIdx,0)
+	Redimension /N=(nRupt) mOffIdx
+	mOffIdx[] =  mRuptIdx[p] + 1 // offsets for the next are right after the ruptures.
 	// overwrite the rupture indices with their actual indices in the data
 	Variable i
-	Variable nRupt = DimSIze(mRuptIdx,0)
 	for (i=0; i<nRupt; i+=1)
 		mRuptIdx[i] = fitParameters.params[mRuptIdx[i]].pointIndex
+		mOffIdx[i] = fitParameters.params[mOffIdx[i]].pointIndex
 	EndFor
 	// return the array we want
 	return mRuptIdx
@@ -212,16 +225,17 @@ Function NUG2Fit(xRef,yRef,fitParameters,mStruct)
 	String xRef,yRef
 	Struct ParamObj & fitParameters
 	Struct ViewModelStruct & mStruct
-	String mName = yRef + "UnfoldAndRupt"
+	String mName = yRef + "_"
 	Duplicate /O $(yRef) $mName
 	Wave srcWave = $mName
 	// do the initial y offset and flip
 	Variable mYOffset = srcWave[fitParameters.params[RUPTURE_OFFSET_0].pointIndex]
 	srcWave -= mYOffset
 	srcWave *= -1
-	String mFolder = mStruct.modelBaseOutputFolder
-	Wave mRupt = CreateRuptureIdx(fitParameters)
-	SaveRupture(srcWave,mRupt,mFolder)
+	Make /O/N=0 mRupt
+	Make /O/N=0 mOff
+	CreateRuptureIdx(fitParameters,mRupt,mOff)
+	SaveRupture(srcWave,mRupt,mOff,mStruct)
 	KillWaves /Z mRupt,srcWave
 End Function
 

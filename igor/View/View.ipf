@@ -851,6 +851,9 @@ Function HandleAnalyzeButton(BTN_Struct) : ListboxControl
 			// loop through all the analysis folders
 			for (i=0; i< nFolders; i +=1)
 				String mFolder  = ModIoUtil#GetDataFolderAtIndex(allTracePath,i)
+				// Save the experiment name
+				// XXX we assume this is the same as the folder name
+				mStruct.mExp = mFolder
 				String thisPath = ModIoUtil#AppendedPath(allTracePath,mFolder)
 				AnalyzeAll(thisPath,analysisFuncs,mStruct)
 			EndFor
