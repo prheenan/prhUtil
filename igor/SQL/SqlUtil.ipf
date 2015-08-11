@@ -11,7 +11,10 @@ StrConstant SCHEMA_NAME = "INFORMATION_SCHEMA"
 StrConstant CONNECT_STR = "DSN=localhost;UID=root"
 StrConstant SQL_EMPTY_APPEND = ""
 // String to get last ID from *current* session (ie: current insert(
-StrConstant APPEND_LASTSCOPE_ID = ";\n SELECT SCOPE_IDENTITY()"
+StrConstant APPEND_LASTSCOPE_ID = "SELECT LAST_INSERT_ID();"
+// Connection specified by SqlConnect.
+// If connectionRefNum is -1, it acts as if the /CONN flag were omitted.
+Constant SQL_NO_CONN_SPECIFIED = -1
 
 //  Simple select statement: http://www.tutorialspoint.com/mysql/mysql-select-query.htm
 Static StrConstant SimpleSelectRegex = "Select %s from %s.%s"
@@ -87,6 +90,7 @@ End Function
 Static Function SqlStmtGenericWaves(mStatement,[InWaves,OutWaves])
 	String mStatement
 	String InWaves,OutWaves
+	Variable conn
 	// SQLHighLevelOp Flags (see Sql Help.ihf in the help menu):
 	// /O: overwrites if it exists
 	// /PLST=<semicolon list>, specifies input waves matching in-order the "?" in the statemet
@@ -191,8 +195,24 @@ Static Function /S WaveToColStr(mWave)
 	return ModSqlUtil#ToSqlStr(mWave,ModDefine#False())
 End Function
 
-Static Function /S GetAppendStringLastID()
-	return APPEND_LASTSCOPE_ID
+Static Function  GetLastInsertedID(mTab,mIdFieldNAme)
+	// make a single-wave to get the ID
+	// False: don't add quotes
+	String mTab
+	String mIdFieldNAme
+	// first column is ID
+	String mCol = "MAX(" + mIdFieldNAme + ")"
+	// Select the maximum if from <db>.<tablename>
+	// Note: this does *not* account for race conditions. should/could
+	// come up with a smarter way of dealing with this.
+	String mStatement
+	sprintf mStatement,SimpleSelectRegex,mCol,GetDb(),mTab
+	String mOutWave = "tmpID" + mTab 
+	SqlStmtGenericWaves(mStatement,outWaves=mOutWave + SQL_WAVE_SEP)
+	Wave mWave = $mOutWave
+	Variable toRet = mWave[0]
+	KillWaves /Z mWave
+	return toRet
 End 
 
 Static Function InsertValue(mQuery)
@@ -224,7 +244,6 @@ Static Function InsertStringRow(mTab,mCols,mVals)
 	String strValue= ModSqlUtil#ToSqlStr(mVals,ModDefine#True())
 	// Kill the waves we made. This is against passing is ownership, but extremely useful
 	InsertFormatted(mTab,mCols,strValue)
-	KillWaves /Z mVals,mCols
 End Function
 
 Static Function InsertFormatted(mTab,mCols,strVal,[appendString])
@@ -240,7 +259,6 @@ Static Function InsertFormatted(mTab,mCols,strVal,[appendString])
 	ModSqlUtil#InitQueryWithKnownStr(mQuery,mTab,mCols,strVal,appendString=appendString)
 	// POST: mQuery is set up, exeute it 
 	Variable toRet = ModSqlUtil#InsertValue(mQuery)
-	KillWaves /Z mCols
 	return toRet
 End Function
 

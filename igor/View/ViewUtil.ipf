@@ -32,12 +32,15 @@ Constant EVENT_HANDLED = 1
 Constant EVENT_NOT_HANDLED = 0
 // Popup constants. V-503: on mode of 0, title is in popupmenu
 Constant EVENT_POPUP_MOUSEUP = 2
-Constant POPUP_MENU_TITLE_MODE = 1
+Constant POPUP_MENU_TITLE_MODE = 1 
+Constant POPUP_ENABLE = 0 // Editability Normal.
+Constant POPUP_DISABLE = 2 // Draw in gray state; disable control action
 Constant LISTBOX_HEIGHT_REL = 0.35, LISTBOX_WIDTH_REL =0.4, graphWidth = 0.4, graphHeight = 0.4
 // Relative meta params height and width
 Constant META_WIDTH_REL = 0.3
 Constant BUTTON_HEIGHT_REL = 0.05
 Constant SETVAR_HEIGHT_REL = 0.05
+Constant SETVAR_WIDTH_REL = 0.05
 Constant SETTER_HEIGHT_REL = 0.9
 Constant SETTER_WIDTH_REL = 0.5
 // Constants related to view
@@ -47,7 +50,7 @@ Constant nMeta =  4
 // Types for setvariable: numeric and string
 Constant SETVAR_TYPE_NUMERIC = 1
 Constant SETVAR_TYPE_STRING = 2
-
+// LISTBOX_SEP 
 StrConstant VIEW_PARAM_FMT = "Param%d"
 StrConstant VIEW_SETVAR_STR = "_STR:tmp"
 StrConstant VIEW_SETVAR_NUM = "_NUM:tmp"
@@ -353,6 +356,22 @@ Static Function MakeSetVariable(panelName,mTitle,helpStr,x,y,width,height,mProc,
 		SetVariable $(panelName) proc=$(mFuncName)
 End Function
 
+Static Function SetPopupValue(popupName,mVal)
+	String popupName,mVal
+	// According to V-506, we need this for a function call
+	PopupMenu $(popupName) value=#("\"" + mVal + "\"")
+End Function
+
+Static Function EnablePopup(popupName)
+	String popupName
+	PopupMenu $(popupName) disable=(POPUP_ENABLE)
+End Function
+
+Static Function DisablePopup(popupName)
+	String popupName
+	PopupMenu $(popupName) disable=(POPUP_DISABLE)
+End Function
+
 Static Function MakePopupMenu(panelName,mTitle,helpStr,x,y,width,height,mProc,mStr,[wAbs,hAbs,format,font,userdata])
 		// NOte: mStr is a *function* returning a list of semi-colon separated list
 		// See: MAkeSetVariable
@@ -387,8 +406,7 @@ Static Function MakePopupMenu(panelName,mTitle,helpStr,x,y,width,height,mProc,mS
 		PopupMenu $(panelName) pos={x,y},size={width,height}
 		// XXX sanitize string?
 		String mVal = mStr()
-		// According to V-506, we need this for a function call
-		PopupMenu $(panelName) value=#("\"" + mVal + "\"")
+		SetPopupValue(panelName,mVal)
 		// Set the userdata to the parameter number, if it exists
 		if (!ParamIsDefault(userdata))
 			PopupMenu $(panelName) userdata=num2str(userdata)
@@ -490,27 +508,6 @@ Static Function SetPopupColumn(panels,names,helpStr,mOptFuncs,startXRel,startyRe
 		FuncRef PopupMenuListProto mFunc = $(mOptFuncs[i])
 		ModViewUtil#MakePopupMenu(panels[i],names[i],helpStr[i],xRel,yRel,widthRel,heightRel,commonHandle,mFunc,wAbs=wabs,hAbs=habs,userdata=userdata[i])
 	EndFor
-End Function
-
-Static Function /S GetDefinedMolecules()
-	// XX use a sql call
-	 String Molecules = "CircularDNA;Proteins;"
-	 return Molecules
-End Function
-
-Static Function /S GetDefinedSamplesIDs()
-	String SampleID = "TODO" //Created:2015-06-04,Deposited:2015-06-16,130nguL;Created 2015-06-30,Desposited:2015-07-01,130nguL;"
-	return SampleID
-End Function
-
-Static Function /S GetDefineTipTypes()
-	String TipType = "Long;Mini;"
-	return TipType
-End Functio
-
-Static Function /S GetTipID()
-	 String TipID = "Created:2015-06-04;Created:2016-06-04;"
-	return TipID
 End Function
 
 Static Function GetScreenWidthHeight(width,height,[mOpt])

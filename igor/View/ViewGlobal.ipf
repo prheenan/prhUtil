@@ -5,6 +5,7 @@
 #include "::Util:CypherUtil"
 #include ":ViewUtil"
 #include "::MVC_Common:MvcDefines"
+#include "::Util:DataStructures"
 #include"::Model:PreProcess"
 #pragma ModuleName = ModViewGlobal
 
@@ -218,7 +219,7 @@ Static Function ExperimentAlreadyLoaded(mData,experimentSource)
 	String experimentSource
 	// is the source already in the source waves?
 	Wave /T mSrc = $(mData.AllExpSrc)
-	return ModIoUtil#TextInWave(experimentSource,mSrc)
+	return ModDataStruct#TextInWave(experimentSource,mSrc)
 End Function 
 
 Static Function /S GetExperimentMetaName(mData)
@@ -668,7 +669,7 @@ Static Function FindPreProcIndexForStub(mProc,mStub)
 	Variable mIndex
 	Wave /T mStubsWave = $(mProc.YLowRes)
 	String fullYLowRes = mStub + mProc.yLowResSuffix
-	if (!ModIoUtil#TextInWave(fullYLowRes,mStubsWave,index=mIndex))
+	if (!ModDataStruct#TextInWave(fullYLowRes,mStubsWave,index=mIndex))
 		String mErr
 		sprintf mErr,"Couldn't find stub %s\r",mStub
 		ModErrorUtil#DevelopmentError(description=mErr)

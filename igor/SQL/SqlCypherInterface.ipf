@@ -18,13 +18,14 @@ StrConstant SQL_DEF_STR = "<Default>"
 // Defaults for numeric / id 
 Constant SQL_DEF_NUMERIC = 0
 Constant SQL_DEF_ID = -1
+// Bad ID: can't be 0
+Constant SQL_BAD_ID  = 0
 
 Static Function /S SQL_DEF_DATE()
 	return ModSqlUtil#ToSqlDate(DateTime)
 End Function
 
 Structure SqlHandleObj
-	String mRef
 	String mTableName
 EndStructure
 
@@ -65,10 +66,24 @@ Static Function /S GoToTableDirGetOriginal(mTab)
 	return toRet
 End Function
 
-Static Function getCurrentIdOfTable(mTab)
+Static Function GetIdOfRowAtIndex(mTab,index)
 	String mTab
-	// XXX TODO: return current ID of the table specified
-	return 0 
+	Variable index
+	// First, get the name of the ID
+	Wave /T mFieldsForID = ModSqlCypherAutoDefines#GetColByTable(mTab)
+	// Next, get just the ID field (assumed the first)
+	// XXX check we are in range?
+	String mIDName = mFieldsForID[0]
+	// Get the path to the wave
+	String mIDRef = GetFieldWaveName(mTab,mIdName)
+	ModErrorUtil#WaveExistsOrError(mIDRef)
+	// POST: wave exists
+	Wave mIdWave = $(mIDRef)	
+	Variable n = DimSize(mIdWave,0)
+	ModErrorUtil#AssertLT(index,n)
+	// POST: index < n
+	KillWaves /Z mFieldsForID
+	return mIdWave[index]
 End Function
 
 Static Function ReturnToOriginal(orig)
@@ -95,8 +110,9 @@ Static Function InitSqlModule()
 	// Set up all the datafolders
 	InitSqlDataFolders()
 	// Set up a blank sql ID table
+	// (ie: write the wave)
 	Struct SqlIdTable mStruct
-	LoadGlobalIdStruct(mStruct)
+	SaveGlobalIdStruct(mStruct)
 	// Determine the 'starting' values for all the non-dependent
 	// sql tables
 	GetStartingValues()
@@ -165,38 +181,26 @@ End Function
 // If newId is true, then clears out the dependencies, then updated the vview
 // if newId is false, then selecrtss new data for the dependences, then updates the view
 // defaults to newID is false ('safer', but slower -- always gets the correct information)
-Static Function SetIdAndUpdateView(mTable,id,[newID])
-	String mTable
-	Variable id
-	Variable newID
-	newID = ParamIsDefault(newID) ? ModDefine#False() : newId
-	// Get the ID structure
-	Struct SqlIdTable mStruct
-	LoadGlobalIdStruct(mStruct)
-	// Get all the tables
-	Wave /T tmpAllTable = ModSqlCypherAutoDefines#getAllTables()
-	Variable nTables =  DimSize(tmpAllTable,0)
-	// Make waves to store what was cleared; need to
-	//  Update things which depend on us
-	// Two scenarios:
-	// (1) Selected an existing id (need Sql Update)
-	// (2) Selected a new Id, not in the database (disable any dependencies)
-	// Set the ID for the table to its new value
-	ModSqlCypherAutoDefines#SetId(mStruct,mTable,id)
+Static Function UpdateDependenciesFromSql(mTable,mIDs,[newID])
 	// Check if we are cleared after
+	String mTable
+	Struct SqlIdTable & mIds
+	Variable newID
+	newId = ParamIsDefault(newID) ? ModDefine#False(): newId
 	Wave /T mDependencies = ModSqlCypherAutoDefines#GetWhatDependsOnTable(mTable)
 	Variable i, n=DimSize(mDependencies,0)
 	for (i=0; i<n; i+=1)
+		String mTmpTable = mDependencies[i]
 		if (newID)
 			// Clear *all* dependencies
-			ClearTable(mDependencies[i])		
+			ClearTable(mTmpTable)		
 		else
-			// Select into cleared dependencies			
-			
+			// Select into only *cleared* dependencies			
+			if (	DependenciesCleared(mTmpTable,mIds))
+				SelectIntoLocalWaveStructs(mTmpTable,mIds)	
+			EndIf
 		endIf
 	EndFor
-	// Note: we *must* save the SqlIdTable for state to persist
-	SaveGlobalIdStruct(mStruct)
 	KillWaves /Z tmpAllTable,clearedBefore,clearedAfter,mDependencies
 End Function
 
@@ -213,14 +217,15 @@ Static Function /S GetWhereStmtBasedOnDependencies(mTab,mStruct)
 	String toRet =""
 	Wave /T mDep = ModSqlCypherAutoDefines#GetDependencies(mTab)
 	Variable i, n=DimSize(mDep,0)
-	String tmp,mFormat = "%s.%s=%d AND "
+	String tmp,mFormat = "%s.%s=%d ",tmpDependency
 	// get all the tables needed
 	for (i=0; i<n; i+=1)
 		// start with a "WHERE"
 		if (i ==0 )
 			toRet += "WHERE "
 		EndIf
-		sprintf tmp,mFormat,mTab,GetIdNameOfTable(mDep[i]),ModSqlCypherAutoDefines#GetId(mStruct,mTab)
+		tmpDependency= mDep[i]
+		sprintf tmp,mFormat,mTab,GetIdNameOfTable(tmpDependency),ModSqlCypherAutoDefines#GetId(mStruct,tmpDependency)
 		toRet += tmp
 		// add 'and' statements to brige
 		if (i != n-1)
@@ -231,15 +236,9 @@ Static Function /S GetWhereStmtBasedOnDependencies(mTab,mStruct)
 End Function
 
 // populates the local waves for mtab by making a sql call.
-Static Function SelectIntoLocalWaveStructs(mTab,[mStruct])
+Static Function SelectIntoLocalWaveStructs(mTab,toUse)
 	String mTab
-	Struct SqlIdTable & 	mStruct
-	Struct SqlIdTable toUse
-	if (ParamIsDefault(mStruct))
-		LoadGlobalIdStruct(toUse)
-	else
-		toUse = mStruct
-	EndIf
+	Struct SqlIdTable & toUse
 	// Get all the columns for this wave
 	Wave /T mCols =  ModSqlCypherAutoDefines#GetColByTable(mTab)
 	Variable nCols = DimSize(mCols,0)
@@ -254,6 +253,7 @@ Static Function SelectIntoLocalWaveStructs(mTab,[mStruct])
 End for
 
 // Get all the starting values for waves without dependencies
+// PRE: SqlIdTable must exist
 Static Function GetStartingValues()
 	Wave /T tmpAllTable = ModSqlCypherAutoDefines#getAllTables()
 	// determine which tables have no dependencies
@@ -264,11 +264,14 @@ Static Function GetStartingValues()
 	Variable i
 	Wave /T mCols
 	String mTab
+	// Get the starting sql id table
+	Struct SqlIdTable mStruct
+	LoadGlobalIdStruct(mStruct)
 	// Loop through each pre-populatable table, get all the waves we neeed.
 	for (i=0; i<nPreProp;i +=1)
 		// Get out table name
 		mTab = tmpNoDependencies[i]
-		SelectIntoLocalWaveStructs(mTab)
+		SelectIntoLocalWaveStructs(mTab,mStruct)
 	EndFor
 	KillWaves tmpAllTable,tmpNoDependencies
 End Function
@@ -408,31 +411,35 @@ Static Function AddToFIeldWaveGen(mWaveRef,isNum,strToAdd,numToAdd)
 		EndIF
 	EndIf
 	// POST: wave 'mWaveRef' Exists. Add a single point, which we populate
-	Variable locToAdd = 0
+	Variable nPoints = DimSize($mWaveRef,0) // Add at the very end (before point N+1)
 	Variable nToAdd = 1
 	// Because even igor's waves cant be typed in a reasonable way,
-	// we have to have both brankes in a different loop
+	// we have to have both breaks in a different loop
 	if (!isNum)
-		Wave /T tmpRef =$mWaveRef 
-		InsertPoints (locToAdd),(nToAdd),tmpRef
-		tmpRef[0] = strToAdd
+		Wave /T tmpRefStr =$mWaveRef 
+		Redimension /N=(nPoints+1) tmpRefStr
+		// add at index N (point N+1)
+		tmpRefStr[nPoints] = strToAdd
 	else
-		Wave numRef = $mWaveRef
-		InsertPoints (locToAdd),(nToAdd),numRef
-		numRef[0] = numToAdd
+		Wave tmpRefNum =$mWaveRef 
+		Redimension /N=(nPoints+1) tmpRefNum
+		tmpRefNum[nPoints] = numToAdd
 	EndIf
+	KillWaves /Z tmpNumAdd,tmpStrAdd
 End Function
 
 Static Function AddToFIeldWaveTxt(mWave,strtoAdd)
 	String mWave,strtoAdd
 	// Get the wave reference
+	// False: not a num referene
 	AddToFIeldWaveGen(mWave,ModDefine#False(),strToAdd,ModDefine#False())
 End Function
 
 Static Function AddToFIeldWaveNum(mWave,numToAdd)
 	String mWave
 	Variable numToAdd
-	AddToFIeldWaveGen(mWave,ModDefine#False(),"",numToAdd)
+	// True: is numeric
+	AddToFIeldWaveGen(mWave,ModDefine#True(),"",numToAdd)
 End Function
 
 // Returns if sqlType is in one of the numeric types.
@@ -460,8 +467,8 @@ Static Function GetCurrentForeignKey(mFieldName)
 	// PRE: mFieldName goes like 'id<table>', where table is where the
 	// foreign key comes from
 	String mFieldName
-	// 'id' is the first two characters
 	String mTabName
+	// Get the table from from the foreign key name
 	if (IdNameToTableName(mFieldName,mTabName))
 		// then mTabNAme is set
 		// Get the ID structure
@@ -591,8 +598,10 @@ Static Function GetNameDescr(tabName,mDesc,index)
 	// Check that the index is in range
 	ModErrorUtil#AssertLT(index,n1)
 	// POST: index is in range, wave exists
-	mDesc.name = mNameWave[index]
-	mDesc.description = GetDescrIfExists(tabName,index)
+	String mNameStr = mNameWave[index]
+	String mDescStr =  GetDescrIfExists(tabName,index)
+	mDesc.name = mNameStr
+	mDesc.description = mDescStr
 	// POST: mDesc is correct.
 End Function
 
@@ -601,26 +610,35 @@ Static Function /S GetFormattedStr(mStr,mNum,mTypes)
 	Wave mNum,mTypes
 	Variable i
 	Variable n  = DimSize(mNum,0)
-	String toRet, tmp
+	String toRet ="", tmp
 	for (i=0; i<n; i +=1)
 		if (IsNumericType(mTypes[i]))
 			sprintf tmp,"%.15g",mNum[i]
 		Else
 			sprintf tmp,"'%s'",mStr[i]
 		EndIf
-		toRet += tmp + SQL_QUERY_SEP
+		toRet += tmp 
+		// Add the separator if there are more.
+		if (i < n-1)
+			toRet += SQL_QUERY_SEP
+		EndIf
 	EndFor
 	return toRet
+End Function
+
+Static Function /S GetMenuDefaults(mTab)
+	String mTab
+	return "None Selected" + LISTBOX_SEP_ITEMS
 End Function
 
 // Handle a general menu (ie: get the things to display in the menu)
 Static Function /S HandleMenu(mTab)
 	String mTab
-	String mSep = ";" // popupmenu recquires a semicolon
+	String mSep = LISTBOX_SEP_ITEMS // popupmenu recquires a semicolon
 	String mNamePath = GetFieldWaveName(mTab,FIELD_Name)
 	// Checking the list population
 	Variable mTime = dateTime
-	String toRet = "None Selected;"
+	String toRet = GetMenuDefaults(mTab)
 	if (!WaveExists($mNamePath))
 		return toRet
 	EndIF	
@@ -638,7 +656,9 @@ Static Function /S HandleMenu(mTab)
 	return toRet
 End Function
 
-Function SqlHandler(mStr,mNum,mHandler)
+// Handle one of the add functions
+// Note: does *not* set the ID, as the downstream functions will do that
+Function AddToSqlHandler(mStr,mNum,mHandler)
 	Wave /T mStr
 	Wave /D mNum
 	Struct SqlHandleObj & mHandler
@@ -652,19 +672,22 @@ Function SqlHandler(mStr,mNum,mHandler)
 	Wave mTypes = ModSqlCypherAutoDefines#GetTypesByTable(tabName)
 	// For insertion and deletion, just want after the id, which we assume is first
 	Variable idxID = 0
-	Duplicate /T/R=[idxID+1,Inf] mCols, mColsWithoutId
-	Duplicate /R=[idxID+1,Inf] mTypes,mTypesWithoutId
-	Duplicate /T/R=[idxID+1,Inf] mStr,mStrWithoutID
-	Duplicate /R=[idxID+1,Inf] mNum,mNumWithoutID
+	// /O: overwrite
+	// /T: text
+	// /R: slice indices to copy
+	Duplicate /O/T/R=[idxID+1,Inf] mCols, mColsWithoutId
+	Duplicate /O/R=[idxID+1,Inf] mTypes,mTypesWithoutId
+	Duplicate /O/T/R=[idxID+1,Inf] mStr,mStrWithoutID
+	Duplicate /O/R=[idxID+1,Inf] mNum,mNumWithoutID
 	// Get the types
 	// XXX assert the lengths of mStr and mNum are equal?
 	Variable i, n=DimSize(mStr,0), tmpType
 	// Get the insert statement
 	String mInsert = GetFormattedStr(mStrWithoutId,mNumWithoutId,mTypesWithoutId)
 	// Push to Sql, return the ID
-	String appendString = ModSqlUtil#GetAppendStringLastID()
-	Variable mID = ModSqlUtil#InsertFormatted(tabName,mColsWithoutId,mInsert,appendString=appendString)
-	// Add the ID
+	ModSqlUtil#InsertFormatted(tabName,mColsWithoutId,mInsert)
+	Variable mID = ModSqlUtil#GetLastInsertedID(tabName,mCols[0])
+	// Add the ID to the object
 	mNum[idxID] = mID
 	// POST: Sql was sucesseful
 	// Add to the global object
@@ -680,12 +703,6 @@ Function SqlHandler(mStr,mNum,mHandler)
 			ModSqlCypherInterface#AddToFIeldWaveTxt(pathToField,mStr[i])		
 		EndIf
 	EndFor
-	// POST: we added the field to the global object.
-	// Get the global struct, set the ID for this table
-	Struct SqlIdTable mStruct
-	LoadGlobalIdStruct(mStruct)
-	// set the ID for this table.
-	ModSqlCypherAutoDefines#SetId(mStruct,tabName,mNum[idxId])
-	SaveGlobalIdStruct(mStruct)
+	KillWaves /Z mTypes,mTypesWithoutId,mStrWithoutID,mNumWithoutID
 End Function
 

@@ -88,7 +88,8 @@ def linModel(xData,a,b):
     # y = ax+b
     return xData*a+b
 
-def fitInfo(x,y,units,model=linModel,varStr=['a','b'],modelStr="y=a*x+b"
+def fitInfo(x,y,units=['',''],model=linModel,varStr=['a','b'],
+            modelStr="y=a*x+b"
             ,degFit=1,fmtStr=".3g",full=False,simplify=True,**kwargs):
     # get all the information you could want about the fit.
     # XXX TODO: add in support for non linear models.
@@ -152,7 +153,6 @@ def getSanitaryPath(path,includeSep = True):
     else:
         # dont include the separator
         return toRet
-
 
 def getFileFromPath(path):
     return ntpath.basename(path)

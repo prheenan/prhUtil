@@ -20,6 +20,11 @@ ARCHFLAGS="-arch x86_64" # Ensure user-installed binaries take precedence expor
 PATH=/usr/local/bin:/usr/local/mysql/bin/:$PATH # Load .bashrc/mysql if it exists
 utilDir="/Users/patrickheenan/utilities/"
 
+bootcamp()
+{
+    cd /Users/patrickheenan/Documents/education/boulder_files/administrative/bootcamp_2015/code/IqBioBootcamp2015/
+}
+
 extra()
 {
     cd /Users/patrickheenan/Documents/education/boulder_files/3_summer_2014/prep_physics

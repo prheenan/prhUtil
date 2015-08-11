@@ -13,6 +13,8 @@
 #include "::Model:Model"		
 #include ":ViewUtil"
 #include ":ViewGlobal"
+// Include ViewSetter, which dynamically sets the SQL values the user wans
+#include ":ViewSetter"
 // Constants for the common handler of meta information
 Static Constant HANDLE_META_REGEX = 0
 Static Constant HANDLE_META_SET_X = 1
@@ -388,7 +390,7 @@ Static Function UpdateParam(mPoint,paramID)
  	if (!DataFolderExists(mFolder))
  		// Need to make this folder
  		// DO *not* switch to it (no need)
- 		NewDataFolder $mFolder
+ 		ModIoUtil#EnsurePathExists(mFolder)
  	endIf
  	 if (!WaveExists($mMetaDataPath))
  		// Create the meta data folder
@@ -549,22 +551,11 @@ Static Function CreatePanel()
 	ModViewUtil#MakeButton("MarkLoad","Load Previously Analyzed Curves","Loads curves you have previously marked",0,BUTTON_HEIGHT_REL,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleLoadMarked,hAbs=habs,wAbs=wAbs)
 	ModViewUtil#MakeButton("ExpLoad","Load Single PXP file","Load a new Asylum Experimental (.pxp) File",0,2*BUTTON_HEIGHT_REL,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleLoadExp,habs=hAbs,wAbs=wAbs)
 	ModViewUtil#MakeButton("FolderLoad","Load a folder as a single experiment","Loads a series of data files (e.g. ibw,itx,pxp) from a single folder, interpreting it as a single experiment. Useful for post-processing",0,3*BUTTON_HEIGHT_REL,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleLoadFolder,habs=hAbs,wAbs=wAbs)
-	 // XXX make all of this more general, should query SQL
-	 // Molecule type determines sample ID
-	 // Should be able to add more.
-	 // Make a box for the molecule type
-	 // Meta information about the tips and sample
-	 // Add list box information for the molecule type and ID 
-	 // The y has to account for the buttons and the set variables.
-	 Variable startYRel = BUTTON_HEIGHT_REL*(NLoadBUttons +nMeta )
-	 Make /O/T panels = {"MolType","MolID","TipType","TIpID"}
-	 Make /O/T names= {"Molecule Used","Molecule ID","Tip Type","Tip Id"}
-	 Make  /O/T helpStr = {"Pick the Molecule you used","Pick the sample you used","Pick the Tip Type (e.g. Long, Mini)","Pick the tip you used"}
-	 Make /O/T mOptFuncs = {"ModViewUtil#GetDefinedMolecules","ModViewUtil#GetDefinedSamplesIDs","ModViewUtil#GetDefineTipTypes","ModViewUtil#GetTipID"}
-	 Make /O userData = {HANDLE_META_SAMPLETYPE,HANDLE_META_SAMPLEID,HANDLE_META_TIPTYPE,HANDLE_META_TIPID}
-	 ModViewUtil#SetPopupColumn(panels,names,helpStr,mOptFuncs,0,startYRel,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleMetaPopup,wabs,habs,userdata)
+	// Add the sql setters (meta information about traces)
+	 Variable startYRel = BUTTON_HEIGHT_REL*(nLoadButtons+nMeta)
+	  ModViewSetter#InitSqlSetter(mData.WindowName,0,startYRel,META_WIDTH_REL,SETTER_DEF_HEIGHT,SETVAR_WIDTH_REL,wAbs,hAbs)
 	 // update where the Y should start
-	 startYRel += BUTTON_HEIGHT_REL * DimSize(Panels,0)
+	  startYRel += SETTER_DEF_HEIGHT
 	 ModViewUtil#MakeButton("ToggleX","Toggle X Axis","Toggle X Axis between time and separation",0,startYRel,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleToggleX,habs=hAbs,wAbs=wAbs)
 	 startYRel += BUTTON_HEIGHT_REL 
 	ModViewUtil#MakeButton("SetSaveDir","Save Marked Curves","Set where to save marked curves as tsv: [time,sep,force]",0,startYRel,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleSaveMarked,habs=hAbs,wAbs=wAbs)

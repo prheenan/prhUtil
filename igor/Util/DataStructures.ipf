@@ -14,6 +14,27 @@ Static Function WavesAreEqual(WaveA,WaveB,[options])
 	return EqualWaves(WaveA,WaveB,options)	
 End Function
 
+Static Function TextInWave(Needle,HayStack,[index])
+	String Needle
+	Wave /T HayStack
+	// set the index *value* (pass by reference) if we want it)
+	Variable & index
+	// V-182: FindVaule sets V_Value to -1 if it is not found
+	FindValue /TEXT=(Needle) HayStack
+	if (!ParamIsDefault(index))
+		index = V_Value
+	EndIf
+	// if V_Value>=0, then the index was found
+	return V_Value >=0
+End Function
+
+Static Function /Wave ExtractSetTextIntersection(WaveA,WaveB)
+	Wave /T WaveA
+	Wave /T WaveB
+	Extract WaveA, mSetIntersect, TextInWave(WaveA,WaveB)
+	return mSetIntersect
+End Function
+
 Static Function EnsureTextWaveExists(StrName,[size])
 	String StrName
 	Variable Size

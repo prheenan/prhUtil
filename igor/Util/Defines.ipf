@@ -19,6 +19,7 @@ Constant STRUCT_BYTE_IO = 2
 // true and False, which aren't defined for some reason...
 Constant DEF_TRUE = 1
 Constant DEF_FALSE = 0
+StrConstant LISTBOX_SEP_ITEMS = ";"
 
 Structure Defines
 	// string separator for a list
