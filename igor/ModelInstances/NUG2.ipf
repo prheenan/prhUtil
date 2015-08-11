@@ -20,7 +20,8 @@ StrConstant DEFLV_HIGH_RES_SUFFIX =  "DeflV_Towd"
 // for interpolate2 in the help menu (on a MAC, Igor 6.37, 7/23/2015, size 12 shoe)
 Constant INTERPOLATE2_LINEAR = 1
 // Window for saving ruptures. Units of high bandwidth. e.g. if 5MHz, then N/5MHz is the amount of time saved
-Constant DEF_NUG2_WINDOW = 400
+Constant DEF_NUG2_WINDOW_AFTER_RUPT = 400
+Constant DEF_NUG2_WINDOW_BEFORE_RUPT = 30000
 // Indices for the ruptures
 Constant RUPTURE_OFFSET_0 = 4
 Constant RUPTURE_IDX_0 = 5
@@ -171,31 +172,30 @@ Function GetInputNamesNUG2(InWave,mProc)
 End Function
 
 // Save the four ruptures and the final rupture of a given wave
-Function SaveRupture(srcWave,ruptureIdx,offsetIdx,mStruct,[windowAround])
+Function SaveRupture(srcWave,ruptureIdx,offsetIdx,mStruct)
 	Wave ruptureIdx,offsetIdx,srcWave
 	Struct ViewModelStruct & mStruct
-	Variable windowAround
 	String mFolder = mStruct.modelBaseOutputFolder
-	windowAround = ParamIsDefault(windowAround) ? DEF_NUG2_WINDOW : windowAround
 	Variable nRupt = DimSize(ruptureIdx,0)
-	Variable nPointsPerRupt = WindowAround*2
+	Variable nPointsPerRupt = DEF_NUG2_WINDOW_BEFORE_RUPT+DEF_NUG2_WINDOW_AFTER_RUPT
 	// Add an underscore to prevent evil name conflicts
 	// XXX fix? Just use uniquename?
 	String mWaveName = NameOfWave(srcWave) + "_"
 	Make /O/N=(nPointsPerRupt,nRupt) $mWaveName
 	Wave /D allRupt = $mWaveName
 	Variable i
+	Variable nPointsBefore = DEF_NUG2_WINDOW_BEFORE_RUPT
+	Variable nPointsAfter = DEF_NUG2_WINDOW_AFTER_RUPT
 	For (i=0; i<nRupt; i+=1)
 		Variable mIdxRupt = ruptureIdx[i]
-		Variable mIdxOff = offsetIdx[i] // XXX work this in later. may need variable sizes...
-		Duplicate /O/R=[mIdxRupt-WindowAround,mIdxRupt+WindowAround-1] srcWave tmpSaveRupt
+		Duplicate /O/R=[mIdxRupt-nPointsBefore,mIdxRupt+nPointsAfter-1] srcWave tmpSaveRupt
 		allRupt[0,nPointsPerRupt-1][i] = tmpSaveRupt[p]
 	EndFor
 	// relative to the start of the slice, where is the end of the rupture (ie: the offset for the next WLC)
 	offsetIdx -= ruptureIdx
-	offsetIdx += WindowAround
+	offsetIdx += nPointsBefore
 	Make /O/N=(1,nRupt) mRuptIdxToFile
-	mRuptIdxToFile[][] = WindowAround 
+	mRuptIdxToFile[][] = nPointsBefore 
 	Redimension /N=(1,nRupt) offsetIdx
 	Concatenate /NP=(0) {mRuptIdxToFile,offsetIdx},allRupt
 	ModIoUtil#SaveWaveDelimited(allRupt, mFolder,name=mStruct.mExp + "_" + NameOfWave(srcWave) +".itx")
