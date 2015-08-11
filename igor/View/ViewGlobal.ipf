@@ -969,8 +969,13 @@ Static Function GetUserAndPathWaves(mData,UserWave,PathWave,baseDir,[listSep,Dat
 	// Get just the last file
 	String FileRegex = ModIoUtil#DefFileRegex()
 	// Get the suffixes needed
+	// XXX change this -- right now, if no X suffix is given, we don't check for it.
 	if (ParamIsDefault(SuffixNeeded))
-		SuffixNeeded = mData.SuffixXPlot + listSep + mData.suffixYPlot	
+		if (strlen(mData.SuffixXPlot) > 0)
+			SuffixNeeded = mData.SuffixXPlot + listSep + mData.suffixYPlot			
+		else
+			SuffixNeeded = mData.suffixYPlot + listSep
+		EndIf
 	EndIf
 	// POST: suffixNeed is not null
 	String mWaves = ModIoUtil#GetWaveList(baseDir,ListSep,DataSep)
