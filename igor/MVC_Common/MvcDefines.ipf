@@ -14,6 +14,7 @@ StrConstant WINDOWNAME = "ViewPRH"
 // struct for communication between view and model
 Structure ViewModelStruct
 	String modelBaseOutputFolder
+	String mExp
 EndStructure
 
 Static Function /S GetViewWindowName()
