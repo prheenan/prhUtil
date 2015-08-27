@@ -1,5 +1,6 @@
 syntax: glob
 
+*.out
 *~
 *.DS_Store
 *.pyc

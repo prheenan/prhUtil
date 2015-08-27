@@ -16,6 +16,14 @@ g_font_legend = 18
 g_tick_thickness = 2
 g_tick_length = 12
 
+# based on :http://stackoverflow.com/questions/18699027/write-an-upright-mu-in-matplotlib
+#plt.rc('font', **{'sans-serif' : 'Arial', 'family' : 'sans-serif'})
+# following line sets the mathtext to whatever is our font
+plt.rcParams['mathtext.fontset'] = 'custom'
+plt.rcParams['font.sans-serif'] = 'Georgia'
+plt.rcParams['font.family'] = 'sans-serif'
+# to get a list of all fonts:
+
 
 def errorbar(x,y,yerr,label,fmt=None,alpha=0.1,ecolor='r',markersize=3.0,
              *args,**kwargs):
@@ -59,12 +67,12 @@ def ylabel(lab,fontsize=g_font_label,**kwargs):
 def title(lab,fontsize=g_font_title,**kwargs):
     plt.title(lab,fontsize=fontsize,**kwargs)
 
-def lazyLabel(xlab,ylab,titLab,**kwargs):
+def lazyLabel(xlab,ylab,titLab,yrotation=90,frameon=False,loc='best',**kwargs):
     xlabel(xlab,**kwargs)
-    ylabel(ylab,**kwargs)
+    ylabel(ylab,rotation=yrotation,**kwargs)
     title(titLab,**kwargs)
     tickAxisFont(**kwargs)
-    legend(**kwargs)
+    legend(frameon=frameon,loc=loc,**kwargs)
 
 def tickAxisFont(fontsize=g_font_label):
     plt.tick_params(axis='both', which='major', labelsize=fontsize)

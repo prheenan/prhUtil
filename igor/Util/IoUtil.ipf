@@ -70,8 +70,19 @@ Static Constant MAX_STRLEN = 31
 Static StrConstant FILE_EXT_IGOR_PACKED_EXP = ".pxp"
 Static StrConstant FILE_EXT_IGOR_BIN_WAVE = ".ibw"
 Static StrConstant FILE_EXT_IGOR_TXT = ".itx"
+Static StrConstant FILE_EXT_CSV = ".csv"
+Static StrConstant FILE_EXT_TXT = ".txt"
 // Constants for loading files.
-StrConstant LOAD_FOLDER_NO_EXTRA_DIR = ""
+// See V-359 LoadWave, 
+//k=0: Deduces the nature of the column automatically.
+Static Constant LOADWAVE_COLTYPE_AUTO = 0
+// See V-259 LoadWave
+// Essentially,  all zeros doesn't do any function conversions
+Static StrConstant LOADWAVE_SKIPCHARS = "$" // This is aprameterly spaces
+Static Constant LOADWAVE_DEF_CONVERSIONS = 0
+Static Constant LOADWAVE_DEF_FLAGS = 0
+Static StrConstant LOAD_FOLDER_NO_EXTRA_DIR = ""
+Static StrConstant DEF_LOADFILE_DELIM = "\t," // CSV or tab by default, see LoadWave /V flag
 // Regex for matching the *last* directory/folder, with optional pre-directories
 // and file names. Something like "root:foobar:Image2401Time_Ret" --> "foobar"
 StrConstant MATCH_LAST_DIR = ".*:([^:]+):[^:]*"
@@ -100,9 +111,14 @@ Static Function /S DefFileRegex()
 	return DEFAULT_REGEX_FILE 
 End Function
 
-ThreadSafe Static Function /S AppendedPath(Base,toAppend)
+// Appends 'toAppend' to 'base' using mSep (directories, by default)
+ThreadSafe Static Function /S AppendedPath(Base,toAppend,[mSep])
 	String base,toAppend
-	String mSep  =ModDefine#DefDirSep() 
+	String mSep
+	// Assume we are using directory separating, by default
+	if (ParamIsDefault(mSep))
+		mSep = ModDefine#DefDirSep() 
+	EndIf
 	String toRet = base + mSep + toAppend
 	// replace repitions of the separator by a single separator
 	// XXX ensure base doesn't end with a colon (probably fastest way)
@@ -126,10 +142,16 @@ Static Function CountWaves(path)
 	return CountObjects(path,COUNT_WAVES)
 End Function
 
-Static Function /S GetWaveAtIndex(path,index)
+Static Function /S GetWaveAtIndex(path,index,[fullPath])
 	String path
-	Variable index
-	return GetIndexedObjName(path,COUNT_WAVES,index)
+	Variable index,fullPath
+	fullPath = ParamIsDefault(fullPath) ? ModDefine#False() : fullPath
+	String mName = GetIndexedObjName(path,COUNT_WAVES,index)
+	if (fullPath)
+		return ModIoUtil#appendedPath(path,mName)
+	else
+		return mName
+	EndIf
 End Function
 
 Static Function CountDataFolders(path)
@@ -142,6 +164,15 @@ Static Function /S GetDataFolderAtIndex(path,index)
 	Variable Index
 	return GetIndexedObjName(path,COUNT_DATAFOLDERS,index)
 End Function
+
+Static Function ListDataFoldersInDir(path,mWave)
+	String path,mWave
+	Variable nDirs = CountDataFolders(path)
+	Wave /T mRef = $mWave
+	Redimension /N=(nDirs) mRef
+	mRef[] = GetDataFolderAtIndex(path,p)
+End Function
+
 
 Static Function /S GetDataFolders(path,waveToPop)
 	String path
@@ -162,6 +193,23 @@ Static Function /S GetDataFolders(path,waveToPop)
 	Duplicate /O/T tmp,waveToPop
 	KillWaves /Z tmp
 	// have every folder. XXX redimension wave?
+End Function
+
+Static Function GetWindowLeftTopRightBottom(WindowName,left,top,right,bottom)
+	String WindowName
+	Variable &left,&top,&right,&bottom
+	if (!WindowExists(WindowName))
+		ModErrorUtil#DevelopmentError()
+	EndIf
+	// POST: window exists, go ahead and get the size
+	// V-231, GetWindo
+	// wsize Reads window dimensions into V_left, V_right, V_top, and V_bottom 
+	// in points from the top left of the screen. For subwindows, values are local coordinates in the host.
+	GetWindow $WindowName, wsize
+	left = V_left
+	right = V_right
+	top = V_top
+	bottom = V_bottom
 End Function
 
 Static Function GetScreenHeightWidth(width,height)
@@ -293,6 +341,16 @@ Static Function EndsWith(Needle,Haystack,[CaseSensitive])
 	return ModDefine#False()
 End Function
 
+Static Function GetSet(mWave,toRet)
+	Wave /T mWave
+	Wave /T toRet
+	Wave mIndex = GetUniTxtWaveIndex(mWave)
+	Variable nSet = DimSize(mIndex,0)
+	Redimension /N=(nSet) toRet
+	toRet[] = mWave[mIndex[p]]
+End Function
+
+
 Static Function /Wave GetUniTxtWaveIndex(StringWave)
 	Wave /T StringWave
 	// Keep track of what is unique...
@@ -386,6 +444,7 @@ Static Function /S GetFileExt(filePath)
 	EndIf
 End Function
 
+// gets the directory of a file name (everything before  the first colon)
 Static Function /S GetDirectory(filePath,[DirSep])
 	String filePath,DirSep
 	if (ParamISDefault(DirSep))
@@ -522,10 +581,15 @@ Static Function/S GetWaveList(RootFolder, ListSep,DirSep,[RegExpr])
 	return toRet
 End
 
-Static Function SafeKillWindow(mName)
+Static Function WindowExists(mName)
 	String mName
 	Variable Type = WinType(mName)
-	if (type != WINTYPE_NOT_A_WINDOW)
+	return type != WINTYPE_NOT_A_WINDOW
+End Function
+
+Static Function SafeKillWindow(mName)
+	String mName
+	if (WindowExists(mName))
 		// Save to kill it
 		KillWindow $mName
 	EndIf
@@ -614,9 +678,17 @@ End Function
 
 // A function to take a file (e.g. a pxp file) which will be loaded, and  determine a folder name for it
 // XXX add uniqueness condition?
-Static Function /S GetDataLoadFolderName(mFilePath)
+Static Function /S GetDataLoadFolderName(mFilePath,[isDir])
 	String mFilePath
-	 return Sanitize(GetFileName(mFilePath,RemoveExt=ModDefine#True()))
+	Variable isDir
+	isDir = ParamIsDefault(isDir) ? ModDefine#False() : isDir
+	String mFileName
+	if (!isDir)
+		mFileName = GetFileName(mFilePath,RemoveExt=ModDefine#True())
+	Else 
+		mFileName = GetLastDirectory(mFilePath)
+	EndIf
+	 return Sanitize(mFileName)
 End Function
 
 // Function to get the loadable extensions of files
@@ -655,22 +727,25 @@ Static Function LoadIgorFilesInFolder(mFolder,[locToLoadInto,validExtensions])
 	// Go ahead and load them all.
 	Variable nFiles = DimSize(mFiles,0)
 	for (i=0; i<nFiles; i+=1)
-		LoadFile(mFiles[i],locToLoadInto)
+		LoadFile(mFiles[i],locToLoadInto=locToLoadInto)
 	EndFor
 	// POST: all files loaded.
 	KillWaves /Z validExtensions,tmpFiles,mFiles
 End Function
 
-// Loads "mFilePath" into "folderRelLoc" uder "locToLoadInto". If "ifPresentLoadIntoFileFolder" is set,
+// Loads "mFilePath" into  "locToLoadInto". If "ifPresentLoadIntoFileFolder" is set,
 // derives (ie: sets and uses) "locToLoadInto" from a (sanitized) version of mFilePath
-Static Function LoadInteractive(mFilePath,locToLoadInto,[ifPresentLoadIntoFileFolder])
+Static Function LoadInteractive(mFilePath,locToLoadInto,[ifPresentLoadIntoFileFolder,subfolder])
 	// Savely and interactively loads, acconting for overwrites
 	// Sets "mFilePath" to the full (system) path loaded
 	// Sets "folderRelLocToLoad" to where the data was loaded, relative to locToLoad
 	// Returns true if something was loaded (ie: user didn't cancel)
-	String locToLoadInto
+	String locToLoadInto,subfolder
 	String & mFilePath // the full Path, to be updated by referende
 	String & ifPresentLoadIntoFileFolder
+	if (ParamIsDefault(subFolder))
+		subfolder = ""
+	EndIf
 	if (GetFileInteractive(mFilePath))	
 		if (!ParamIsDefault(ifPresentLoadIntoFileFolder))
 			// Then we need to determine the folder name for this file.
@@ -679,7 +754,7 @@ Static Function LoadInteractive(mFilePath,locToLoadInto,[ifPresentLoadIntoFileFo
 			locToLoadInto = ModIoUtil#AppendedPath(locToLoadInto,ifPresentLoadIntoFileFolder)
 		EndIf
 		// return whether load file worked.
-		return LoadFile(mFilePath,locToLoadInto)
+		return LoadFile(mFilePath,locToLoadInto=locToLoadInto,subfolder=subfolder)
 	else	
 		// We didn't load anything
 		return ModDefine#False()
@@ -687,16 +762,29 @@ Static Function LoadInteractive(mFilePath,locToLoadInto,[ifPresentLoadIntoFileFo
 End Function
 
 // Funcion to load system file "mFilePath" into data folder "locToLoadInto",
-// Where folderRelLoc is the subfolder under locToLoadInto we want to load into
 // IF getRelLocFromFileName, then we set folderRelLoc to a new folder based on the file name
 // and load there
-Static Function LoadFile(mFilePath,locToLoadInto)
+Static Function LoadFile(mFilePath,[locToLoadInto,subfolder,delimStr,skipLines])
 	// XXX allow for non-interactive
 	// XXX check that incoming file names are unique.
 	String mFilePath // the full Path, *assumed already populated*
-	String locToLoadInto
-	// Whether or not to load based on the file name
+	String locToLoadInto,subfolder,delimStr
+	Variable skipLines
+	// Whether or not we loaded
 	Variable toRet = ModDefine#False()
+	if (ParamIsDefault(skipLines))
+		skipLines = 0
+	EndIF
+	if (ParamIsDefault(delimStr))
+		delimStr = DEF_LOADFILE_DELIM 
+	EndIf
+	if (ParamIsDefault(subfolder))
+		subfolder = LOAD_FOLDER_NO_EXTRA_DIR
+	EndIf
+	if (ParamIsDefault(locToLoadInto))
+		// just load here.
+		locToLoadInto = ModIoUtil#cwd()
+	EndIf
 	// POST: RelLocToLoad exists. 
 	// See: V-354
 	// /O: overwrite mode
@@ -719,7 +807,7 @@ Static Function LoadFile(mFilePath,locToLoadInto)
 	// XXX check that this name is of an appropriate size.
 		case FILE_EXT_IGOR_PACKED_EXP:
 			// Load the data as normal (see binary wave, below)
-			LoadData /O=(LOADDATA_DEF_OVERWRITE)/Q/R (mFilePath)
+			LoadData /O=(LOADDATA_DEF_OVERWRITE)/Q/R/S=(subfolder)(mFilePath)
 			break
 		case FILE_EXT_IGOR_BIN_WAVE:
 			// Load the waves present in this file
@@ -735,6 +823,14 @@ Static Function LoadFile(mFilePath,locToLoadInto)
 			// See FILE_EXT_IGOR_BIN_WAVE, but we need to add:
 			// /T: igor text format
 			LoadWave /Q/O/W/D/H/T (mFilePath)
+			break
+		case  FILE_EXT_CSV:
+		case  FILE_EXT_TXT:
+			// /A, /W: skip the name diaalogue, get from the file
+			// /M: load as (single) matrix
+			// /J: delimited text format
+			// /K: determine how to get columns types
+			LoadWave /Q/O/W/D/H/M/A/J/K=(LOADWAVE_COLTYPE_AUTO) /V={delimStr,LOADWAVE_SKIPCHARS,LOADWAVE_DEF_CONVERSIONS,LOADWAVE_DEF_FLAGS}/L={0,skipLines,0,0,0} (mFilePath)
 			break
 		default:
 			// XXX add in supported extension
@@ -817,32 +913,6 @@ Static Function IsFinite(Value)
 	return numtype(Value) == NUMTYPE_NORMAL
 End Function
 
- Static Function SaveForceExtensionFromStub(StubSep,StubForce,Folder,Name)
-	String StubForce,StubSep,Folder,Name
-	// XXX make sure wave exists?
-	Wave force = $StubForce
-	Wave sep = $StubSep
-	Variable n=DimSize(force,0)
-	Make /O/N=(n) mTime
-	Variable dt= DimDelta(force,0)
-	Variable t0 = DimOffset(force,0)
-	// p notation: mtime[i] = i * dt + t0, where dt is the time delta and t0 is the
-	// time offset
-	mTime = p*dt + t0
-	// /DL: Set dimension labels
-	// /O: overwrites
-	 Concatenate /O/DL {mTime,sep,force}, combinedWave
-	 // get the force note
-	String mNote = note(force)
-	// Append to the concatenated wave
-	Note combinedWave,mNote
-	// POST: $combinedName is a wave with columns like [time,x,y]
-	// Go ahead and save
-	// *dont* save the x scale (time), since we can get that from the x scaling later.
-	SaveWaveDelimited(combinedWave,Folder,Name=Name)
-	// Kill the wave we make
-	KillWaves /Z combinedWave
-End Function
 
  Static Function SaveWaveDelimited(ToSave,Folder,[Name])
 	Wave ToSave
@@ -1009,3 +1079,13 @@ Static Function GetMaxX(mWave)
 	return pnt2x(mWave,n)
 End Function
 
+// returns if it matches, sets if so (strToSet is pass by reference)
+Static Function SetandReturnIfMatch(strToMatchAgainstRegex,mRegex,strToSet)
+	String strToMatchAgainstRegex,mRegex,&strToSet
+	if (GrepString(strToMatchAgainstRegex,mRegex))
+		// Our experiment exists
+		SplitString /E=(mRegex) strToMatchAgainstRegex, strToSet
+		return ModDefine#True()
+	EndIf
+	return ModDefine#False()
+End Function

@@ -2,6 +2,8 @@
 #pragma rtGlobals=3	
 
 #pragma ModuleName = ModPlotUtil
+#include ":IoUtil"
+#include ":ErrorUtil"
 
 Constant  ColorMax = 65535
 Constant PredefinedColors = 7
@@ -38,6 +40,276 @@ Constant TRACENAME_INCLUDE_ALL = 3
 StrConstant DRAW_LAYER_GRAPH = "UserFront"
 // WinList,  V-758
 StrConstant WINLIST_GRAPHS = "WIN:1" // kills all graphs
+// See AppendToGraph V-28 and 'Notebooks as Subwindows in Control Panels' in III-96:
+// This is the delimiter to separator a subwindow from its parent
+Static StrConstant DELIM_SUBWINDOW = "#"
+// Defined color strings
+// For the major colors, we also allow 
+Static StrConstant COLOR_ABBR_RED = "r"
+Static StrConstant COLOR_ABBR_GREEN = "g"
+Static StrConstant COLOR_ABBR_BLUE = "b"
+Static StrConstant COLOR_ABBR_BLACK = "k"
+Static StrConstant COLOR_ABBR_PURPLE = "m"
+Static StrConstant COLOR_ABBR_ORANGE = "o"
+// See: ModifyGraph, V-415:
+Static StrConstant  MARKER_DOTTED_LINE = "--"
+Static StrConstant MARKER_NO_LINE = ""
+Static StrConstant MARKER_LINE = "-"
+Static StrConstant MARKER_POINTS = "."
+Static StrConstant MARKER_SCATTER_CIRCLE = "o"
+Static StrConstant MARKER_SCATTER_PLUS = "+"
+Static StrConstant MARKER_SCATTER_SQUARE = "s"
+Static StrConstant MARKER_SCATTER_DIAMOND = "d"
+Static StrConstant MARKER_SCATTER_TRIANGLE = "^"
+Static StrConstant MARKER_NONE= ""
+// Seee II-253 for defintiion of shapes
+Static Constant MARKERMODE_PLUS = 0
+Static Constant MARKERMODE_SQUARE = 5
+Static Constant MARKERMODE_TRIANGLE = 6
+Static Constant MARKERMODE_DIAMOND = 7
+Static Constant MARKERMODE_CIRCLE = 8
+Static Constant MARKERMODE_NONE_SPECIFIED = 63 // greater than the maximum number
+// Anything else (besides above markers) is a combination
+Static Constant GRAPHMODE_LINES_BETWEEN_POINTS = 0 
+Static Constant GRAPHMODE_DOTS_AT_POINTS = 2
+Static Constant GRAPHMODE_MARKERS = 3
+Static Constant GRAPHMODE_LINES_AND_MARKERS = 4
+// Default line width, in pixells
+Static Constant DEF_LINE_WIDTH = 2
+Static Constant DEF_MARKER_SIZE = 4
+// Color mapping.
+Static StrConstant DEF_CMAP = "Greys"
+
+Structure PlotObj
+	Wave X
+	Wave Y
+	String mColor
+	String formatMarker 
+	Variable linewidth 
+	Variable markersize
+	String mLabel
+	String mXLabel
+	String mYLabel
+	String mTitle
+	String mGraphName
+	// If we want, we can color on a per-point basis
+	Variable useColorWave
+	Wave colorWave
+	String colorMap
+EndStructure
+
+Static Function GetRGBFromString(mStr,r,g,b)
+	String mStr
+	Variable &r,&g,&b
+	Struct RgbColor mRgb
+	strSwitch (mStr)
+		case COLOR_ABBR_RED:
+			initRed(mRgb)
+			break
+		case COLOR_ABBR_GREEN: 
+			initGreen(mRgb)
+			break
+		case COLOR_ABBR_BLUE:
+			initBlue(mRgb)
+			break
+		case COLOR_ABBR_BLACK:
+			initBlack(mRgb)
+			break
+		case COLOR_ABBR_PURPLE :
+			initPurple(mRgb)
+			break
+		case COLOR_ABBR_ORANGE:
+			initOrange(mRgb)
+			break
+		default:
+			String mErr
+			sprintf mErr,"Color code [%s] wasn't recognized",mStr
+			ModErrorUtil#DevelopmentError(description=mErr)
+	EndSwitch
+	// POST: have the proper colors in RGB
+	// set the colors (by reference)
+	r = mRgb.red
+	b = mRgb.blue
+	g = mRgb.green
+End Function
+
+Static Function GetMarker(MarkerString)
+	String MarkerString
+	Make /O/T mMarkerRegex = {MARKER_SCATTER_CIRCLE ,MARKER_SCATTER_PLUS,MARKER_SCATTER_SQUARE,MARKER_SCATTER_DIAMOND,MARKER_SCATTER_TRIANGLE}
+	Variable i,nMarkers=DimSize(mMarkerRegex,0)
+	String mMarker = MARKER_NONE
+	for (i=0; i<nMarkers; i+=1)
+		String tmpMarker = mMarkerRegex[i]
+		if (strsearch(MarkerString,tmpMarker,0) >= 0)
+			mMarker = tmpMarker
+			break
+		EndIf
+	EndFor
+	// POST: mMarker is set by either the method or in the inner loop
+	Variable mMarkerToRet
+	strswitch (mMarker)
+		case MARKER_SCATTER_CIRCLE:
+			mMarkerToRet = MARKERMODE_CIRCLE
+			break
+		case MARKER_SCATTER_PLUS:
+			mMarkerToRet = MARKERMODE_PLUS
+			break
+		case MARKER_SCATTER_SQUARE:
+			mMarkerToRet = MARKERMODE_SQUARE
+			break
+		case MARKER_SCATTER_DIAMOND:
+			mMarkerToRet = MARKERMODE_DIAMOND
+			break
+		case MARKER_SCATTER_TRIANGLE:
+			mMarkerToRet = MARKERMODE_TRIANGLE
+			break
+		default:
+			// set to an out-of-bounds marker
+			// XXX throw error? OK if just line..
+			mMarkerToRet = MARKERMODE_NONE_SPECIFIED
+			break
+	EndSwitch
+	KillWaves /Z mMarkerRegex
+	return mMarkerToRet
+End Function
+
+Static Function IsDottedFormat(MarkerString)
+	String MarkerString
+	return GrepString(MarkerString,MARKER_DOTTED_LINE)
+End Function
+
+Static Function IsSolidLine(MarkerString)
+	String MarkerString
+	return GrepString(MarkerString,MARKER_LINE)
+End Function
+
+Static Function GetTraceDisplayMode(MarkerString,markerMode)
+	String MarkerString
+	Variable markerMode
+	Variable ModeToRet
+	strswitch (MarkerString)
+		// dotted lines and marker lines are both lines
+		case MARKER_DOTTED_LINE:
+		case MARKER_LINE:
+			ModeToRet = GRAPHMODE_LINES_BETWEEN_POINTS
+			break
+		// just points
+		case MARKER_POINTS:
+			ModeToRet = GRAPHMODE_DOTS_AT_POINTS
+			break
+		default:
+			// first, check and see if we are a line connecting markers
+			Variable isDotted =IsDottedFormat(MarkerString)
+			Variable isLine =  IsSolidLine(MarkerString)
+			Variable validMarker = markerMode !=MARKERMODE_NONE_SPECIFIED
+			if ( (isDotted || isLine) && validMarker)
+				// then we are dotted or with a line, with a marker
+				// This eans we set the mode to markers *and* lines
+				ModeToRet = GRAPHMODE_LINES_AND_MARKERS
+			elseif (validMarker)
+				// NO lines, but a valid marker.
+				ModeToRet = GRAPHMODE_MARKERS
+			else
+				// something bad happended; we either have a weird marker or aren't dotted
+				String mErr
+				sprintf mErr,"Couldn't find string related to %s\r",MarkerString
+				ModErrorUtil#DevelopmentError(description=mErr)
+			EndIf	
+			break
+	EndSwitch
+	// POST: ModeToRet has the mode we want
+	return ModeToRet
+End Function
+
+Static Function PlotGen(mObj)
+	Struct PlotObj & mObj
+	// XXX switch; could also put in r,g,b default?
+	String mColor = mObj.mColor
+	// set up the red,green, and blue colors
+	Variable r,g,b
+	GetRGBFromString(mColor,r,g,b)
+	String mWinName = mObj.mGraphName
+	AppendToGraph /W=$(mWinName) /C=(r,g,b) mObj.Y vs mObj.X 
+	// POST: plotted correctly. Now need to modify the traces accordingly
+	// Get the marker we will use (if any)
+	Variable mMarker = GetMarker(mObj.formatMarker)
+	// Get the trace display mode
+	Variable mMode = GetTraceDisplayMode(mObj.formatMarker,mMarker)
+	// Set the marker, if we have one
+	//ModifyGraph expects trace names, not wave references.
+	// See Trace Name Parameters on page IV-72
+	String mTraceName  = NameOfWave(mObj.Y)
+	if (mMarker != MARKERMODE_NONE_SPECIFIED)
+		ModifyGraph /W=$(mWinName) marker($mTraceName)=mMarker
+	EndIf
+	// Set the display mode
+	ModifyGraph /W=$(mWinName) mode($mTraceName)=(mMode)
+	// Set the line width
+	ModifyGraph /W=$(mWinName) lSize($mTraceName)=(mObj.linewidth)	
+	// Set the marker size
+	ModifyGraph /W=$(mWInNAme) msize($mTraceName)=(mObj.markersize)
+	if (mObj.useColorWave)
+		// Two stars: autoscale wave to colormap.
+		ModifyGraph /W=$(mWinName) zColor($mTraceName)={mObj.colorwave,*,*,$(mObj.colormap)}
+	EndIf
+	PlotBeautify()
+End Function
+
+Static Function ColorTableIsValid(mColor)
+	String mColor
+	String mList = CTabList()
+	// Is the color table in the color table list?
+	return (strsearch(mList,mColor,0) >=0)
+End Function
+
+Static Function Plot(X,Y,[graphName,color,marker,linestyle,linewidth,markersize,colormap,colorWave])
+	Wave X,Y,colorWave
+	String graphName,color,marker,linestyle,colormap
+	Variable  linewidth,markersize
+	Variable nPoints = DimSize(X,0)
+	if (ParamIsDefault(color))
+		color = COLOR_ABBR_BLUE
+	EndIf
+	if (ParamIsDefault(graphName))
+		graphName = gcf()
+	EndIf
+	if (ParamIsDefault(marker))
+		marker = MARKER_SCATTER_CIRCLE
+	EndIF
+	if (PAramIsDefault(linestyle))
+		linestyle =MARKER_NO_LINE
+	EndIf
+	Variable useColor = !ParamIsDefault(colorMap) || !ParamIsDefault(colorWave)
+	if (ParamIsDefault(colormap))
+		colormap = DEF_CMAP
+	EndIf
+	Variable killColor = ModDefine#False()
+	if (ParamIsDefault(colorWave))
+		Make /O/N=(nPoints) colorWave
+		colorWave[] = nPoints/p // goes from 0 to 1
+		killColor = ModDefine#True()
+	EndIf
+	markersize = ParamIsDefault(markersize) ? DEF_MARKER_SIZE  : markersize
+	linewidth = ParamIsDefault(linewidth) ? DEF_LINE_WIDTH : linewidth	
+	// POST: all parameters are set
+	// Wrap up everything in the object that plotGen expects
+	Struct PlotObj mObj
+	Wave mObj.X = X
+	Wave mObj.Y = Y
+	mObj.mColor = color
+	mObj.mGraphName = graphName
+	mObj.formatMarker = marker + linestyle
+	mObj.linewidth = linewidth
+	mObj.markersize = markersize
+	mObj.colorwave = colorWave
+	mObj.colormap = colormap
+	//mObj.useColorWave = useColorWave
+	PlotGen(mObj)
+	if (killColor)
+		KillWaves /Z colorWave
+	EndIF
+End Function
+
 
 Structure PlotFormat
 	// RGB color
@@ -72,6 +344,11 @@ Structure ColorDefaults
 	Struct RGBColor AllColors[PredefinedColors]
 EndStructure
 
+Structure pWindow
+	Variable width,height
+	Variable Left,Top,Right,Bottom
+EndStructure
+
 Static Function InitCmap(cmap)
 	Struct ColorMapDef &cmap
 	cmap.GREY = "Grays256"
@@ -79,19 +356,54 @@ Static Function InitCmap(cmap)
 	cmap.HEAT = "YellowHot256"
 End Function
 
+Static Function InitRed(mColor)
+	Struct RGBColor & mColor
+	InitRGB_Dec(mColor,1.0,0,0)
+End function
+
+Static Function InitBlue(mColor)
+	Struct RGBColor & mColor
+	InitRGB_Dec(mColor,0,0,1.0)
+End function
+
+Static Function InitGreen(mColor)
+	Struct RGBColor & mColor
+	InitRGB_Dec(mColor,0,1.0,0)
+End Function
+
+Static Function InitBlack(mColor)
+	Struct RGBColor & mColor
+	InitRGB_Dec(mColor,0,0,0)
+End Function
+
+//  values for the next from http://www.december.com/html/spec/colorcodes.html
+Static Function InitYellow(mColor)
+	Struct RGBColor & mColor
+	InitRGB_Dec(mColor,0.99,0.82,0.9)
+End Functon
+
+Static Function InitPurple(mColor)
+	Struct RGBColor & mColor
+	InitRGB_Dec(mColor,0.5,0.0,0.5) 
+End Function
+
+Static Function InitOrange(mColor)
+	Struct RGBColor & mColor
+	InitRGB_Dec(mColor,0.97,0.46,0.19)
+End Function 
+
 Static Function InitDefColors(colors)
 	Struct ColorDefaults & colors
-	InitRGB_Dec(colors.Red,1.0,0,0)
-	InitRGB_Dec(colors.Gre,0,1.0,0)
-	InitRGB_Dec(colors.Blu,0,0,1.0)
-	// these values from http://www.december.com/html/spec/colorcodes.html
+	InitRed(colors.Red)
+	InitGreen(colors.Gre)
+	InitBlue(colors.blu)
 	// Sign Yellow
-	InitRGB_Dec(colors.Yel,0.99,0.82,0.9)
-	InitRGB_Dec(colors.Bla,0,0,0)
+	InitBlack(colors.bla)
+	InitYellow(colors.Yel)
 	// indigo
-	InitRGB_Dec(colors.Pur,0.5,0.0,0.5) 
+	InitPurple(colors.Pur)
 	// Orange Crush
-	InitRGB_Dec(colors.Ora,0.97,0.46,0.19)
+	InitOrange(colors.Ora)
 	// save all the predefined colors, for looping
 	// Note: i gets passed by reference and incremented
 	Variable i=0
@@ -158,6 +470,7 @@ Static Function /S GetUniFigName(name)
 	return UniqueName(name,DEF_UNINAME_GRAPH,0)
 End Function 
 
+// Returns a new display window, returns the unique name
 Static Function /S Figure([name,heightIn,widthIn,hide])
 	// XXX give figure struct?
 	String name
@@ -206,9 +519,18 @@ Static Function GenLabel(LabelStr,WindowName,FontName,WhichAxis,FontSize)
 	// everything ekse. otherwise, greek letters / Unicode stuff can look weird
 	sprintf LabelStr, "\\Z%d%s\F'%s'",fontSize,LabelStr,fontName
 	Label /W=$(WindowName) $(WhichAxis), (LabelStr) 
+	ModifyGraph /W=$(WindowName) fSize($WhichAxis)=fontSize
 End Function
 
 // XXX make these less copy/paste
+Static Function pLegend([graphName])
+	String graphName
+	if (ParamIsDefault(graphName))
+		graphName = gcf()
+	EndIf
+	Legend /W=$(graphName)
+End Function
+
 Static Function XLabel(LabelStr,[graphName,fontSize,topOrBottom])
 	// graph name is the window
 	// fontsize is the font size
@@ -335,24 +657,24 @@ Static Function AxisLim(lower,upper,name,windowName)
 	SetAxis /W=$windowName $name,lower,upper
 End Function
 
-Static Function XLim(lower,upper,[WindowName])
+Static Function XLim(lower,upper,[graphName])
 	Variable lower,upper
-	String WindowName
-	If (ParamISDefault(WindowName))
-		WindowName = gcf()
+	String graphName
+	If (ParamISDefault(graphName))
+		graphName = gcf()
 	EndIf
 	// POST: we have a windowname
-	AxisLim(lower,upper,X_AXIS_DEFLOC,WindowName)
+	AxisLim(lower,upper,X_AXIS_DEFLOC,graphName)
 End Function
 
-Static Function YLim(lower,upper,[WindowName])
+Static Function YLim(lower,upper,[graphName])
 	Variable lower,upper
-	String WindowName
-	If (ParamISDefault(WindowName))
-		WindowName = gcf()
+	String graphName
+	If (ParamISDefault(graphName))
+		graphName = gcf()
 	EndIf
 	// POST: we have a windowname
-	AxisLim(lower,upper,Y_AXIS_DEFLOC,WindowName)
+	AxisLim(lower,upper,Y_AXIS_DEFLOC,graphName)
 End Function
 
 Static Function Normed(val,minV,maxV)
@@ -473,4 +795,124 @@ Static Function ClearAllGraphs()
 		tmpWindow = StringFromList(i,mList,mSep)
 		KillWindow $(tmpWindow)
 	EndFor
+End Function
+
+Static Function SubplotLoc(nRows,nCols,number,leftWin,topWin,rightWin,bottomWin,left,top,right,bottom)
+	Variable nRows,nCols,number,leftWin,topWin,rightWin,bottomWin
+	Variable &left,&top,&right,&bottom
+	// Determine which column
+	// We assume left to right, then top to bottom
+	// Assume numbers are one based, just like in python
+	ModErrorUtil#AssertGt(number,0)
+	ModErrorUtil#AssertGt(nRows,0)
+	ModErrorUtil#AssertGt(nCols,0)
+	Variable mCol = mod(number,nCols)
+	Variable mRow = floor(number/nCols)
+	if (mRow > nRows || mCol > nCols)
+		ModErrorUtil#DevelopmentError()
+	EndIf
+	// POST: we are in bounds, get where this plot should actually start and end
+	// Note: these are *relative* coordinates, to the host
+	// See: display, /W flag, pp 120
+	Variable width = 1/(nCols)
+	Variable height = 1/(nRows)
+	// mCol has range [1,nCols], so it has a max of one
+	left = (mCol) * width
+	top  = (mRow-1) * height
+	right = left + width
+	bottom = top + height
+End Function
+
+Static Function /S DefDisplayName(windowName,num)
+	String windowName
+	Variable num
+	return windowName + "_" + num2str(num)
+End Function
+
+Static Function /S AppendedWindowName(baseWindow,subWindow)
+	String baseWindow,subWindow
+	return ModIoUtil#AppendedPath(baseWindow,subwindow,mSep=DELIM_SUBWINDOW)
+End Function
+
+// makes a display within 'windowname' (defaults to current)
+// assuming the entire window has nRows,nCols, and we are at plot 'current'
+// (everything is one based, like in python). *returns the name of the display*,
+// which should be displayname, if passed
+// Should only call this *once* per number, otherwise subplot will get confused
+// XXX could just reference the window or kill, if it already exists
+Static Function /S Subplot(nRows,nCols,Current,[windowName,displayName])
+	Variable nRows,nCols,Current
+	String windowName,displayName
+	if (ParamIsDefault(windowName))
+		windowName = gcf()
+	EndIf
+	if (ParamIsDefault(displayName))
+		displayName = DefDisplayName(windowName,current)
+	Endif
+	Variable winLeft,winTop,winRight,winBottom
+	ModIoUtil#GetWindowLeftTopRightBottom(windowname,winLeft,winTop,winRight,winBottom)
+	// POST: have the dimensions. Figure out where to put this one
+	Variable left,top,right,bottom
+	 SubplotLoc(nRows,nCols,Current,winLeft,winTop,winRight,winBottom,left,top,right,bottom)
+	 // POST: know where to put this display
+	 // /HOST: the host window we are using
+	 // /W: the relative dimensions.
+	 // /N: the name to use.
+	ModIoUtil#SafeKillWindow(displayName)
+	// POST:  displayName isn't being used.
+	DIsplay /HOST=$(windowName)/W=(left,top,right,bottom) /N=$(displayName)
+	// get the full (unambiguous) path to the display
+	return AppendedWindowName(windowName,displayName)
+End Function
+
+Static Function /S DisplayGen(xAbsI,yAbsI,xAbsF,yAbsF,[hostname,graphName])
+	Variable xAbsI,yAbsI,xAbsF,yAbsF
+	String hostname,graphName
+	// Make sure we have the parameters we need.
+	if (ParamIsDefault(graphName))
+		// Then get a new graph name
+		graphName = ModIoUtil#UniqueGraphName("prhGraph")
+	EndIf
+	if (ParamISDefault(hostname))
+		Display /W=(xAbsI,yAbsI,xAbsF,yAbsF)/N=$(GraphName) 			
+	else
+		Display /W=(xAbsI,yAbsI,xAbsF,yAbsF)/N=$(GraphName) 	/HOST=$(hostName)
+	EndIf
+	return graphName
+End Function
+
+// Returns the name of the screen displayed
+Static Function /S DisplayRelToScreen(xRel,yRel,widthRel,heightRel)
+	Variable xRel,yRel,widthRel,heightRel
+	Variable width,height
+	ModIoUtil#GetScreenHeightWidth(width,height)	
+	// POST: we have the screen height, no ahead and get the rest.
+	Variable xAbsI,yAbsI,xAbsF,yAbsF
+	SetAbsByRelAndAbs(xRel,yRel,widthRel,heightRel,width,height,xAbsI,yAbsI,xAbsF,yAbsF)
+	return DisplayGen(xAbsI,yAbsI,xAbsF,yAbsF)
+End Function
+
+// Set the absolute X,Y locations by relative X/Y/Width/Height and absolute width/height.
+// Useful for sizing based on a screen. Note that the final 4 parameters (sent to displayGen)
+// are pass by reference
+Static Function SetAbsByRelAndAbs(xRel,yRel,widthRel,heightRel,abswidth,absHeight,xAbsI,yAbsI,xAbsF,yAbsF)
+	Variable xRel,yRel,widthRel,heightRel,abswidth,absHeight
+	Variable & xAbsI, &yAbsI,&xAbsF,&yAbsF // Reference!
+	 xAbsI = xRel * absWidth
+	 yAbsI = yRel*absHeight
+	 xAbsF = xAbsI + widthRel * absWidth
+	 yAbsF = yAbsI + heightRel * absHeight
+End Function
+
+Static Function DisplayRel(hostName, GraphName,mWindow,xRel,yRel,widthRel,heightRel)
+	Struct pWindow &mWindow
+	String hostName,GraphName
+	Variable xRel,yRel,widthRel,heightRel
+	// Determine the absolute left top right bottom coordinates
+	Variable absHeight = mWindow.height
+	Variable absWidth = mWindow.width
+	Variable xAbsI,yAbsI,xAbsF,yAbsF
+ 	SetAbsByRelAndAbs(xRel,yRel,widthRel,heightRel,abswidth,absHeight,xAbsI,yAbsI,xAbsF,yAbsF)
+	// Make the display as usual
+	DisplayGen(xAbsI,yAbsI,xAbsF,yAbsF,hostname=hostname,graphname=graphName)
 End Function

@@ -90,3 +90,34 @@ Static Function Write2DWaveToFile(mWave,mFIle,[gzip,datasetName])
 	// Close the file
 	return  CloseAndReturn(mID)
 End Function
+
+
+ Static Function SaveForceExtensionFromStub(StubSep,StubForce,Folder,Name)
+ 	// Note: Force information natively saved in single point as of 8/13/2015.
+ 	// If we switch to double, will want to use double here and in duplicate.
+	String StubForce,StubSep,Folder,Name
+	// XXX make sure wave exists?
+	Wave force = $StubForce
+	Wave sep = $StubSep
+	Variable n=DimSize(force,0)
+	Make /O/N=(n) mTime
+	Variable dt= DimDelta(force,0)
+	Variable t0 = DimOffset(force,0)
+	// p notation: mtime[i] = i * dt + t0, where dt is the time delta and t0 is the
+	// time offset
+	mTime = p*dt + t0
+	// /DL: Set dimension labels
+	// /O: overwrites
+	 Concatenate /O/DL {mTime,sep,force}, combinedWave
+	 // get the force note
+	String mNote = note(force)
+	// Append to the concatenated wave
+	Note combinedWave,mNote
+	// POST: $combinedName is a wave with columns like [time,x,y]
+	// Go ahead and save
+	// *dont* save the x scale (time), since we can get that from the x scaling later.
+	String filePath = ModIoUtil#AppendedPath(Folder,Name) + ".hdf"
+	Write2DWaveToFile(combinedWave,filePath)
+	// Kill the wave we make
+	KillWaves /Z combinedWave
+End Function

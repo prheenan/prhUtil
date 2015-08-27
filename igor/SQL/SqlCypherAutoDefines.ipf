@@ -8,11 +8,9 @@ Constant MAX_NAME_LEN=100
 Constant MAX_DESCRIPTION_LEN=200
 // Defined table names
 StrConstant TAB_ExpMeta="ExpMeta"
-StrConstant TAB_ExpUserData="ExpUserData"
 StrConstant TAB_LinkDataMeta="LinkDataMeta"
 StrConstant TAB_LinkExpModel="LinkExpModel"
 StrConstant TAB_LinkModelParams="LinkModelParams"
-StrConstant TAB_LinkModelTrace="LinkModelTrace"
 StrConstant TAB_LinkMoleTrace="LinkMoleTrace"
 StrConstant TAB_LinkTipTrace="LinkTipTrace"
 StrConstant TAB_LinkTraceParam="LinkTraceParam"
@@ -50,14 +48,14 @@ StrConstant FIELD_DirectoryName="DirectoryName"
 StrConstant FIELD_DwellAway="DwellAway"
 StrConstant FIELD_DwellTowards="DwellTowards"
 StrConstant FIELD_EndIndex="EndIndex"
-StrConstant FIELD_FileName="FileName"
+StrConstant FIELD_FileOriginal="FileOriginal"
+StrConstant FIELD_FileTimSepFor="FileTimSepFor"
 StrConstant FIELD_FilteredSampleRate="FilteredSampleRate"
 StrConstant FIELD_FirstResRef="FirstResRef"
-StrConstant FIELD_idExpUserData="idExpUserData"
+StrConstant FIELD_idExpMeta="idExpMeta"
 StrConstant FIELD_idLinkDataMeta="idLinkDataMeta"
 StrConstant FIELD_idLinkExpModel="idLinkExpModel"
 StrConstant FIELD_idLinkModelParams="idLinkModelParams"
-StrConstant FIELD_idLinkModelTrace="idLinkModelTrace"
 StrConstant FIELD_idLinkMoleTrace="idLinkMoleTrace"
 StrConstant FIELD_idLinkTipTrace="idLinkTipTrace"
 StrConstant FIELD_idLinkTraceParam="idLinkTraceParam"
@@ -86,13 +84,13 @@ StrConstant FIELD_IsRepeatable="IsRepeatable"
 StrConstant FIELD_LeadStr="LeadStr"
 StrConstant FIELD_LocationX="LocationX"
 StrConstant FIELD_LocationY="LocationY"
-StrConstant FIELD_ModelDescription="ModelDescription"
-StrConstant FIELD_ModelName="ModelName"
+StrConstant FIELD_LocationZ="LocationZ"
 StrConstant FIELD_MolMass="MolMass"
 StrConstant FIELD_Name="Name"
-StrConstant FIELD_NAttemptedPulls="NAttemptedPulls"
 StrConstant FIELD_OffsetX="OffsetX"
 StrConstant FIELD_OffsetY="OffsetY"
+StrConstant FIELD_OriginalX="OriginalX"
+StrConstant FIELD_OriginalY="OriginalY"
 StrConstant FIELD_PackPosition="PackPosition"
 StrConstant FIELD_ParameterNumber="ParameterNumber"
 StrConstant FIELD_Prefix="Prefix"
@@ -119,52 +117,30 @@ StrConstant FIELD_VolLoadedMuL="VolLoadedMuL"
 
 // All Table function
 Static Function /Wave getAllTables()
-	Make /O/T AllSqlTables = {TAB_ExpMeta,TAB_ExpUserData,TAB_LinkDataMeta,TAB_LinkExpModel,TAB_LinkModelParams,TAB_LinkModelTrace,TAB_LinkMoleTrace,TAB_LinkTipTrace,TAB_LinkTraceParam,TAB_Model,TAB_MolType,TAB_MoleculeFamily,TAB_ParamMeta,TAB_ParameterValue,TAB_Sample,TAB_SamplePrep,TAB_SourceFileDirectory,TAB_TipManifest,TAB_TipPack,TAB_TipPrep,TAB_TipType,TAB_TraceData,TAB_TraceDataIndex,TAB_TraceExpLink,TAB_TraceMeta,TAB_TraceModel,TAB_TraceRating,TAB_User}
+	Make /O/T AllSqlTables = {TAB_ExpMeta,TAB_LinkDataMeta,TAB_LinkExpModel,TAB_LinkModelParams,TAB_LinkMoleTrace,TAB_LinkTipTrace,TAB_LinkTraceParam,TAB_Model,TAB_MolType,TAB_MoleculeFamily,TAB_ParamMeta,TAB_ParameterValue,TAB_Sample,TAB_SamplePrep,TAB_SourceFileDirectory,TAB_TipManifest,TAB_TipPack,TAB_TipPrep,TAB_TipType,TAB_TraceData,TAB_TraceDataIndex,TAB_TraceExpLink,TAB_TraceMeta,TAB_TraceModel,TAB_TraceRating,TAB_User}
 	return AllSqlTables
 End Function
 
 // Defined structures
 Structure ExpMeta
-	uint32 idExpUserData
-	char TimeStarted[MAX_NAME_LEN]
-	uint32 NAttemptedPulls
+	uint32 idExpMeta
+	char Name[MAX_NAME_LEN]
+	char Description[MAX_DESCRIPTION_LEN]
 	char SourceFile[MAX_NAME_LEN]
 EndStructure
 
 Structure ExpMetaWaveStr
-	char idExpUserData[MAX_NAME_LEN]
-	char TimeStarted[MAX_NAME_LEN]
-	char NAttemptedPulls[MAX_NAME_LEN]
+	char idExpMeta[MAX_NAME_LEN]
+	char Name[MAX_NAME_LEN]
+	char Description[MAX_NAME_LEN]
 	char SourceFile[MAX_NAME_LEN]
 EndStructure
 
 Structure ExpMetaWaveRef
-	Wave /D idExpUserData
-	Wave /T TimeStarted
-	Wave /D NAttemptedPulls
-	Wave /T SourceFile
-EndStructure
-
-
-Structure ExpUserData
-	uint32 idExpUserData
-	char Name[MAX_NAME_LEN]
-	char Description[MAX_DESCRIPTION_LEN]
-	uint32 idUser
-EndStructure
-
-Structure ExpUserDataWaveStr
-	char idExpUserData[MAX_NAME_LEN]
-	char Name[MAX_NAME_LEN]
-	char Description[MAX_NAME_LEN]
-	char idUser[MAX_NAME_LEN]
-EndStructure
-
-Structure ExpUserDataWaveRef
-	Wave /D idExpUserData
+	Wave /D idExpMeta
 	Wave /T Name
 	Wave /T Description
-	Wave /D idUser
+	Wave /T SourceFile
 EndStructure
 
 
@@ -190,19 +166,19 @@ EndStructure
 Structure LinkExpModel
 	uint32 idLinkExpModel
 	uint32 idModel
-	uint32 idExpUserData
+	uint32 idExpMeta
 EndStructure
 
 Structure LinkExpModelWaveStr
 	char idLinkExpModel[MAX_NAME_LEN]
 	char idModel[MAX_NAME_LEN]
-	char idExpUserData[MAX_NAME_LEN]
+	char idExpMeta[MAX_NAME_LEN]
 EndStructure
 
 Structure LinkExpModelWaveRef
 	Wave /D idLinkExpModel
 	Wave /D idModel
-	Wave /D idExpUserData
+	Wave /D idExpMeta
 EndStructure
 
 
@@ -222,25 +198,6 @@ Structure LinkModelParamsWaveRef
 	Wave /D idLinkModelParams
 	Wave /D idModel
 	Wave /D idParamMeta
-EndStructure
-
-
-Structure LinkModelTrace
-	uint32 idLinkModelTrace
-	uint32 idModel
-	uint32 idTraceModel
-EndStructure
-
-Structure LinkModelTraceWaveStr
-	char idLinkModelTrace[MAX_NAME_LEN]
-	char idModel[MAX_NAME_LEN]
-	char idTraceModel[MAX_NAME_LEN]
-EndStructure
-
-Structure LinkModelTraceWaveRef
-	Wave /D idLinkModelTrace
-	Wave /D idModel
-	Wave /D idTraceModel
 EndStructure
 
 
@@ -303,20 +260,20 @@ EndStructure
 
 Structure Model
 	uint32 idModel
-	char ModelName[MAX_NAME_LEN]
-	char ModelDescription[MAX_DESCRIPTION_LEN]
+	char Name[MAX_NAME_LEN]
+	char Description[MAX_DESCRIPTION_LEN]
 EndStructure
 
 Structure ModelWaveStr
 	char idModel[MAX_NAME_LEN]
-	char ModelName[MAX_NAME_LEN]
-	char ModelDescription[MAX_NAME_LEN]
+	char Name[MAX_NAME_LEN]
+	char Description[MAX_NAME_LEN]
 EndStructure
 
 Structure ModelWaveRef
 	Wave /D idModel
-	Wave /T ModelName
-	Wave /T ModelDescription
+	Wave /T Name
+	Wave /T Description
 EndStructure
 
 
@@ -612,20 +569,29 @@ EndStructure
 
 Structure TraceData
 	uint32 idTraceData
-	char FileName[MAX_NAME_LEN]
-	uint32 idExpUserData
+	char FileTimSepFor[MAX_NAME_LEN]
+	uint32 idExpMeta
+	char FileOriginal[MAX_NAME_LEN]
+	char OriginalX[MAX_NAME_LEN]
+	char OriginalY[MAX_NAME_LEN]
 EndStructure
 
 Structure TraceDataWaveStr
 	char idTraceData[MAX_NAME_LEN]
-	char FileName[MAX_NAME_LEN]
-	char idExpUserData[MAX_NAME_LEN]
+	char FileTimSepFor[MAX_NAME_LEN]
+	char idExpMeta[MAX_NAME_LEN]
+	char FileOriginal[MAX_NAME_LEN]
+	char OriginalX[MAX_NAME_LEN]
+	char OriginalY[MAX_NAME_LEN]
 EndStructure
 
 Structure TraceDataWaveRef
 	Wave /D idTraceData
-	Wave /T FileName
-	Wave /D idExpUserData
+	Wave /T FileTimSepFor
+	Wave /D idExpMeta
+	Wave /T FileOriginal
+	Wave /T OriginalX
+	Wave /T OriginalY
 EndStructure
 
 
@@ -654,19 +620,19 @@ EndStructure
 Structure TraceExpLink
 	uint32 idTraceExpLink
 	uint32 idTraceMeta
-	uint32 idExpUserData
+	uint32 idExpMeta
 EndStructure
 
 Structure TraceExpLinkWaveStr
 	char idTraceExpLink[MAX_NAME_LEN]
 	char idTraceMeta[MAX_NAME_LEN]
-	char idExpUserData[MAX_NAME_LEN]
+	char idExpMeta[MAX_NAME_LEN]
 EndStructure
 
 Structure TraceExpLinkWaveRef
 	Wave /D idTraceExpLink
 	Wave /D idTraceMeta
-	Wave /D idExpUserData
+	Wave /D idExpMeta
 EndStructure
 
 
@@ -688,6 +654,7 @@ Structure TraceMeta
 	double ThermalQ
 	double LocationX
 	double LocationY
+	double LocationZ
 	double OffsetX
 	double OffsetY
 	uint32 Spot
@@ -715,6 +682,7 @@ Structure TraceMetaWaveStr
 	char ThermalQ[MAX_NAME_LEN]
 	char LocationX[MAX_NAME_LEN]
 	char LocationY[MAX_NAME_LEN]
+	char LocationZ[MAX_NAME_LEN]
 	char OffsetX[MAX_NAME_LEN]
 	char OffsetY[MAX_NAME_LEN]
 	char Spot[MAX_NAME_LEN]
@@ -742,6 +710,7 @@ Structure TraceMetaWaveRef
 	Wave /D ThermalQ
 	Wave /D LocationX
 	Wave /D LocationY
+	Wave /D LocationZ
 	Wave /D OffsetX
 	Wave /D OffsetY
 	Wave /D Spot
@@ -756,18 +725,21 @@ Structure TraceModel
 	uint32 idTraceModel
 	uint32 idTraceMeta
 	uint32 idTraceData
+	uint32 idModel
 EndStructure
 
 Structure TraceModelWaveStr
 	char idTraceModel[MAX_NAME_LEN]
 	char idTraceMeta[MAX_NAME_LEN]
 	char idTraceData[MAX_NAME_LEN]
+	char idModel[MAX_NAME_LEN]
 EndStructure
 
 Structure TraceModelWaveRef
 	Wave /D idTraceModel
 	Wave /D idTraceMeta
 	Wave /D idTraceData
+	Wave /D idModel
 EndStructure
 
 
@@ -813,11 +785,9 @@ EndStructure
 // Defined id structure
 Structure SqlIdTable
 	uint32 idExpMeta
-	uint32 idExpUserData
 	uint32 idLinkDataMeta
 	uint32 idLinkExpModel
 	uint32 idLinkModelParams
-	uint32 idLinkModelTrace
 	uint32 idLinkMoleTrace
 	uint32 idLinkTipTrace
 	uint32 idLinkTraceParam
@@ -842,7 +812,7 @@ Structure SqlIdTable
 	uint32 idUser
 EndStructure
 
-Function SetIdTable(mStruct,mPath)
+Static Function SetIdTable(mStruct,mPath)
 	Struct SqlIdTable & mStruct
 	String mPath
 	if (!WaveExists($mPath))
@@ -852,7 +822,7 @@ Function SetIdTable(mStruct,mPath)
 	StructPut /B=(ModDefine#StructFmt())  mStruct, $(mPath)
 End Function
 
-Function GetIdTable(mStruct,mPath)
+Static Function GetIdTable(mStruct,mPath)
 	Struct SqlIdTable & mStruct
 	String mPath
 	StructGet /B=(ModDefine#StructFmt()) mStruct,$(mPath)
@@ -865,9 +835,6 @@ Static Function GetId(mStruct,mTab)
 		case TAB_ExpMeta:
 			return mStruct.idExpMeta
 			break
-		case TAB_ExpUserData:
-			return mStruct.idExpUserData
-			break
 		case TAB_LinkDataMeta:
 			return mStruct.idLinkDataMeta
 			break
@@ -876,9 +843,6 @@ Static Function GetId(mStruct,mTab)
 			break
 		case TAB_LinkModelParams:
 			return mStruct.idLinkModelParams
-			break
-		case TAB_LinkModelTrace:
-			return mStruct.idLinkModelTrace
 			break
 		case TAB_LinkMoleTrace:
 			return mStruct.idLinkMoleTrace
@@ -961,9 +925,6 @@ Static Function SetId(mStruct,mTab,mId)
 		case TAB_ExpMeta:
 			mStruct.idExpMeta = mId
 			break
-		case TAB_ExpUserData:
-			mStruct.idExpUserData = mId
-			break
 		case TAB_LinkDataMeta:
 			mStruct.idLinkDataMeta = mId
 			break
@@ -972,9 +933,6 @@ Static Function SetId(mStruct,mTab,mId)
 			break
 		case TAB_LinkModelParams:
 			mStruct.idLinkModelParams = mId
-			break
-		case TAB_LinkModelTrace:
-			mStruct.idLinkModelTrace = mId
 			break
 		case TAB_LinkMoleTrace:
 			mStruct.idLinkMoleTrace = mId
@@ -1055,20 +1013,14 @@ Static Function /Wave GetDependencies(mTab)
 		case TAB_ExpMeta:
 			Make /O/T/N=0 toRetTabDep
 			break
-		case TAB_ExpUserData:
-			Make /O/T toRetTabDep = {TAB_User}
-			break
 		case TAB_LinkDataMeta:
 			Make /O/T toRetTabDep = {TAB_TraceMeta,TAB_TraceData}
 			break
 		case TAB_LinkExpModel:
-			Make /O/T toRetTabDep = {TAB_Model,TAB_ExpUserData}
+			Make /O/T toRetTabDep = {TAB_Model,TAB_ExpMeta}
 			break
 		case TAB_LinkModelParams:
 			Make /O/T toRetTabDep = {TAB_Model,TAB_ParamMeta}
-			break
-		case TAB_LinkModelTrace:
-			Make /O/T toRetTabDep = {TAB_Model,TAB_TraceModel}
 			break
 		case TAB_LinkMoleTrace:
 			Make /O/T toRetTabDep = {TAB_MolType,TAB_TraceMeta}
@@ -1116,19 +1068,19 @@ Static Function /Wave GetDependencies(mTab)
 			Make /O/T/N=0 toRetTabDep
 			break
 		case TAB_TraceData:
-			Make /O/T toRetTabDep = {TAB_ExpUserData}
+			Make /O/T toRetTabDep = {TAB_ExpMeta}
 			break
 		case TAB_TraceDataIndex:
 			Make /O/T toRetTabDep = {TAB_TraceData}
 			break
 		case TAB_TraceExpLink:
-			Make /O/T toRetTabDep = {TAB_TraceMeta,TAB_ExpUserData}
+			Make /O/T toRetTabDep = {TAB_TraceMeta,TAB_ExpMeta}
 			break
 		case TAB_TraceMeta:
 			Make /O/T toRetTabDep = {TAB_TipManifest,TAB_User,TAB_TraceRating,TAB_Sample}
 			break
 		case TAB_TraceModel:
-			Make /O/T toRetTabDep = {TAB_TraceMeta,TAB_TraceData}
+			Make /O/T toRetTabDep = {TAB_TraceMeta,TAB_TraceData,TAB_Model}
 			break
 		case TAB_TraceRating:
 			Make /O/T/N=0 toRetTabDep
@@ -1148,22 +1100,16 @@ Static Function /Wave GetColByTable(mTab)
 	String mTab
 	strswitch(mTab)
 		case TAB_ExpMeta:
-			Make /O/T toRetColTab = {FIELD_idExpUserData,FIELD_TimeStarted,FIELD_NAttemptedPulls,FIELD_SourceFile}
-			break
-		case TAB_ExpUserData:
-			Make /O/T toRetColTab = {FIELD_idExpUserData,FIELD_Name,FIELD_Description,FIELD_idUser}
+			Make /O/T toRetColTab = {FIELD_idExpMeta,FIELD_Name,FIELD_Description,FIELD_SourceFile}
 			break
 		case TAB_LinkDataMeta:
 			Make /O/T toRetColTab = {FIELD_idLinkDataMeta,FIELD_idTraceMeta,FIELD_idTraceData}
 			break
 		case TAB_LinkExpModel:
-			Make /O/T toRetColTab = {FIELD_idLinkExpModel,FIELD_idModel,FIELD_idExpUserData}
+			Make /O/T toRetColTab = {FIELD_idLinkExpModel,FIELD_idModel,FIELD_idExpMeta}
 			break
 		case TAB_LinkModelParams:
 			Make /O/T toRetColTab = {FIELD_idLinkModelParams,FIELD_idModel,FIELD_idParamMeta}
-			break
-		case TAB_LinkModelTrace:
-			Make /O/T toRetColTab = {FIELD_idLinkModelTrace,FIELD_idModel,FIELD_idTraceModel}
 			break
 		case TAB_LinkMoleTrace:
 			Make /O/T toRetColTab = {FIELD_idLinkMoleTrace,FIELD_idMolType,FIELD_idTraceMeta}
@@ -1175,7 +1121,7 @@ Static Function /Wave GetColByTable(mTab)
 			Make /O/T toRetColTab = {FIELD_idLinkTraceParam,FIELD_idParameterValue,FIELD_idTraceModel}
 			break
 		case TAB_Model:
-			Make /O/T toRetColTab = {FIELD_idModel,FIELD_ModelName,FIELD_ModelDescription}
+			Make /O/T toRetColTab = {FIELD_idModel,FIELD_Name,FIELD_Description}
 			break
 		case TAB_MolType:
 			Make /O/T toRetColTab = {FIELD_idMolType,FIELD_Name,FIELD_Description,FIELD_MolMass,FIELD_idMoleculeFamily}
@@ -1211,19 +1157,19 @@ Static Function /Wave GetColByTable(mTab)
 			Make /O/T toRetColTab = {FIELD_idTipTypes,FIELD_Name,FIELD_Description}
 			break
 		case TAB_TraceData:
-			Make /O/T toRetColTab = {FIELD_idTraceData,FIELD_FileName,FIELD_idExpUserData}
+			Make /O/T toRetColTab = {FIELD_idTraceData,FIELD_FileTimSepFor,FIELD_idExpMeta,FIELD_FileOriginal,FIELD_OriginalX,FIELD_OriginalY}
 			break
 		case TAB_TraceDataIndex:
 			Make /O/T toRetColTab = {FIELD_idParameterValue,FIELD_StartIndex,FIELD_EndIndex,FIELD_idTraceData}
 			break
 		case TAB_TraceExpLink:
-			Make /O/T toRetColTab = {FIELD_idTraceExpLink,FIELD_idTraceMeta,FIELD_idExpUserData}
+			Make /O/T toRetColTab = {FIELD_idTraceExpLink,FIELD_idTraceMeta,FIELD_idExpMeta}
 			break
 		case TAB_TraceMeta:
-			Make /O/T toRetColTab = {FIELD_idTraceMeta,FIELD_Description,FIELD_ApproachVel,FIELD_RetractVel,FIELD_TimeStarted,FIELD_TimeEnded,FIELD_DwellTowards,FIELD_DwellAway,FIELD_SampleRate,FIELD_FilteredSampleRate,FIELD_DeflInvols,FIELD_Temperature,FIELD_SpringConstant,FIELD_FirstResRef,FIELD_ThermalQ,FIELD_LocationX,FIELD_LocationY,FIELD_OffsetX,FIELD_OffsetY,FIELD_Spot,FIELD_idTipManifest,FIELD_idUser,FIELD_idTraceRating,FIELD_idSample}
+			Make /O/T toRetColTab = {FIELD_idTraceMeta,FIELD_Description,FIELD_ApproachVel,FIELD_RetractVel,FIELD_TimeStarted,FIELD_TimeEnded,FIELD_DwellTowards,FIELD_DwellAway,FIELD_SampleRate,FIELD_FilteredSampleRate,FIELD_DeflInvols,FIELD_Temperature,FIELD_SpringConstant,FIELD_FirstResRef,FIELD_ThermalQ,FIELD_LocationX,FIELD_LocationY,FIELD_LocationZ,FIELD_OffsetX,FIELD_OffsetY,FIELD_Spot,FIELD_idTipManifest,FIELD_idUser,FIELD_idTraceRating,FIELD_idSample}
 			break
 		case TAB_TraceModel:
-			Make /O/T toRetColTab = {FIELD_idTraceModel,FIELD_idTraceMeta,FIELD_idTraceData}
+			Make /O/T toRetColTab = {FIELD_idTraceModel,FIELD_idTraceMeta,FIELD_idTraceData,FIELD_idModel}
 			break
 		case TAB_TraceRating:
 			Make /O/T toRetColTab = {FIELD_idTraceRating,FIELD_RatingValue,FIELD_Name,FIELD_Description}
@@ -1243,10 +1189,7 @@ Static Function /Wave GetTypesByTable(mTab)
 	String mTab
 	strswitch(mTab)
 		case TAB_ExpMeta:
-			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_DATE,SQL_PTYPE_INT,SQL_PTYPE_GENSTR}
-			break
-		case TAB_ExpUserData:
-			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_NAME,SQL_PTYPE_DESCR,SQL_PTYPE_FK}
+			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_NAME,SQL_PTYPE_DESCR,SQL_PTYPE_GENSTR}
 			break
 		case TAB_LinkDataMeta:
 			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_FK,SQL_PTYPE_FK}
@@ -1255,9 +1198,6 @@ Static Function /Wave GetTypesByTable(mTab)
 			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_FK,SQL_PTYPE_FK}
 			break
 		case TAB_LinkModelParams:
-			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_FK,SQL_PTYPE_FK}
-			break
-		case TAB_LinkModelTrace:
 			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_FK,SQL_PTYPE_FK}
 			break
 		case TAB_LinkMoleTrace:
@@ -1306,7 +1246,7 @@ Static Function /Wave GetTypesByTable(mTab)
 			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_NAME,SQL_PTYPE_DESCR}
 			break
 		case TAB_TraceData:
-			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_NAME,SQL_PTYPE_FK}
+			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_GENSTR,SQL_PTYPE_FK,SQL_PTYPE_GENSTR,SQL_PTYPE_GENSTR,SQL_PTYPE_GENSTR}
 			break
 		case TAB_TraceDataIndex:
 			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_FK}
@@ -1315,10 +1255,10 @@ Static Function /Wave GetTypesByTable(mTab)
 			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_FK,SQL_PTYPE_FK}
 			break
 		case TAB_TraceMeta:
-			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_DESCR,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DATE,SQL_PTYPE_DATE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_INT,SQL_PTYPE_FK,SQL_PTYPE_FK,SQL_PTYPE_FK,SQL_PTYPE_FK}
+			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_DESCR,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DATE,SQL_PTYPE_DATE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_DOUBLE,SQL_PTYPE_INT,SQL_PTYPE_FK,SQL_PTYPE_FK,SQL_PTYPE_FK,SQL_PTYPE_FK}
 			break
 		case TAB_TraceModel:
-			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_FK,SQL_PTYPE_FK}
+			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_FK,SQL_PTYPE_FK,SQL_PTYPE_FK}
 			break
 		case TAB_TraceRating:
 			Make /O toRetColType = {SQL_PTYPE_ID,SQL_PTYPE_INT,SQL_PTYPE_NAME,SQL_PTYPE_DESCR}
@@ -1338,9 +1278,6 @@ Static Function /Wave GetWhatDependsOnTable(mTab)
 	String mTab
 	strswitch(mTab)
 		case TAB_ExpMeta:
-			Make /O/T/N=0 toRetDependencies
-			break
-		case TAB_ExpUserData:
 			Make /O/T toRetDependencies = {TAB_LinkExpModel,TAB_TraceData,TAB_TraceExpLink}
 			break
 		case TAB_LinkDataMeta:
@@ -1350,9 +1287,6 @@ Static Function /Wave GetWhatDependsOnTable(mTab)
 			Make /O/T/N=0 toRetDependencies
 			break
 		case TAB_LinkModelParams:
-			Make /O/T/N=0 toRetDependencies
-			break
-		case TAB_LinkModelTrace:
 			Make /O/T/N=0 toRetDependencies
 			break
 		case TAB_LinkMoleTrace:
@@ -1365,7 +1299,7 @@ Static Function /Wave GetWhatDependsOnTable(mTab)
 			Make /O/T/N=0 toRetDependencies
 			break
 		case TAB_Model:
-			Make /O/T toRetDependencies = {TAB_LinkExpModel,TAB_LinkModelParams,TAB_LinkModelTrace}
+			Make /O/T toRetDependencies = {TAB_LinkExpModel,TAB_LinkModelParams,TAB_TraceModel}
 			break
 		case TAB_MolType:
 			Make /O/T toRetDependencies = {TAB_LinkMoleTrace,TAB_Sample}
@@ -1413,13 +1347,13 @@ Static Function /Wave GetWhatDependsOnTable(mTab)
 			Make /O/T toRetDependencies = {TAB_LinkDataMeta,TAB_LinkMoleTrace,TAB_LinkTipTrace,TAB_TraceExpLink,TAB_TraceModel}
 			break
 		case TAB_TraceModel:
-			Make /O/T toRetDependencies = {TAB_LinkModelTrace,TAB_LinkTraceParam}
+			Make /O/T toRetDependencies = {TAB_LinkTraceParam}
 			break
 		case TAB_TraceRating:
 			Make /O/T toRetDependencies = {TAB_TraceMeta}
 			break
 		case TAB_User:
-			Make /O/T toRetDependencies = {TAB_ExpUserData,TAB_TraceMeta}
+			Make /O/T toRetDependencies = {TAB_TraceMeta}
 			break
 		default:
 			String mErr

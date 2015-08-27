@@ -5,13 +5,12 @@
 #include <SQLUtils>
 #include "::Util:Defines"
 #include "::Util:IoUtil"
+#Include ":SqlCypherAutoDefines"
 // XXX remove these, just here for compilation
 Static StrConstant DB_NAME = "CypherAFM"
 StrConstant SCHEMA_NAME = "INFORMATION_SCHEMA"
 StrConstant CONNECT_STR = "DSN=localhost;UID=root"
 StrConstant SQL_EMPTY_APPEND = ""
-// String to get last ID from *current* session (ie: current insert(
-StrConstant APPEND_LASTSCOPE_ID = "SELECT LAST_INSERT_ID();"
 // Connection specified by SqlConnect.
 // If connectionRefNum is -1, it acts as if the /CONN flag were omitted.
 Constant SQL_NO_CONN_SPECIFIED = -1
@@ -292,18 +291,109 @@ Static Function InitQueryWithKnownStr(mQuery,mTab,mCols,mVals,[appendString])
 	mQuery.DataType = QUERY_DATA_STR	
 End Function
 
+Static Function ColIsDate(col)
+	String col
+	// lieraal (?i) means case insensitive ( V-244, GrepString)
+	// after that, match maybe anyting (.*), followed by time or date, followed by anything
+	return GrepString(col,"(?i).*(?:Time|Date).*")
+End Function
+
 Static Function SelectComposite(mTab,mCols,mWaves,appendStmt)
 	String mTab
 	Wave /T mCols
 	Wave /T mWaves
 	String appendStmt
 	// get the proper lists for the columns and waves. *dont* include literal quotes (hence, false)
+	// Need to convert datetimes, because igor SUCKS and will get a string datetime as a double,
+	// but it must be inserted as a string. converting to a string here.
+	Variable n=Dimsize(mCols,0)
+	Make /O/T/N=(n) tmpWaves
+	tmpWaves[] = "w" + num2str(p)
 	String columnStr = ModSqlUtil#ToSqlStr(mCols,ModDefine#False())
-	String waves= ModSqlUtil#ToSqlStr(mWaves,ModDefine#False(),sep=SQL_WAVE_SEP)
+	String waves= ModSqlUtil#ToSqlStr(tmpWaves,ModDefine#False(),sep=SQL_WAVE_SEP) + SQL_WAVE_SEP
 	String mStatement
 	sprintf mStatement,SimpleSelectRegex,columnStr,GetDb(),mTab
 	mStatement += " " + appendStmt
 	SqlStmtGenericWaves(mStatement,Outwaves=waves)
+	// POST: need to duplicate back al the waves
+	Variable i
+	for (i=0; i<n; i+=1)
+		String mWaveDest = mWaves[i]
+		Wave mWaveData = $(tmpWaves[i])
+		if (ColIsDate(mCols[i]))
+			Wave /T mTextWave = $mWaveDest
+			Variable nTmpWave =DimSize(mWaveData,0)
+			Redimension /N=(nTmpWave) mTextWave	
+			// index using the p notaiton along all of mTextWave
+			if (nTmpWave > 0)
+				mTextWave[]  = ToSqlDate(mWaveData[p])
+			EndIf
+		else
+			Duplicate /O mWaveData,$mWaveDest
+		EndIf
+		KillWaves mWaveData
+	EndFor
+End Function
+
+// Selects columnStr from mTab, conditioned on mColWhere having value mValWhere
+// Note: assumes variable are doubles.
+Static Function SelectSimpleWhereStmt(mTab,columnStr,mColWhere,mWaveList,[mValWhere,mStrWhere])
+	String mTab,columnStr,mColWhere,mStrWhere
+	String mWaveList // Where the columns will go. Must be semi colon separated
+	Variable mValWhere
+	if (ParamIsDefault(mValWhere) && ParamIsDefault(mStrWhere))
+		// Cant have both be null
+		MOdErrorUtil#DevelopmentError()
+	EndIf
+	// POST: only one is null
+	String mStatement
+	sprintf mStatement,SimpleSelectRegex,columnStr,GetDb(),mTab
+	String toAdd
+	String mFmt
+	// ValEq is the -stringified- version of whatever we are adding
+	String ValEq
+	if (ParamIsDefault(mValWhere))
+		// then use the string
+		// add quotes on the %s
+		ValEq = "'" + mStrWhere + "'"
+	Else
+		// use the number
+		ValEq = num2str(mValWhere)
+	EndIf
+	mFmt=" WHERE %s=%s"
+	sprintf toAdd,mFmt,mColWhere,ValEq
+	mStatement += toAdd
+	// Execute the statement
+	SqlStmtGenericWaves(mStatement,Outwaves=mWaveList)
+End Function
+
+Static Function DeleteById(mTab,mColId,mIdVals)
+	String mTab,mColId
+	Wave mIdVals
+	String StmtRegex = "Delete from %s.%s where %s in %s"
+	Variable n=DimSize(mIdVals,0)
+	Variable i
+	if (n ==0)	
+		// no Ids specified, good to go
+		return ModDefine#True()
+	EndIF
+	// POST: something to delete
+	// Pattern is a comma sepearated list of Ids, enclosed in parentehsis
+	String idRegex = "("
+	for (i=0; i<n; i+=1)
+		IdRegex  += num2str(mIdVals[i])
+		// add a comma to everything except the end
+		if (i != n-1)
+			idRegex += ","
+		EndIf
+	EndFor
+	idRegex += ")"
+	// POST: idRegex has the string we want
+	String mStmt
+	// Pattern is <database>.<tab> where <idCol> in <list>
+	sprintf mStmt,StmtRegex,getDb(),mTab,mColId,idRegex
+	// Execute the sttement
+	SqlStmtGenericWaves(mStmt)
 End Function
 
 Static Function InsertComposite(mTab,mCols,mWaves,[mVals])
@@ -373,3 +463,50 @@ Static Function /S GetRepeatFmt(Num,Fmt,[Sep])
 	EndFor
 	return toRet
 End Function
+
+Static Function /S GetWaveListFromSingle(mWave)
+	Wave mWave
+	return NameOfWave(mWave) + SQL_WAVE_SEP
+End Function
+
+// Finds the ID of mTab, conditions where the (unique) column 'colWhere' takes the
+// value 'valwhere'. returns true or false if there is such an ID, and sets 'idToSetIfExists'
+// if it does exist.
+Static Function GetUniqueIdWhereColIsVal(mTab,colWhere,valWhere,idToSetIfExists)
+	String mTab,colWhere,valWhere
+	Variable & idToSetIfExists // pass by *reference*
+	Make /O/N=0 mIds
+	Wave /T myCols = ModSqlCypherAutoDefines#GetColByTable(mTab)
+	String myIdCol = myCols[0]
+	String mWavesForSqlModel = ModSqlUtil#GetWaveListFromSingle(mIds)
+	SelectSimpleWhereStmt(mTab,myIdCol,colWhere,mWavesForSqlModel,mStrWhere=valWhere)	
+	// POST: mIds should be 
+	if (DImSize(mIds,0) == 0)
+		// Didn't find anything; fatal error
+		return ModDefine#False()
+	elseif (DimSize(mIds,0) == 1)
+		// exactly one column; set idToSetIfExists
+		idToSetIfExists = mIds[0]
+		return ModDefine#True()
+	Else
+		// more than one ID; this should happen, should only be zero or one.
+		ModErrorUtil#DevelopmentError(description="Found more than one ID for a column")
+		// wont ever reach here..
+		return ModDefine#False()
+	EndIF
+End Function
+
+
+// Convert from a sql string to an igor format
+Static Function ToSecsFromSql(mStr)
+	String mStr
+	String mRegex = "(\d+)/(\d+)/(\d+)T(\d+):(\d+):(\d+).(\d+)"
+	String yearStr,monStr,dayStr,hourStr,minuteStr,secStr,fracStr
+	SplitString /E=(mRegex) mStr, yearStr,monStr,dayStr,hourStr,minuteStr,secStr,fracStr
+	Variable year=str2num(yearStr),mon=str2num(monStr),day=str2num(dayStr)
+	Variable hour=str2num(hourStr),minute=str2num(minuteStr),mSec=str2num(secStr)
+	Variable frac = str2num(fracStr)
+	Variable secs = ModIoUtil#DateFmtToSecs(year,mon,day,hour,minute,mSec,frac)
+	return secs
+End Function
+

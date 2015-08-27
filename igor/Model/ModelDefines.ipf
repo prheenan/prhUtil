@@ -169,7 +169,7 @@ End Function
 Structure Parameter
 	// Parameter ID. Should be unique among all the parameters
 	// XXX how to work in repeated parameters?
-	uint32 id
+	uint32 ParameterNumber
 	// Has the parameter value been specifically set or not?
 	char beenSet
 	// Prefix:
@@ -207,6 +207,8 @@ Structure Parameter
 	double SaveLength
 	// is preprocessing
 	char isPreProc 
+	// sql ID
+	uint32 sqlID
 EndStructure
 
 Structure ParamObj
@@ -233,7 +235,7 @@ Function InitParameter(newParam,newType,newPref,newUnit,HelpText,name,id,repeat,
 	mUnit.Prefix = newPref
 	mUnit.Unit = newUnit
 	// Add in the parameter id
-	newParam.id = id
+	newParam.ParameterNumber = id
 	// Add in the prefix information
 	newParam.PrefStr = newPref.PrefStr
 	newParam.LeadStr = newPref.LeadStr

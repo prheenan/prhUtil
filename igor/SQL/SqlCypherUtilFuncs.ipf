@@ -10,23 +10,11 @@ Static Function /Wave GetColsOfExpMeta([IncludeId])
 	Variable IncludeId
 	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
 	if (IncludeId)
-		Make /O/T ExpMeta = {FIELD_idExpUserData,FIELD_TimeStarted,FIELD_NAttemptedPulls,FIELD_SourceFile}
+		Make /O/T ExpMeta = {FIELD_idExpMeta,FIELD_Name,FIELD_Description,FIELD_SourceFile}
 	else
-		Make /O/T ExpMeta = {FIELD_TimeStarted,FIELD_NAttemptedPulls,FIELD_SourceFile}
+		Make /O/T ExpMeta = {FIELD_Name,FIELD_Description,FIELD_SourceFile}
 	endif
 	return ExpMeta
-End Function
-
-
-Static Function /Wave GetColsOfExpUserData([IncludeId])
-	Variable IncludeId
-	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
-	if (IncludeId)
-		Make /O/T ExpUserData = {FIELD_idExpUserData,FIELD_Name,FIELD_Description,FIELD_idUser}
-	else
-		Make /O/T ExpUserData = {FIELD_Name,FIELD_Description,FIELD_idUser}
-	endif
-	return ExpUserData
 End Function
 
 
@@ -46,9 +34,9 @@ Static Function /Wave GetColsOfLinkExpModel([IncludeId])
 	Variable IncludeId
 	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
 	if (IncludeId)
-		Make /O/T LinkExpModel = {FIELD_idLinkExpModel,FIELD_idModel,FIELD_idExpUserData}
+		Make /O/T LinkExpModel = {FIELD_idLinkExpModel,FIELD_idModel,FIELD_idExpMeta}
 	else
-		Make /O/T LinkExpModel = {FIELD_idModel,FIELD_idExpUserData}
+		Make /O/T LinkExpModel = {FIELD_idModel,FIELD_idExpMeta}
 	endif
 	return LinkExpModel
 End Function
@@ -63,18 +51,6 @@ Static Function /Wave GetColsOfLinkModelParams([IncludeId])
 		Make /O/T LinkModelParams = {FIELD_idModel,FIELD_idParamMeta}
 	endif
 	return LinkModelParams
-End Function
-
-
-Static Function /Wave GetColsOfLinkModelTrace([IncludeId])
-	Variable IncludeId
-	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
-	if (IncludeId)
-		Make /O/T LinkModelTrace = {FIELD_idLinkModelTrace,FIELD_idModel,FIELD_idTraceModel}
-	else
-		Make /O/T LinkModelTrace = {FIELD_idModel,FIELD_idTraceModel}
-	endif
-	return LinkModelTrace
 End Function
 
 
@@ -118,9 +94,9 @@ Static Function /Wave GetColsOfModel([IncludeId])
 	Variable IncludeId
 	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
 	if (IncludeId)
-		Make /O/T Model = {FIELD_idModel,FIELD_ModelName,FIELD_ModelDescription}
+		Make /O/T Model = {FIELD_idModel,FIELD_Name,FIELD_Description}
 	else
-		Make /O/T Model = {FIELD_ModelName,FIELD_ModelDescription}
+		Make /O/T Model = {FIELD_Name,FIELD_Description}
 	endif
 	return Model
 End Function
@@ -262,9 +238,9 @@ Static Function /Wave GetColsOfTraceData([IncludeId])
 	Variable IncludeId
 	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
 	if (IncludeId)
-		Make /O/T TraceData = {FIELD_idTraceData,FIELD_FileName,FIELD_idExpUserData}
+		Make /O/T TraceData = {FIELD_idTraceData,FIELD_FileTimSepFor,FIELD_idExpMeta,FIELD_FileOriginal,FIELD_OriginalX,FIELD_OriginalY}
 	else
-		Make /O/T TraceData = {FIELD_FileName,FIELD_idExpUserData}
+		Make /O/T TraceData = {FIELD_FileTimSepFor,FIELD_idExpMeta,FIELD_FileOriginal,FIELD_OriginalX,FIELD_OriginalY}
 	endif
 	return TraceData
 End Function
@@ -286,9 +262,9 @@ Static Function /Wave GetColsOfTraceExpLink([IncludeId])
 	Variable IncludeId
 	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
 	if (IncludeId)
-		Make /O/T TraceExpLink = {FIELD_idTraceExpLink,FIELD_idTraceMeta,FIELD_idExpUserData}
+		Make /O/T TraceExpLink = {FIELD_idTraceExpLink,FIELD_idTraceMeta,FIELD_idExpMeta}
 	else
-		Make /O/T TraceExpLink = {FIELD_idTraceMeta,FIELD_idExpUserData}
+		Make /O/T TraceExpLink = {FIELD_idTraceMeta,FIELD_idExpMeta}
 	endif
 	return TraceExpLink
 End Function
@@ -298,9 +274,9 @@ Static Function /Wave GetColsOfTraceMeta([IncludeId])
 	Variable IncludeId
 	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
 	if (IncludeId)
-		Make /O/T TraceMeta = {FIELD_idTraceMeta,FIELD_Description,FIELD_ApproachVel,FIELD_RetractVel,FIELD_TimeStarted,FIELD_TimeEnded,FIELD_DwellTowards,FIELD_DwellAway,FIELD_SampleRate,FIELD_FilteredSampleRate,FIELD_DeflInvols,FIELD_Temperature,FIELD_SpringConstant,FIELD_FirstResRef,FIELD_ThermalQ,FIELD_LocationX,FIELD_LocationY,FIELD_OffsetX,FIELD_OffsetY,FIELD_Spot,FIELD_idTipManifest,FIELD_idUser,FIELD_idTraceRating,FIELD_idSample}
+		Make /O/T TraceMeta = {FIELD_idTraceMeta,FIELD_Description,FIELD_ApproachVel,FIELD_RetractVel,FIELD_TimeStarted,FIELD_TimeEnded,FIELD_DwellTowards,FIELD_DwellAway,FIELD_SampleRate,FIELD_FilteredSampleRate,FIELD_DeflInvols,FIELD_Temperature,FIELD_SpringConstant,FIELD_FirstResRef,FIELD_ThermalQ,FIELD_LocationX,FIELD_LocationY,FIELD_LocationZ,FIELD_OffsetX,FIELD_OffsetY,FIELD_Spot,FIELD_idTipManifest,FIELD_idUser,FIELD_idTraceRating,FIELD_idSample}
 	else
-		Make /O/T TraceMeta = {FIELD_Description,FIELD_ApproachVel,FIELD_RetractVel,FIELD_TimeStarted,FIELD_TimeEnded,FIELD_DwellTowards,FIELD_DwellAway,FIELD_SampleRate,FIELD_FilteredSampleRate,FIELD_DeflInvols,FIELD_Temperature,FIELD_SpringConstant,FIELD_FirstResRef,FIELD_ThermalQ,FIELD_LocationX,FIELD_LocationY,FIELD_OffsetX,FIELD_OffsetY,FIELD_Spot,FIELD_idTipManifest,FIELD_idUser,FIELD_idTraceRating,FIELD_idSample}
+		Make /O/T TraceMeta = {FIELD_Description,FIELD_ApproachVel,FIELD_RetractVel,FIELD_TimeStarted,FIELD_TimeEnded,FIELD_DwellTowards,FIELD_DwellAway,FIELD_SampleRate,FIELD_FilteredSampleRate,FIELD_DeflInvols,FIELD_Temperature,FIELD_SpringConstant,FIELD_FirstResRef,FIELD_ThermalQ,FIELD_LocationX,FIELD_LocationY,FIELD_LocationZ,FIELD_OffsetX,FIELD_OffsetY,FIELD_Spot,FIELD_idTipManifest,FIELD_idUser,FIELD_idTraceRating,FIELD_idSample}
 	endif
 	return TraceMeta
 End Function
@@ -310,9 +286,9 @@ Static Function /Wave GetColsOfTraceModel([IncludeId])
 	Variable IncludeId
 	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
 	if (IncludeId)
-		Make /O/T TraceModel = {FIELD_idTraceModel,FIELD_idTraceMeta,FIELD_idTraceData}
+		Make /O/T TraceModel = {FIELD_idTraceModel,FIELD_idTraceMeta,FIELD_idTraceData,FIELD_idModel}
 	else
-		Make /O/T TraceModel = {FIELD_idTraceMeta,FIELD_idTraceData}
+		Make /O/T TraceModel = {FIELD_idTraceMeta,FIELD_idTraceData,FIELD_idModel}
 	endif
 	return TraceModel
 End Function

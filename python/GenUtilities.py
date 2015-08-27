@@ -84,9 +84,24 @@ def RSQ(predicted,actual):
     SS_Tot = np.sum((actual-meanObs)**2)
     return 1 - SS_Res/SS_Tot
 
+def lineIntersect(slope1,intercept1,slope2,intercept2):
+    return (intercept1-intercept2)/(slope2-slope1)
+
+# assumes that aThenBX are lists for the two lines
+def lineIntersectParam(aThenB1,aThenB2):
+    return lineIntersect(aThenB1[0],aThenB1[1],aThenB2[0],aThenB2[1])
+
+
 def linModel(xData,a,b):
     # y = ax+b
     return xData*a+b
+
+def GenFit(x,y,model=linModel,**kwargs):
+    params,Cov = curve_fit(f=model,xdata=x,ydata=y,**kwargs)
+    # the square root of the diagonal elements are the standard deviations
+    paramsStd = np.sqrt(np.diag(Cov))
+    predicted = model(x,*params)
+    return params,paramsStd,predicted
 
 def fitInfo(x,y,units=['',''],model=linModel,varStr=['a','b'],
             modelStr="y=a*x+b"
@@ -101,10 +116,7 @@ def fitInfo(x,y,units=['',''],model=linModel,varStr=['a','b'],
     # degFit: degree of the model
     # fmtStr: formating of the data
     # full : if we should return all the data
-    params,Cov = curve_fit(f=model,xdata=x,ydata=y,**kwargs)
-    # the square root of the diagonal elements are the standard deviations
-    paramsStd = np.sqrt(np.diag(Cov))
-    predicted = model(x,*params)
+    params,paramsStd,predicted = GenFit(x,y,model,**kwargs)
     R_SQ = RSQ(predicted,y)
     # if RSQ is very close to 1 (XXX add parameter?) don't display, since
     # we are likely not interested in an actual fit...

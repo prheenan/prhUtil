@@ -100,7 +100,7 @@ emnu()
 
 edu()
 {
-    cd /Users/patrickheenan/Documents/education/boulder_files/2_spring_2015
+    cd /Users/patrickheenan/Documents/education/boulder_files/4_fall_2015
 }
 
 euler()

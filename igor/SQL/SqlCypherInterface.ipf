@@ -95,14 +95,14 @@ End Function
 Static Function LoadGlobalIdStruct(mStruct)
 	Struct SqlIdTable & mStruct
 	String mPath = GetIdWavePath()
-	GetIdTable(mStruct,mPath)
+	ModSqlCypherAutoDefines#GetIdTable(mStruct,mPath)
 End Function
 
 // Set the global Id structure
 Static Function SaveGlobalIdStruct(mStruct)
 	Struct SqlIdTable & mStruct
 	String mPath = GetIdWavePath()
-	SetIdTable(mStruct,mPath)
+	ModSqlCypherAutoDefines#SetIdTable(mStruct,mPath)
 End Function
 
 // This function should be called before any of the sql functions are used.
@@ -113,6 +113,7 @@ Static Function InitSqlModule()
 	// (ie: write the wave)
 	Struct SqlIdTable mStruct
 	SaveGlobalIdStruct(mStruct)
+	InitSqlLocalWaveTables()
 	// Determine the 'starting' values for all the non-dependent
 	// sql tables
 	GetStartingValues()
@@ -296,11 +297,29 @@ Static Function InitSqlLocalWaveTables()
 			mField = mFields[j]
 			mFieldWaveToInit = GetFieldWaveName(mTab,mField)	
 			// initialize the wave, depending on its type (numeric/string)	
-			if (IsNumericType(mTypes[j]))
-				ModDataStruct#EnsureNumWaveExists(mFieldWaveToInit)
-			Else
-				ModDataStruct#EnsureTextWaveExists(mFieldWaveToInit)			
-			EndIf
+			// V-375
+			switch (mTypes[j])
+				// double
+				case SQL_PTYPE_DOUBLE:
+				// NOTE: date *cannot* be stored except as a double from queries:
+				// see: "Date/Time Data", SQL Help.ihf (pp20)
+				// So, we store as double (ugh) immediately convert for user purposes...
+					Make /O/D $mFieldWaveToInit
+				// unsigned (/U) integers (/I)
+				case SQL_PTYPE_INT:
+				case SQL_PTYPE_FK:
+				case SQL_PTYPE_ID:
+					Make /O/I/U $mFieldWaveToInit
+					break
+				// text
+				case SQL_PTYPE_DATE:
+				case SQL_PTYPE_NAME:
+				case SQL_PTYPE_DESCR:
+				case SQL_PTYPE_GENSTR:
+					Make /O/T $mFieldWaveToInit
+					break
+				break
+			EndSwitch 
 		EndFor
 		// Kill the waves we just made
 		KillWaves /Z mFields,mTypes
@@ -329,7 +348,7 @@ End Function
 
 // Get the user-settable tables
 Static Function /Wave GetGuiTables()
-	Make /O/T GuiTables = {TAB_ExpUserData,TAB_MolType,TAB_MoleculeFamily,TAB_Sample,TAB_SamplePrep,TAB_TipManifest,TAB_TipPack,TAB_TipPrep,TAB_TipType,TAB_TraceRating,TAB_User}
+	Make /O/T GuiTables = {TAB_MolType,TAB_MoleculeFamily,TAB_Sample,TAB_SamplePrep,TAB_TipManifest,TAB_TipPack,TAB_TipPrep,TAB_TipType,TAB_TraceRating,TAB_User}
 	return GuiTables
 End Function
 

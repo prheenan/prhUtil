@@ -10,39 +10,20 @@
 // Defined insert functions
 Static Function InsertFmtExpMeta(mTab)
 	Struct ExpMeta & mTab
-	String fmtStr = "'%s',%d,'%s'"
+	String fmtStr = "'%s','%s','%s'"
 	String final
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfExpMeta()
-	sprintf final,fmtStr,mTab.TimeStarted,mTab.NAttemptedPulls,mTab.SourceFile
+	sprintf final,fmtStr,mTab.Name,mTab.Description,mTab.SourceFile
 	return ModSqlUtil#InsertFormatted(TAB_ExpMeta,mCols,final)
 End Function
 
-Static Function InsertExpMeta(TimeStarted,NAttemptedPulls,SourceFile)
-	Wave /T TimeStarted
-	Wave  NAttemptedPulls
-	Wave /T SourceFile
-	Wave /T mCols= ModSqlCypherUtilFuncs#GetColsOfExpMeta()
-	Make /O/T mWave = { NameOfWave(TimeStarted),NameOfWave(NAttemptedPulls),NameOfWave(SourceFile)} 
-	return ModSqlUtil#InsertComposite(TAB_ExpMeta,mCols,mWave)
-End Function
-
-
-Static Function InsertFmtExpUserData(mTab)
-	Struct ExpUserData & mTab
-	String fmtStr = "'%s','%s',%d"
-	String final
-	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfExpUserData()
-	sprintf final,fmtStr,mTab.Name,mTab.Description,mTab.idUser
-	return ModSqlUtil#InsertFormatted(TAB_ExpUserData,mCols,final)
-End Function
-
-Static Function InsertExpUserData(Name,Description,idUser)
+Static Function InsertExpMeta(Name,Description,SourceFile)
 	Wave /T Name
 	Wave /T Description
-	Wave  idUser
-	Wave /T mCols= ModSqlCypherUtilFuncs#GetColsOfExpUserData()
-	Make /O/T mWave = { NameOfWave(Name),NameOfWave(Description),NameOfWave(idUser)} 
-	return ModSqlUtil#InsertComposite(TAB_ExpUserData,mCols,mWave)
+	Wave /T SourceFile
+	Wave /T mCols= ModSqlCypherUtilFuncs#GetColsOfExpMeta()
+	Make /O/T mWave = { NameOfWave(Name),NameOfWave(Description),NameOfWave(SourceFile)} 
+	return ModSqlUtil#InsertComposite(TAB_ExpMeta,mCols,mWave)
 End Function
 
 
@@ -69,15 +50,15 @@ Static Function InsertFmtLinkExpModel(mTab)
 	String fmtStr = "%d,%d"
 	String final
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfLinkExpModel()
-	sprintf final,fmtStr,mTab.idModel,mTab.idExpUserData
+	sprintf final,fmtStr,mTab.idModel,mTab.idExpMeta
 	return ModSqlUtil#InsertFormatted(TAB_LinkExpModel,mCols,final)
 End Function
 
-Static Function InsertLinkExpModel(idModel,idExpUserData)
+Static Function InsertLinkExpModel(idModel,idExpMeta)
 	Wave  idModel
-	Wave  idExpUserData
+	Wave  idExpMeta
 	Wave /T mCols= ModSqlCypherUtilFuncs#GetColsOfLinkExpModel()
-	Make /O/T mWave = { NameOfWave(idModel),NameOfWave(idExpUserData)} 
+	Make /O/T mWave = { NameOfWave(idModel),NameOfWave(idExpMeta)} 
 	return ModSqlUtil#InsertComposite(TAB_LinkExpModel,mCols,mWave)
 End Function
 
@@ -97,24 +78,6 @@ Static Function InsertLinkModelParams(idModel,idParamMeta)
 	Wave /T mCols= ModSqlCypherUtilFuncs#GetColsOfLinkModelParams()
 	Make /O/T mWave = { NameOfWave(idModel),NameOfWave(idParamMeta)} 
 	return ModSqlUtil#InsertComposite(TAB_LinkModelParams,mCols,mWave)
-End Function
-
-
-Static Function InsertFmtLinkModelTrace(mTab)
-	Struct LinkModelTrace & mTab
-	String fmtStr = "%d,%d"
-	String final
-	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfLinkModelTrace()
-	sprintf final,fmtStr,mTab.idModel,mTab.idTraceModel
-	return ModSqlUtil#InsertFormatted(TAB_LinkModelTrace,mCols,final)
-End Function
-
-Static Function InsertLinkModelTrace(idModel,idTraceModel)
-	Wave  idModel
-	Wave  idTraceModel
-	Wave /T mCols= ModSqlCypherUtilFuncs#GetColsOfLinkModelTrace()
-	Make /O/T mWave = { NameOfWave(idModel),NameOfWave(idTraceModel)} 
-	return ModSqlUtil#InsertComposite(TAB_LinkModelTrace,mCols,mWave)
 End Function
 
 
@@ -177,15 +140,15 @@ Static Function InsertFmtModel(mTab)
 	String fmtStr = "'%s','%s'"
 	String final
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfModel()
-	sprintf final,fmtStr,mTab.ModelName,mTab.ModelDescription
+	sprintf final,fmtStr,mTab.Name,mTab.Description
 	return ModSqlUtil#InsertFormatted(TAB_Model,mCols,final)
 End Function
 
-Static Function InsertModel(ModelName,ModelDescription)
-	Wave /T ModelName
-	Wave /T ModelDescription
+Static Function InsertModel(Name,Description)
+	Wave /T Name
+	Wave /T Description
 	Wave /T mCols= ModSqlCypherUtilFuncs#GetColsOfModel()
-	Make /O/T mWave = { NameOfWave(ModelName),NameOfWave(ModelDescription)} 
+	Make /O/T mWave = { NameOfWave(Name),NameOfWave(Description)} 
 	return ModSqlUtil#InsertComposite(TAB_Model,mCols,mWave)
 End Function
 
@@ -417,18 +380,21 @@ End Function
 
 Static Function InsertFmtTraceData(mTab)
 	Struct TraceData & mTab
-	String fmtStr = "'%s',%d"
+	String fmtStr = "'%s',%d,'%s','%s','%s'"
 	String final
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfTraceData()
-	sprintf final,fmtStr,mTab.FileName,mTab.idExpUserData
+	sprintf final,fmtStr,mTab.FileTimSepFor,mTab.idExpMeta,mTab.FileOriginal,mTab.OriginalX,mTab.OriginalY
 	return ModSqlUtil#InsertFormatted(TAB_TraceData,mCols,final)
 End Function
 
-Static Function InsertTraceData(FileName,idExpUserData)
-	Wave /T FileName
-	Wave  idExpUserData
+Static Function InsertTraceData(FileTimSepFor,idExpMeta,FileOriginal,OriginalX,OriginalY)
+	Wave /T FileTimSepFor
+	Wave  idExpMeta
+	Wave /T FileOriginal
+	Wave /T OriginalX
+	Wave /T OriginalY
 	Wave /T mCols= ModSqlCypherUtilFuncs#GetColsOfTraceData()
-	Make /O/T mWave = { NameOfWave(FileName),NameOfWave(idExpUserData)} 
+	Make /O/T mWave = { NameOfWave(FileTimSepFor),NameOfWave(idExpMeta),NameOfWave(FileOriginal),NameOfWave(OriginalX),NameOfWave(OriginalY)} 
 	return ModSqlUtil#InsertComposite(TAB_TraceData,mCols,mWave)
 End Function
 
@@ -457,29 +423,29 @@ Static Function InsertFmtTraceExpLink(mTab)
 	String fmtStr = "%d,%d"
 	String final
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfTraceExpLink()
-	sprintf final,fmtStr,mTab.idTraceMeta,mTab.idExpUserData
+	sprintf final,fmtStr,mTab.idTraceMeta,mTab.idExpMeta
 	return ModSqlUtil#InsertFormatted(TAB_TraceExpLink,mCols,final)
 End Function
 
-Static Function InsertTraceExpLink(idTraceMeta,idExpUserData)
+Static Function InsertTraceExpLink(idTraceMeta,idExpMeta)
 	Wave  idTraceMeta
-	Wave  idExpUserData
+	Wave  idExpMeta
 	Wave /T mCols= ModSqlCypherUtilFuncs#GetColsOfTraceExpLink()
-	Make /O/T mWave = { NameOfWave(idTraceMeta),NameOfWave(idExpUserData)} 
+	Make /O/T mWave = { NameOfWave(idTraceMeta),NameOfWave(idExpMeta)} 
 	return ModSqlUtil#InsertComposite(TAB_TraceExpLink,mCols,mWave)
 End Function
 
 
 Static Function InsertFmtTraceMeta(mTab)
 	Struct TraceMeta & mTab
-	String fmtStr = "'%s',%.15g,%.15g,'%s','%s',%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%d,%d,%d,%d,%d"
+	String fmtStr = "'%s',%.15g,%.15g,'%s','%s',%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g,%d,%d,%d,%d,%d"
 	String final
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfTraceMeta()
-	sprintf final,fmtStr,mTab.Description,mTab.ApproachVel,mTab.RetractVel,mTab.TimeStarted,mTab.TimeEnded,mTab.DwellTowards,mTab.DwellAway,mTab.SampleRate,mTab.FilteredSampleRate,mTab.DeflInvols,mTab.Temperature,mTab.SpringConstant,mTab.FirstResRef,mTab.ThermalQ,mTab.LocationX,mTab.LocationY,mTab.OffsetX,mTab.OffsetY,mTab.Spot,mTab.idTipManifest,mTab.idUser,mTab.idTraceRating,mTab.idSample
+	sprintf final,fmtStr,mTab.Description,mTab.ApproachVel,mTab.RetractVel,mTab.TimeStarted,mTab.TimeEnded,mTab.DwellTowards,mTab.DwellAway,mTab.SampleRate,mTab.FilteredSampleRate,mTab.DeflInvols,mTab.Temperature,mTab.SpringConstant,mTab.FirstResRef,mTab.ThermalQ,mTab.LocationX,mTab.LocationY,mTab.LocationZ,mTab.OffsetX,mTab.OffsetY,mTab.Spot,mTab.idTipManifest,mTab.idUser,mTab.idTraceRating,mTab.idSample
 	return ModSqlUtil#InsertFormatted(TAB_TraceMeta,mCols,final)
 End Function
 
-Static Function InsertTraceMeta(Description,ApproachVel,RetractVel,TimeStarted,TimeEnded,DwellTowards,DwellAway,SampleRate,FilteredSampleRate,DeflInvols,Temperature,SpringConstant,FirstResRef,ThermalQ,LocationX,LocationY,OffsetX,OffsetY,Spot,idTipManifest,idUser,idTraceRating,idSample)
+Static Function InsertTraceMeta(Description,ApproachVel,RetractVel,TimeStarted,TimeEnded,DwellTowards,DwellAway,SampleRate,FilteredSampleRate,DeflInvols,Temperature,SpringConstant,FirstResRef,ThermalQ,LocationX,LocationY,LocationZ,OffsetX,OffsetY,Spot,idTipManifest,idUser,idTraceRating,idSample)
 	Wave /T Description
 	Wave /D ApproachVel
 	Wave /D RetractVel
@@ -496,6 +462,7 @@ Static Function InsertTraceMeta(Description,ApproachVel,RetractVel,TimeStarted,T
 	Wave /D ThermalQ
 	Wave /D LocationX
 	Wave /D LocationY
+	Wave /D LocationZ
 	Wave /D OffsetX
 	Wave /D OffsetY
 	Wave  Spot
@@ -504,25 +471,26 @@ Static Function InsertTraceMeta(Description,ApproachVel,RetractVel,TimeStarted,T
 	Wave  idTraceRating
 	Wave  idSample
 	Wave /T mCols= ModSqlCypherUtilFuncs#GetColsOfTraceMeta()
-	Make /O/T mWave = { NameOfWave(Description),NameOfWave(ApproachVel),NameOfWave(RetractVel),NameOfWave(TimeStarted),NameOfWave(TimeEnded),NameOfWave(DwellTowards),NameOfWave(DwellAway),NameOfWave(SampleRate),NameOfWave(FilteredSampleRate),NameOfWave(DeflInvols),NameOfWave(Temperature),NameOfWave(SpringConstant),NameOfWave(FirstResRef),NameOfWave(ThermalQ),NameOfWave(LocationX),NameOfWave(LocationY),NameOfWave(OffsetX),NameOfWave(OffsetY),NameOfWave(Spot),NameOfWave(idTipManifest),NameOfWave(idUser),NameOfWave(idTraceRating),NameOfWave(idSample)} 
+	Make /O/T mWave = { NameOfWave(Description),NameOfWave(ApproachVel),NameOfWave(RetractVel),NameOfWave(TimeStarted),NameOfWave(TimeEnded),NameOfWave(DwellTowards),NameOfWave(DwellAway),NameOfWave(SampleRate),NameOfWave(FilteredSampleRate),NameOfWave(DeflInvols),NameOfWave(Temperature),NameOfWave(SpringConstant),NameOfWave(FirstResRef),NameOfWave(ThermalQ),NameOfWave(LocationX),NameOfWave(LocationY),NameOfWave(LocationZ),NameOfWave(OffsetX),NameOfWave(OffsetY),NameOfWave(Spot),NameOfWave(idTipManifest),NameOfWave(idUser),NameOfWave(idTraceRating),NameOfWave(idSample)} 
 	return ModSqlUtil#InsertComposite(TAB_TraceMeta,mCols,mWave)
 End Function
 
 
 Static Function InsertFmtTraceModel(mTab)
 	Struct TraceModel & mTab
-	String fmtStr = "%d,%d"
+	String fmtStr = "%d,%d,%d"
 	String final
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfTraceModel()
-	sprintf final,fmtStr,mTab.idTraceMeta,mTab.idTraceData
+	sprintf final,fmtStr,mTab.idTraceMeta,mTab.idTraceData,mTab.idModel
 	return ModSqlUtil#InsertFormatted(TAB_TraceModel,mCols,final)
 End Function
 
-Static Function InsertTraceModel(idTraceMeta,idTraceData)
+Static Function InsertTraceModel(idTraceMeta,idTraceData,idModel)
 	Wave  idTraceMeta
 	Wave  idTraceData
+	Wave  idModel
 	Wave /T mCols= ModSqlCypherUtilFuncs#GetColsOfTraceModel()
-	Make /O/T mWave = { NameOfWave(idTraceMeta),NameOfWave(idTraceData)} 
+	Make /O/T mWave = { NameOfWave(idTraceMeta),NameOfWave(idTraceData),NameOfWave(idModel)} 
 	return ModSqlUtil#InsertComposite(TAB_TraceModel,mCols,mWave)
 End Function
 
@@ -571,59 +539,28 @@ Static Function InitExpMetaWaveStr(mStruct,[useGlobal])
 	String mTab = TAB_ExpMeta
 	useGlobal = ParamIsDefault(useGlobal) ? ModDefine#True() : useGlobal
 	if(useGlobal)
-		mStruct.idExpUserData =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idExpUserData)
-		mStruct.TimeStarted =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_TimeStarted)
-		mStruct.NAttemptedPulls =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_NAttemptedPulls)
+		mStruct.idExpMeta =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idExpMeta)
+		mStruct.Name =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_Name)
+		mStruct.Description =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_Description)
 		mStruct.SourceFile =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_SourceFile)
 	else
-		mStruct.idExpUserData =FIELD_idExpUserData
-		mStruct.TimeStarted =FIELD_TimeStarted
-		mStruct.NAttemptedPulls =FIELD_NAttemptedPulls
+		mStruct.idExpMeta =FIELD_idExpMeta
+		mStruct.Name =FIELD_Name
+		mStruct.Description =FIELD_Description
 		mStruct.SourceFile =FIELD_SourceFile
 	Endif
 End Function
 
-Static Function InitExpMetaStruct(mTab,idExpUserData,TimeStarted,NAttemptedPulls,SourceFile)
+Static Function InitExpMetaStruct(mTab,idExpMeta,Name,Description,SourceFile)
 Struct ExpMeta & mTab
-	Variable idExpUserData
-	String TimeStarted
-	Variable NAttemptedPulls
-	String SourceFile
-	mTab.idExpUserData = idExpUserData
-	mTab.TimeStarted = TimeStarted
-	mTab.NAttemptedPulls = NAttemptedPulls
-	mTab.SourceFile = SourceFile
-
-End Function
-
-Static Function InitExpUserDataWaveStr(mStruct,[useGlobal])
-	Struct ExpUserDataWaveStr & mStruct
-	Variable useGlobal
-	String mTab = TAB_ExpUserData
-	useGlobal = ParamIsDefault(useGlobal) ? ModDefine#True() : useGlobal
-	if(useGlobal)
-		mStruct.idExpUserData =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idExpUserData)
-		mStruct.Name =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_Name)
-		mStruct.Description =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_Description)
-		mStruct.idUser =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idUser)
-	else
-		mStruct.idExpUserData =FIELD_idExpUserData
-		mStruct.Name =FIELD_Name
-		mStruct.Description =FIELD_Description
-		mStruct.idUser =FIELD_idUser
-	Endif
-End Function
-
-Static Function InitExpUserDataStruct(mTab,idExpUserData,Name,Description,idUser)
-Struct ExpUserData & mTab
-	Variable idExpUserData
+	Variable idExpMeta
 	String Name
 	String Description
-	Variable idUser
-	mTab.idExpUserData = idExpUserData
+	String SourceFile
+	mTab.idExpMeta = idExpMeta
 	mTab.Name = Name
 	mTab.Description = Description
-	mTab.idUser = idUser
+	mTab.SourceFile = SourceFile
 
 End Function
 
@@ -662,22 +599,22 @@ Static Function InitLinkExpModelWaveStr(mStruct,[useGlobal])
 	if(useGlobal)
 		mStruct.idLinkExpModel =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idLinkExpModel)
 		mStruct.idModel =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idModel)
-		mStruct.idExpUserData =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idExpUserData)
+		mStruct.idExpMeta =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idExpMeta)
 	else
 		mStruct.idLinkExpModel =FIELD_idLinkExpModel
 		mStruct.idModel =FIELD_idModel
-		mStruct.idExpUserData =FIELD_idExpUserData
+		mStruct.idExpMeta =FIELD_idExpMeta
 	Endif
 End Function
 
-Static Function InitLinkExpModelStruct(mTab,idLinkExpModel,idModel,idExpUserData)
+Static Function InitLinkExpModelStruct(mTab,idLinkExpModel,idModel,idExpMeta)
 Struct LinkExpModel & mTab
 	Variable idLinkExpModel
 	Variable idModel
-	Variable idExpUserData
+	Variable idExpMeta
 	mTab.idLinkExpModel = idLinkExpModel
 	mTab.idModel = idModel
-	mTab.idExpUserData = idExpUserData
+	mTab.idExpMeta = idExpMeta
 
 End Function
 
@@ -705,33 +642,6 @@ Struct LinkModelParams & mTab
 	mTab.idLinkModelParams = idLinkModelParams
 	mTab.idModel = idModel
 	mTab.idParamMeta = idParamMeta
-
-End Function
-
-Static Function InitLinkModelTraceWaveStr(mStruct,[useGlobal])
-	Struct LinkModelTraceWaveStr & mStruct
-	Variable useGlobal
-	String mTab = TAB_LinkModelTrace
-	useGlobal = ParamIsDefault(useGlobal) ? ModDefine#True() : useGlobal
-	if(useGlobal)
-		mStruct.idLinkModelTrace =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idLinkModelTrace)
-		mStruct.idModel =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idModel)
-		mStruct.idTraceModel =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idTraceModel)
-	else
-		mStruct.idLinkModelTrace =FIELD_idLinkModelTrace
-		mStruct.idModel =FIELD_idModel
-		mStruct.idTraceModel =FIELD_idTraceModel
-	Endif
-End Function
-
-Static Function InitLinkModelTraceStruct(mTab,idLinkModelTrace,idModel,idTraceModel)
-Struct LinkModelTrace & mTab
-	Variable idLinkModelTrace
-	Variable idModel
-	Variable idTraceModel
-	mTab.idLinkModelTrace = idLinkModelTrace
-	mTab.idModel = idModel
-	mTab.idTraceModel = idTraceModel
 
 End Function
 
@@ -823,23 +733,23 @@ Static Function InitModelWaveStr(mStruct,[useGlobal])
 	useGlobal = ParamIsDefault(useGlobal) ? ModDefine#True() : useGlobal
 	if(useGlobal)
 		mStruct.idModel =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idModel)
-		mStruct.ModelName =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_ModelName)
-		mStruct.ModelDescription =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_ModelDescription)
+		mStruct.Name =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_Name)
+		mStruct.Description =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_Description)
 	else
 		mStruct.idModel =FIELD_idModel
-		mStruct.ModelName =FIELD_ModelName
-		mStruct.ModelDescription =FIELD_ModelDescription
+		mStruct.Name =FIELD_Name
+		mStruct.Description =FIELD_Description
 	Endif
 End Function
 
-Static Function InitModelStruct(mTab,idModel,ModelName,ModelDescription)
+Static Function InitModelStruct(mTab,idModel,Name,Description)
 Struct Model & mTab
 	Variable idModel
-	String ModelName
-	String ModelDescription
+	String Name
+	String Description
 	mTab.idModel = idModel
-	mTab.ModelName = ModelName
-	mTab.ModelDescription = ModelDescription
+	mTab.Name = Name
+	mTab.Description = Description
 
 End Function
 
@@ -1255,23 +1165,35 @@ Static Function InitTraceDataWaveStr(mStruct,[useGlobal])
 	useGlobal = ParamIsDefault(useGlobal) ? ModDefine#True() : useGlobal
 	if(useGlobal)
 		mStruct.idTraceData =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idTraceData)
-		mStruct.FileName =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_FileName)
-		mStruct.idExpUserData =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idExpUserData)
+		mStruct.FileTimSepFor =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_FileTimSepFor)
+		mStruct.idExpMeta =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idExpMeta)
+		mStruct.FileOriginal =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_FileOriginal)
+		mStruct.OriginalX =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_OriginalX)
+		mStruct.OriginalY =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_OriginalY)
 	else
 		mStruct.idTraceData =FIELD_idTraceData
-		mStruct.FileName =FIELD_FileName
-		mStruct.idExpUserData =FIELD_idExpUserData
+		mStruct.FileTimSepFor =FIELD_FileTimSepFor
+		mStruct.idExpMeta =FIELD_idExpMeta
+		mStruct.FileOriginal =FIELD_FileOriginal
+		mStruct.OriginalX =FIELD_OriginalX
+		mStruct.OriginalY =FIELD_OriginalY
 	Endif
 End Function
 
-Static Function InitTraceDataStruct(mTab,idTraceData,FileName,idExpUserData)
+Static Function InitTraceDataStruct(mTab,idTraceData,FileTimSepFor,idExpMeta,FileOriginal,OriginalX,OriginalY)
 Struct TraceData & mTab
 	Variable idTraceData
-	String FileName
-	Variable idExpUserData
+	String FileTimSepFor
+	Variable idExpMeta
+	String FileOriginal
+	String OriginalX
+	String OriginalY
 	mTab.idTraceData = idTraceData
-	mTab.FileName = FileName
-	mTab.idExpUserData = idExpUserData
+	mTab.FileTimSepFor = FileTimSepFor
+	mTab.idExpMeta = idExpMeta
+	mTab.FileOriginal = FileOriginal
+	mTab.OriginalX = OriginalX
+	mTab.OriginalY = OriginalY
 
 End Function
 
@@ -1314,22 +1236,22 @@ Static Function InitTraceExpLinkWaveStr(mStruct,[useGlobal])
 	if(useGlobal)
 		mStruct.idTraceExpLink =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idTraceExpLink)
 		mStruct.idTraceMeta =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idTraceMeta)
-		mStruct.idExpUserData =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idExpUserData)
+		mStruct.idExpMeta =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idExpMeta)
 	else
 		mStruct.idTraceExpLink =FIELD_idTraceExpLink
 		mStruct.idTraceMeta =FIELD_idTraceMeta
-		mStruct.idExpUserData =FIELD_idExpUserData
+		mStruct.idExpMeta =FIELD_idExpMeta
 	Endif
 End Function
 
-Static Function InitTraceExpLinkStruct(mTab,idTraceExpLink,idTraceMeta,idExpUserData)
+Static Function InitTraceExpLinkStruct(mTab,idTraceExpLink,idTraceMeta,idExpMeta)
 Struct TraceExpLink & mTab
 	Variable idTraceExpLink
 	Variable idTraceMeta
-	Variable idExpUserData
+	Variable idExpMeta
 	mTab.idTraceExpLink = idTraceExpLink
 	mTab.idTraceMeta = idTraceMeta
-	mTab.idExpUserData = idExpUserData
+	mTab.idExpMeta = idExpMeta
 
 End Function
 
@@ -1356,6 +1278,7 @@ Static Function InitTraceMetaWaveStr(mStruct,[useGlobal])
 		mStruct.ThermalQ =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_ThermalQ)
 		mStruct.LocationX =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_LocationX)
 		mStruct.LocationY =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_LocationY)
+		mStruct.LocationZ =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_LocationZ)
 		mStruct.OffsetX =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_OffsetX)
 		mStruct.OffsetY =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_OffsetY)
 		mStruct.Spot =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_Spot)
@@ -1381,6 +1304,7 @@ Static Function InitTraceMetaWaveStr(mStruct,[useGlobal])
 		mStruct.ThermalQ =FIELD_ThermalQ
 		mStruct.LocationX =FIELD_LocationX
 		mStruct.LocationY =FIELD_LocationY
+		mStruct.LocationZ =FIELD_LocationZ
 		mStruct.OffsetX =FIELD_OffsetX
 		mStruct.OffsetY =FIELD_OffsetY
 		mStruct.Spot =FIELD_Spot
@@ -1391,7 +1315,7 @@ Static Function InitTraceMetaWaveStr(mStruct,[useGlobal])
 	Endif
 End Function
 
-Static Function InitTraceMetaStruct(mTab,idTraceMeta,Description,ApproachVel,RetractVel,TimeStarted,TimeEnded,DwellTowards,DwellAway,SampleRate,FilteredSampleRate,DeflInvols,Temperature,SpringConstant,FirstResRef,ThermalQ,LocationX,LocationY,OffsetX,OffsetY,Spot,idTipManifest,idUser,idTraceRating,idSample)
+Static Function InitTraceMetaStruct(mTab,idTraceMeta,Description,ApproachVel,RetractVel,TimeStarted,TimeEnded,DwellTowards,DwellAway,SampleRate,FilteredSampleRate,DeflInvols,Temperature,SpringConstant,FirstResRef,ThermalQ,LocationX,LocationY,LocationZ,OffsetX,OffsetY,Spot,idTipManifest,idUser,idTraceRating,idSample)
 Struct TraceMeta & mTab
 	Variable idTraceMeta
 	String Description
@@ -1410,6 +1334,7 @@ Struct TraceMeta & mTab
 	Variable ThermalQ
 	Variable LocationX
 	Variable LocationY
+	Variable LocationZ
 	Variable OffsetX
 	Variable OffsetY
 	Variable Spot
@@ -1434,6 +1359,7 @@ Struct TraceMeta & mTab
 	mTab.ThermalQ = ThermalQ
 	mTab.LocationX = LocationX
 	mTab.LocationY = LocationY
+	mTab.LocationZ = LocationZ
 	mTab.OffsetX = OffsetX
 	mTab.OffsetY = OffsetY
 	mTab.Spot = Spot
@@ -1453,21 +1379,25 @@ Static Function InitTraceModelWaveStr(mStruct,[useGlobal])
 		mStruct.idTraceModel =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idTraceModel)
 		mStruct.idTraceMeta =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idTraceMeta)
 		mStruct.idTraceData =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idTraceData)
+		mStruct.idModel =ModSqlCypherInterface#GetFieldWaveName(mTab,FIELD_idModel)
 	else
 		mStruct.idTraceModel =FIELD_idTraceModel
 		mStruct.idTraceMeta =FIELD_idTraceMeta
 		mStruct.idTraceData =FIELD_idTraceData
+		mStruct.idModel =FIELD_idModel
 	Endif
 End Function
 
-Static Function InitTraceModelStruct(mTab,idTraceModel,idTraceMeta,idTraceData)
+Static Function InitTraceModelStruct(mTab,idTraceModel,idTraceMeta,idTraceData,idModel)
 Struct TraceModel & mTab
 	Variable idTraceModel
 	Variable idTraceMeta
 	Variable idTraceData
+	Variable idModel
 	mTab.idTraceModel = idTraceModel
 	mTab.idTraceMeta = idTraceMeta
 	mTab.idTraceData = idTraceData
+	mTab.idModel = idModel
 
 End Function
 
@@ -1530,38 +1460,19 @@ End Function
 Static Function ExpMetaToTextStruct(refWave,strWave)
 	Struct ExpMetaWaveRef & refWave
 	Struct ExpMetaWaveStr & strWave
-	strWave.idExpUserData=ModSqlCypherInterface#GetPathFromWave(refWave.idExpUserData)
-	strWave.TimeStarted=ModSqlCypherInterface#GetPathFromWave(refWave.TimeStarted)
-	strWave.NAttemptedPulls=ModSqlCypherInterface#GetPathFromWave(refWave.NAttemptedPulls)
+	strWave.idExpMeta=ModSqlCypherInterface#GetPathFromWave(refWave.idExpMeta)
+	strWave.Name=ModSqlCypherInterface#GetPathFromWave(refWave.Name)
+	strWave.Description=ModSqlCypherInterface#GetPathFromWave(refWave.Description)
 	strWave.SourceFile=ModSqlCypherInterface#GetPathFromWave(refWave.SourceFile)
 End Function
 
 Static Function ExpMetaToWaveStruct(strWave,refWave)
 	Struct ExpMetaWaveStr & strWave
 	Struct ExpMetaWaveRef & refWave
-	Wave /D refWave.idExpUserData=ModSqlCypherInterface#SqlWaveRef(strWave.idExpUserData)
-	Wave /T refWave.TimeStarted=ModSqlCypherInterface#SqlWaveRef(strWave.TimeStarted)
-	Wave /D refWave.NAttemptedPulls=ModSqlCypherInterface#SqlWaveRef(strWave.NAttemptedPulls)
-	Wave /T refWave.SourceFile=ModSqlCypherInterface#SqlWaveRef(strWave.SourceFile)
-End Function
-
-
-Static Function ExpUserDataToTextStruct(refWave,strWave)
-	Struct ExpUserDataWaveRef & refWave
-	Struct ExpUserDataWaveStr & strWave
-	strWave.idExpUserData=ModSqlCypherInterface#GetPathFromWave(refWave.idExpUserData)
-	strWave.Name=ModSqlCypherInterface#GetPathFromWave(refWave.Name)
-	strWave.Description=ModSqlCypherInterface#GetPathFromWave(refWave.Description)
-	strWave.idUser=ModSqlCypherInterface#GetPathFromWave(refWave.idUser)
-End Function
-
-Static Function ExpUserDataToWaveStruct(strWave,refWave)
-	Struct ExpUserDataWaveStr & strWave
-	Struct ExpUserDataWaveRef & refWave
-	Wave /D refWave.idExpUserData=ModSqlCypherInterface#SqlWaveRef(strWave.idExpUserData)
+	Wave /D refWave.idExpMeta=ModSqlCypherInterface#SqlWaveRef(strWave.idExpMeta)
 	Wave /T refWave.Name=ModSqlCypherInterface#SqlWaveRef(strWave.Name)
 	Wave /T refWave.Description=ModSqlCypherInterface#SqlWaveRef(strWave.Description)
-	Wave /D refWave.idUser=ModSqlCypherInterface#SqlWaveRef(strWave.idUser)
+	Wave /T refWave.SourceFile=ModSqlCypherInterface#SqlWaveRef(strWave.SourceFile)
 End Function
 
 
@@ -1587,7 +1498,7 @@ Static Function LinkExpModelToTextStruct(refWave,strWave)
 	Struct LinkExpModelWaveStr & strWave
 	strWave.idLinkExpModel=ModSqlCypherInterface#GetPathFromWave(refWave.idLinkExpModel)
 	strWave.idModel=ModSqlCypherInterface#GetPathFromWave(refWave.idModel)
-	strWave.idExpUserData=ModSqlCypherInterface#GetPathFromWave(refWave.idExpUserData)
+	strWave.idExpMeta=ModSqlCypherInterface#GetPathFromWave(refWave.idExpMeta)
 End Function
 
 Static Function LinkExpModelToWaveStruct(strWave,refWave)
@@ -1595,7 +1506,7 @@ Static Function LinkExpModelToWaveStruct(strWave,refWave)
 	Struct LinkExpModelWaveRef & refWave
 	Wave /D refWave.idLinkExpModel=ModSqlCypherInterface#SqlWaveRef(strWave.idLinkExpModel)
 	Wave /D refWave.idModel=ModSqlCypherInterface#SqlWaveRef(strWave.idModel)
-	Wave /D refWave.idExpUserData=ModSqlCypherInterface#SqlWaveRef(strWave.idExpUserData)
+	Wave /D refWave.idExpMeta=ModSqlCypherInterface#SqlWaveRef(strWave.idExpMeta)
 End Function
 
 
@@ -1613,23 +1524,6 @@ Static Function LinkModelParamsToWaveStruct(strWave,refWave)
 	Wave /D refWave.idLinkModelParams=ModSqlCypherInterface#SqlWaveRef(strWave.idLinkModelParams)
 	Wave /D refWave.idModel=ModSqlCypherInterface#SqlWaveRef(strWave.idModel)
 	Wave /D refWave.idParamMeta=ModSqlCypherInterface#SqlWaveRef(strWave.idParamMeta)
-End Function
-
-
-Static Function LinkModelTraceToTextStruct(refWave,strWave)
-	Struct LinkModelTraceWaveRef & refWave
-	Struct LinkModelTraceWaveStr & strWave
-	strWave.idLinkModelTrace=ModSqlCypherInterface#GetPathFromWave(refWave.idLinkModelTrace)
-	strWave.idModel=ModSqlCypherInterface#GetPathFromWave(refWave.idModel)
-	strWave.idTraceModel=ModSqlCypherInterface#GetPathFromWave(refWave.idTraceModel)
-End Function
-
-Static Function LinkModelTraceToWaveStruct(strWave,refWave)
-	Struct LinkModelTraceWaveStr & strWave
-	Struct LinkModelTraceWaveRef & refWave
-	Wave /D refWave.idLinkModelTrace=ModSqlCypherInterface#SqlWaveRef(strWave.idLinkModelTrace)
-	Wave /D refWave.idModel=ModSqlCypherInterface#SqlWaveRef(strWave.idModel)
-	Wave /D refWave.idTraceModel=ModSqlCypherInterface#SqlWaveRef(strWave.idTraceModel)
 End Function
 
 
@@ -1688,16 +1582,16 @@ Static Function ModelToTextStruct(refWave,strWave)
 	Struct ModelWaveRef & refWave
 	Struct ModelWaveStr & strWave
 	strWave.idModel=ModSqlCypherInterface#GetPathFromWave(refWave.idModel)
-	strWave.ModelName=ModSqlCypherInterface#GetPathFromWave(refWave.ModelName)
-	strWave.ModelDescription=ModSqlCypherInterface#GetPathFromWave(refWave.ModelDescription)
+	strWave.Name=ModSqlCypherInterface#GetPathFromWave(refWave.Name)
+	strWave.Description=ModSqlCypherInterface#GetPathFromWave(refWave.Description)
 End Function
 
 Static Function ModelToWaveStruct(strWave,refWave)
 	Struct ModelWaveStr & strWave
 	Struct ModelWaveRef & refWave
 	Wave /D refWave.idModel=ModSqlCypherInterface#SqlWaveRef(strWave.idModel)
-	Wave /T refWave.ModelName=ModSqlCypherInterface#SqlWaveRef(strWave.ModelName)
-	Wave /T refWave.ModelDescription=ModSqlCypherInterface#SqlWaveRef(strWave.ModelDescription)
+	Wave /T refWave.Name=ModSqlCypherInterface#SqlWaveRef(strWave.Name)
+	Wave /T refWave.Description=ModSqlCypherInterface#SqlWaveRef(strWave.Description)
 End Function
 
 
@@ -1946,16 +1840,22 @@ Static Function TraceDataToTextStruct(refWave,strWave)
 	Struct TraceDataWaveRef & refWave
 	Struct TraceDataWaveStr & strWave
 	strWave.idTraceData=ModSqlCypherInterface#GetPathFromWave(refWave.idTraceData)
-	strWave.FileName=ModSqlCypherInterface#GetPathFromWave(refWave.FileName)
-	strWave.idExpUserData=ModSqlCypherInterface#GetPathFromWave(refWave.idExpUserData)
+	strWave.FileTimSepFor=ModSqlCypherInterface#GetPathFromWave(refWave.FileTimSepFor)
+	strWave.idExpMeta=ModSqlCypherInterface#GetPathFromWave(refWave.idExpMeta)
+	strWave.FileOriginal=ModSqlCypherInterface#GetPathFromWave(refWave.FileOriginal)
+	strWave.OriginalX=ModSqlCypherInterface#GetPathFromWave(refWave.OriginalX)
+	strWave.OriginalY=ModSqlCypherInterface#GetPathFromWave(refWave.OriginalY)
 End Function
 
 Static Function TraceDataToWaveStruct(strWave,refWave)
 	Struct TraceDataWaveStr & strWave
 	Struct TraceDataWaveRef & refWave
 	Wave /D refWave.idTraceData=ModSqlCypherInterface#SqlWaveRef(strWave.idTraceData)
-	Wave /T refWave.FileName=ModSqlCypherInterface#SqlWaveRef(strWave.FileName)
-	Wave /D refWave.idExpUserData=ModSqlCypherInterface#SqlWaveRef(strWave.idExpUserData)
+	Wave /T refWave.FileTimSepFor=ModSqlCypherInterface#SqlWaveRef(strWave.FileTimSepFor)
+	Wave /D refWave.idExpMeta=ModSqlCypherInterface#SqlWaveRef(strWave.idExpMeta)
+	Wave /T refWave.FileOriginal=ModSqlCypherInterface#SqlWaveRef(strWave.FileOriginal)
+	Wave /T refWave.OriginalX=ModSqlCypherInterface#SqlWaveRef(strWave.OriginalX)
+	Wave /T refWave.OriginalY=ModSqlCypherInterface#SqlWaveRef(strWave.OriginalY)
 End Function
 
 
@@ -1983,7 +1883,7 @@ Static Function TraceExpLinkToTextStruct(refWave,strWave)
 	Struct TraceExpLinkWaveStr & strWave
 	strWave.idTraceExpLink=ModSqlCypherInterface#GetPathFromWave(refWave.idTraceExpLink)
 	strWave.idTraceMeta=ModSqlCypherInterface#GetPathFromWave(refWave.idTraceMeta)
-	strWave.idExpUserData=ModSqlCypherInterface#GetPathFromWave(refWave.idExpUserData)
+	strWave.idExpMeta=ModSqlCypherInterface#GetPathFromWave(refWave.idExpMeta)
 End Function
 
 Static Function TraceExpLinkToWaveStruct(strWave,refWave)
@@ -1991,7 +1891,7 @@ Static Function TraceExpLinkToWaveStruct(strWave,refWave)
 	Struct TraceExpLinkWaveRef & refWave
 	Wave /D refWave.idTraceExpLink=ModSqlCypherInterface#SqlWaveRef(strWave.idTraceExpLink)
 	Wave /D refWave.idTraceMeta=ModSqlCypherInterface#SqlWaveRef(strWave.idTraceMeta)
-	Wave /D refWave.idExpUserData=ModSqlCypherInterface#SqlWaveRef(strWave.idExpUserData)
+	Wave /D refWave.idExpMeta=ModSqlCypherInterface#SqlWaveRef(strWave.idExpMeta)
 End Function
 
 
@@ -2015,6 +1915,7 @@ Static Function TraceMetaToTextStruct(refWave,strWave)
 	strWave.ThermalQ=ModSqlCypherInterface#GetPathFromWave(refWave.ThermalQ)
 	strWave.LocationX=ModSqlCypherInterface#GetPathFromWave(refWave.LocationX)
 	strWave.LocationY=ModSqlCypherInterface#GetPathFromWave(refWave.LocationY)
+	strWave.LocationZ=ModSqlCypherInterface#GetPathFromWave(refWave.LocationZ)
 	strWave.OffsetX=ModSqlCypherInterface#GetPathFromWave(refWave.OffsetX)
 	strWave.OffsetY=ModSqlCypherInterface#GetPathFromWave(refWave.OffsetY)
 	strWave.Spot=ModSqlCypherInterface#GetPathFromWave(refWave.Spot)
@@ -2044,6 +1945,7 @@ Static Function TraceMetaToWaveStruct(strWave,refWave)
 	Wave /D refWave.ThermalQ=ModSqlCypherInterface#SqlWaveRef(strWave.ThermalQ)
 	Wave /D refWave.LocationX=ModSqlCypherInterface#SqlWaveRef(strWave.LocationX)
 	Wave /D refWave.LocationY=ModSqlCypherInterface#SqlWaveRef(strWave.LocationY)
+	Wave /D refWave.LocationZ=ModSqlCypherInterface#SqlWaveRef(strWave.LocationZ)
 	Wave /D refWave.OffsetX=ModSqlCypherInterface#SqlWaveRef(strWave.OffsetX)
 	Wave /D refWave.OffsetY=ModSqlCypherInterface#SqlWaveRef(strWave.OffsetY)
 	Wave /D refWave.Spot=ModSqlCypherInterface#SqlWaveRef(strWave.Spot)
@@ -2060,6 +1962,7 @@ Static Function TraceModelToTextStruct(refWave,strWave)
 	strWave.idTraceModel=ModSqlCypherInterface#GetPathFromWave(refWave.idTraceModel)
 	strWave.idTraceMeta=ModSqlCypherInterface#GetPathFromWave(refWave.idTraceMeta)
 	strWave.idTraceData=ModSqlCypherInterface#GetPathFromWave(refWave.idTraceData)
+	strWave.idModel=ModSqlCypherInterface#GetPathFromWave(refWave.idModel)
 End Function
 
 Static Function TraceModelToWaveStruct(strWave,refWave)
@@ -2068,6 +1971,7 @@ Static Function TraceModelToWaveStruct(strWave,refWave)
 	Wave /D refWave.idTraceModel=ModSqlCypherInterface#SqlWaveRef(strWave.idTraceModel)
 	Wave /D refWave.idTraceMeta=ModSqlCypherInterface#SqlWaveRef(strWave.idTraceMeta)
 	Wave /D refWave.idTraceData=ModSqlCypherInterface#SqlWaveRef(strWave.idTraceData)
+	Wave /D refWave.idModel=ModSqlCypherInterface#SqlWaveRef(strWave.idModel)
 End Function
 
 
@@ -2125,7 +2029,7 @@ Static Function SimpleSelectExpMeta(mTab,[saveGlobal,appendStmt,initWaveStr])
 	// Get all of the columns, *including* the ID
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfExpMeta(IncludeId=ModDefine#True())
 	//Add all the fields we will select into
-	Make /O/T mFields = {mTab.idExpUserData,mTab.TimeStarted,mTab.NAttemptedPulls,mTab.SourceFile}
+	Make /O/T mFields = {mTab.idExpMeta,mTab.Name,mTab.Description,mTab.SourceFile}
 	ModSqlCypherInterface#SelectIntoWaves(TAB_ExpMeta,mCols,mFields,saveGlobal,appendStmt)
 End Function
 
@@ -2134,36 +2038,6 @@ Static Function WaveSelectExpMeta(mTab)
 	Struct ExpMetaWaveStr mTextTab
 	ExpMetaToTextStruct(mTab,mTextTab)
 	SimpleSelectExpMeta(mTextTab)
-End Function
-
-
-Static Function SimpleSelectExpUserData(mTab,[saveGlobal,appendStmt,initWaveStr])
-	// Note: if saveInGlobalTab is true, saves to SqlDir
-	// otherwise waves to CWD (current working directory)
-	Struct ExpUserDataWaveStr & mTab 
-	Variable saveGlobal,initWaveStr
-	String appendStmt
-	saveGlobal = ParamIsDefault(saveGlobal) ? ModDefine#False() : saveGlobal
-	if (ParamIsDefault(appendStmt))
-		appendStmt=""
-	EndIf
-	initWaveStr = ParamIsDefault(initWaveStr) ? ModDefine#True() : initWaveStr
-	if(initWaveStr)
-		//Init the wave structure for holding the names.
-		InitExpUserDataWaveStr(mTab)
-	EndIf
-	// Get all of the columns, *including* the ID
-	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfExpUserData(IncludeId=ModDefine#True())
-	//Add all the fields we will select into
-	Make /O/T mFields = {mTab.idExpUserData,mTab.Name,mTab.Description,mTab.idUser}
-	ModSqlCypherInterface#SelectIntoWaves(TAB_ExpUserData,mCols,mFields,saveGlobal,appendStmt)
-End Function
-
-Static Function WaveSelectExpUserData(mTab)
-	Struct ExpUserDataWaveRef & mTab
-	Struct ExpUserDataWaveStr mTextTab
-	ExpUserDataToTextStruct(mTab,mTextTab)
-	SimpleSelectExpUserData(mTextTab)
 End Function
 
 
@@ -2215,7 +2089,7 @@ Static Function SimpleSelectLinkExpModel(mTab,[saveGlobal,appendStmt,initWaveStr
 	// Get all of the columns, *including* the ID
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfLinkExpModel(IncludeId=ModDefine#True())
 	//Add all the fields we will select into
-	Make /O/T mFields = {mTab.idLinkExpModel,mTab.idModel,mTab.idExpUserData}
+	Make /O/T mFields = {mTab.idLinkExpModel,mTab.idModel,mTab.idExpMeta}
 	ModSqlCypherInterface#SelectIntoWaves(TAB_LinkExpModel,mCols,mFields,saveGlobal,appendStmt)
 End Function
 
@@ -2254,36 +2128,6 @@ Static Function WaveSelectLinkModelParams(mTab)
 	Struct LinkModelParamsWaveStr mTextTab
 	LinkModelParamsToTextStruct(mTab,mTextTab)
 	SimpleSelectLinkModelParams(mTextTab)
-End Function
-
-
-Static Function SimpleSelectLinkModelTrace(mTab,[saveGlobal,appendStmt,initWaveStr])
-	// Note: if saveInGlobalTab is true, saves to SqlDir
-	// otherwise waves to CWD (current working directory)
-	Struct LinkModelTraceWaveStr & mTab 
-	Variable saveGlobal,initWaveStr
-	String appendStmt
-	saveGlobal = ParamIsDefault(saveGlobal) ? ModDefine#False() : saveGlobal
-	if (ParamIsDefault(appendStmt))
-		appendStmt=""
-	EndIf
-	initWaveStr = ParamIsDefault(initWaveStr) ? ModDefine#True() : initWaveStr
-	if(initWaveStr)
-		//Init the wave structure for holding the names.
-		InitLinkModelTraceWaveStr(mTab)
-	EndIf
-	// Get all of the columns, *including* the ID
-	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfLinkModelTrace(IncludeId=ModDefine#True())
-	//Add all the fields we will select into
-	Make /O/T mFields = {mTab.idLinkModelTrace,mTab.idModel,mTab.idTraceModel}
-	ModSqlCypherInterface#SelectIntoWaves(TAB_LinkModelTrace,mCols,mFields,saveGlobal,appendStmt)
-End Function
-
-Static Function WaveSelectLinkModelTrace(mTab)
-	Struct LinkModelTraceWaveRef & mTab
-	Struct LinkModelTraceWaveStr mTextTab
-	LinkModelTraceToTextStruct(mTab,mTextTab)
-	SimpleSelectLinkModelTrace(mTextTab)
 End Function
 
 
@@ -2395,7 +2239,7 @@ Static Function SimpleSelectModel(mTab,[saveGlobal,appendStmt,initWaveStr])
 	// Get all of the columns, *including* the ID
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfModel(IncludeId=ModDefine#True())
 	//Add all the fields we will select into
-	Make /O/T mFields = {mTab.idModel,mTab.ModelName,mTab.ModelDescription}
+	Make /O/T mFields = {mTab.idModel,mTab.Name,mTab.Description}
 	ModSqlCypherInterface#SelectIntoWaves(TAB_Model,mCols,mFields,saveGlobal,appendStmt)
 End Function
 
@@ -2755,7 +2599,7 @@ Static Function SimpleSelectTraceData(mTab,[saveGlobal,appendStmt,initWaveStr])
 	// Get all of the columns, *including* the ID
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfTraceData(IncludeId=ModDefine#True())
 	//Add all the fields we will select into
-	Make /O/T mFields = {mTab.idTraceData,mTab.FileName,mTab.idExpUserData}
+	Make /O/T mFields = {mTab.idTraceData,mTab.FileTimSepFor,mTab.idExpMeta,mTab.FileOriginal,mTab.OriginalX,mTab.OriginalY}
 	ModSqlCypherInterface#SelectIntoWaves(TAB_TraceData,mCols,mFields,saveGlobal,appendStmt)
 End Function
 
@@ -2815,7 +2659,7 @@ Static Function SimpleSelectTraceExpLink(mTab,[saveGlobal,appendStmt,initWaveStr
 	// Get all of the columns, *including* the ID
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfTraceExpLink(IncludeId=ModDefine#True())
 	//Add all the fields we will select into
-	Make /O/T mFields = {mTab.idTraceExpLink,mTab.idTraceMeta,mTab.idExpUserData}
+	Make /O/T mFields = {mTab.idTraceExpLink,mTab.idTraceMeta,mTab.idExpMeta}
 	ModSqlCypherInterface#SelectIntoWaves(TAB_TraceExpLink,mCols,mFields,saveGlobal,appendStmt)
 End Function
 
@@ -2845,7 +2689,7 @@ Static Function SimpleSelectTraceMeta(mTab,[saveGlobal,appendStmt,initWaveStr])
 	// Get all of the columns, *including* the ID
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfTraceMeta(IncludeId=ModDefine#True())
 	//Add all the fields we will select into
-	Make /O/T mFields = {mTab.idTraceMeta,mTab.Description,mTab.ApproachVel,mTab.RetractVel,mTab.TimeStarted,mTab.TimeEnded,mTab.DwellTowards,mTab.DwellAway,mTab.SampleRate,mTab.FilteredSampleRate,mTab.DeflInvols,mTab.Temperature,mTab.SpringConstant,mTab.FirstResRef,mTab.ThermalQ,mTab.LocationX,mTab.LocationY,mTab.OffsetX,mTab.OffsetY,mTab.Spot,mTab.idTipManifest,mTab.idUser,mTab.idTraceRating,mTab.idSample}
+	Make /O/T mFields = {mTab.idTraceMeta,mTab.Description,mTab.ApproachVel,mTab.RetractVel,mTab.TimeStarted,mTab.TimeEnded,mTab.DwellTowards,mTab.DwellAway,mTab.SampleRate,mTab.FilteredSampleRate,mTab.DeflInvols,mTab.Temperature,mTab.SpringConstant,mTab.FirstResRef,mTab.ThermalQ,mTab.LocationX,mTab.LocationY,mTab.LocationZ,mTab.OffsetX,mTab.OffsetY,mTab.Spot,mTab.idTipManifest,mTab.idUser,mTab.idTraceRating,mTab.idSample}
 	ModSqlCypherInterface#SelectIntoWaves(TAB_TraceMeta,mCols,mFields,saveGlobal,appendStmt)
 End Function
 
@@ -2875,7 +2719,7 @@ Static Function SimpleSelectTraceModel(mTab,[saveGlobal,appendStmt,initWaveStr])
 	// Get all of the columns, *including* the ID
 	Wave /T mCols = ModSqlCypherUtilFuncs#GetColsOfTraceModel(IncludeId=ModDefine#True())
 	//Add all the fields we will select into
-	Make /O/T mFields = {mTab.idTraceModel,mTab.idTraceMeta,mTab.idTraceData}
+	Make /O/T mFields = {mTab.idTraceModel,mTab.idTraceMeta,mTab.idTraceData,mTab.idModel}
 	ModSqlCypherInterface#SelectIntoWaves(TAB_TraceModel,mCols,mFields,saveGlobal,appendStmt)
 End Function
 

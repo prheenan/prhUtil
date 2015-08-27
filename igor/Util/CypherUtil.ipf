@@ -12,6 +12,7 @@ Static StrConstant NOTE_APPROACH_VEL = "Velocity"
 Static StrConstant NOTE_RETRACT_VEL = "RetractVelocity"
 Static StrConstant NOTE_X_LVDT = "XLVDT"
 Static StrConstant NOTE_Y_LVDT = "YLVDT"
+Static StrConstant NOTE_Z_LVDT = "ZLVDTSens"
 Static StrConstant NOTE_SPOT_POS = "ForceSpotNumber"
 Static StrConstant NOTE_DWELL_SURFACE = "DwellTime"
 Static StrConstant NOTE_DWELL_ABOVE = "DwellTime1"
@@ -30,6 +31,10 @@ Static StrConstant NOTE_TRIGGER_POINT = "TriggerPoint"
 //// Constants related to sampling
 Static StrConstant NOTE_SAMPLE_HERTZ = "NumPtsPerSec"
 Static StrConstant NOTE_SAMPLE_BW = "ForceFilterBW"
+// Other constants
+Static StrConstant NOTE_XOFFSET = "XLVDTOffset"
+Static StrConstant NOTE_YOFFSET = "YLVDTOffset"
+Static StrConstant NOTE_TEMPERATURE = "ThermalTemperature"
 // Functions related to  the <name>:<value> part
 Static StrConstant NOTE_KEY_SEP_STR = ":"
 Static StrConstant NOTE_LIST_SEP_STR = "\r"
@@ -59,15 +64,19 @@ StrConstant DEFAULT_ASYLUM_FILENUM_REGEX = "(\d+)$"
  	Variable ForceDist
  	Variable PosX
  	Variable PosY
+ 	Variable PosZ
+ 	Variable OffsetX
+ 	Variable OffsetY
  	Variable Spot
  	// Calibration
  	Variable ThermalQ
  	Variable ResFreq
 	Variable Invols
 	Variable SpringConstant
+	Variable Temperature
  	// TimeStamps
  	Variable TimeStart
- 	Variable TmeEnd
+ 	Variable TimeEnd
  EndStructure
  
  // Returns a zero-filled number, according to the asylum naming convention
@@ -166,6 +175,11 @@ Static Function GetLVDT_Y(ForceWave)
 	return GetForceRampSetting(ForceWave,NOTE_Y_LVDT)
 End
 
+Static Function  GetLVDT_Z(ForceWave)
+	Wave ForceWave
+	return GetForceRampSetting(ForceWave,NOTE_Z_LVDT)
+End Function
+
 Static Function GetSpotPosition(ForceWave)
 	Wave ForceWave
 	return GetForceRampSetting(ForceWave,NOTE_SPOT_POS)
@@ -190,6 +204,21 @@ End Function
 Static Function GetSpringConstant(ForceWave)
 	Wave ForceWave
 	return GetForceRampSetting(ForceWave,NOTE_SPRING_CONSTANT)
+End Function
+
+Static Function GetTemperature(ForceWave)
+	Wave ForceWave
+	return GetForceRampSetting(ForceWave,NOTE_TEMPERATURE)
+End Function 
+
+Static Function GetXOffset(ForceWave)
+	Wave ForceWave
+	return GetForceRampSetting(ForceWave,NOTE_XOFFSET)
+End Function
+
+Static Function GetYOffset(ForceWave)
+	Wave ForceWave
+	return GetForceRampSetting(ForceWave,NOTE_YOFFSET)	
 End Function
 
 // Time Stamps
@@ -225,6 +254,10 @@ Static Function GetForceMeta(meta,ForceWave)
  	meta.ForceDist = GetForceDist(ForceWave)
  	meta.PosX = GetLVDT_X(ForceWave)
  	meta.PosY = GetLVDT_Y(ForceWave)
+ 	meta.PosZ = GetLVDT_Z(ForceWave)
+ 	 // X and Y offsets
+	meta.OffsetX = GetXOffset(ForceWave)
+	meta.OffsetY = GetYOffset(ForceWave)
  	meta.Spot = GetSpotPosition(ForceWave)
  	// Calibration
  	meta.ThermalQ = GetThermalQ(ForceWave)
@@ -233,7 +266,9 @@ Static Function GetForceMeta(meta,ForceWave)
 	meta.SpringConstant =  GetSpringConstant(ForceWave)
  	// TimeStamps
  	meta.TimeStart =  GetTimeStampStart(ForceWave)
- 	meta.TmeEnd = GetTimeStampEnd(ForceWave)
+ 	meta.TimeEnd = GetTimeStampEnd(ForceWave)
+ 	// Temperature
+ 	meta.Temperature = GetTemperature(ForceWave)
  End Function
  
  // XXX move this to a seaprate file from the note stuff?
@@ -467,7 +502,6 @@ Static Function ConvertX(InWave,InType,OutWave,OutType,DeflMeters)
 	// For our purposes, we multiply by -1, since it is more convenient  to have the approach increase
 	 OutWave =  (-1) * (DeflMeters *coeffDefl + (CoeffZSnsr) * ( (coeffInputToZ) * InWave + (coeffDeflToZ)*DeflMeters ))
 End Function
-
 
 Static Function /S ForceSuffix()
 	return FILE_END_Y_FORCE

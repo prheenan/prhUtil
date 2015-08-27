@@ -7,8 +7,10 @@
 #include "::MVC_Common:MvcDefines"
 #include "::Util:DataStructures"
 #include"::Model:PreProcess"
+#include "::Util:IoUtil"
+// include the IO utils for HF5, for saving FECs
+#include "::Util:IoUtilHDF5"
 #pragma ModuleName = ModViewGlobal
-
 //Data folder under base to import all of the experiments
 StrConstant VIEW_IMPORT_DATA = "Data"
 // Data Folder under base To save 'marked' traces into
@@ -17,6 +19,7 @@ StrConstant VIEW_MARKTRACES = "MarkedCurves"
 StrConstant VIEW_PARAMFOLDER = "ModelParams"
 // Ibid, but for saving a local copy of the data
 StrConstant VIEW_DATACOPY = "DataCopy"
+StrConstant VIEW_CONTROLWAVE = "ViewCtrl"
 // Plot Name
 StrConstant VIEW_PLOTNAME = "MainPlot"
 // The name of the 'meta' information at each trace
@@ -25,6 +28,10 @@ StrConstant VIEW_META_TRACE = "META"
 StrConstant VIEW_META_EXP = "META_EXP"
 // The name of the 'meta' information at each data savefolder
 StrConstant VIEW_META_SAVE = "META_G"
+// The Sql Subfolder underneath a trace
+StrConstant VIEW_SQL_SAVE = "SqlInf"
+// undernead SqlInf, have SqlIds
+StrConstant VIEW_SQL_ID_WAVE ="SqlIds"
 // Wave Names
 StrConstant VIEW_GLOBALWAVE = "ViewGlobal" // where the gboall wave representation lives
 StrConstant VIEW_AllPATHSWAVE = "ViewPath" // where the wave with full paths exists
@@ -65,7 +72,7 @@ Structure ViewGlobalDat
 	char DataDir[VIEW_STRUCT_STRLEN_LONG]
 	// The name of the file currently loaded (ie: how did we populate data directory?)
 	// Also the name of the subdirectory of the experiment under 'dataDir'
-	char ExpFileName[VIEW_STRUCT_STRLEN_LONG]
+	char ExpFileName[VIEW_STRUCT_STRLEN_LONG] // XXX rename to ExpName
 	// The current regex for determining if something is a wave or not
 	char RegexWave[VIEW_STRUCT_STRLEN_SHORT]
 	// The regex for determining the experiment name
@@ -80,6 +87,8 @@ Structure ViewGlobalDat
 	char AllFileWaveStr[VIEW_STRUCT_STRLEN_SHORT]
 	// The path to the text wave listing the 'user friendly' file names
 	char UserFileWaveStr[VIEW_STRUCT_STRLEN_SHORT]
+	// The path to the wave listing 'selwave' for the listbox commands.
+	char SelWaveStr[VIEW_STRUCT_STRLEN_SHORT]
 	// The suffix for the Force Plot (ie: Force)
 	char SuffixForcePlot[VIEW_STRUCT_STRLEN_SHORT]
 	// The suffix for the Sep Plot (ie: Sep)
@@ -119,6 +128,8 @@ Structure ViewGlobalDat
 	char PreProcessWave[VIEW_STRUCT_STRLEN_LONG]
 	// What to plot against (time, separation)
 	char PlotXType 
+	// Wave referencing which parameters to disable when we dont have a model.
+	char ControlDisableWaves[VIEW_STRUCT_STRLEN_SHORT]
 EndStructure
 
 // This is the 'meta' info that we are iterested in for a single trace
@@ -176,18 +187,21 @@ Static Function InitViewGlobal(ToInit)
 	ToInit.ModelFunctionHook =  ModMvcDefines#GetRelToBase(VIEW_MODFUNCWAVE)
 	ToInit.AllExpNames = ModMvcDefines#GetRelToBase(VIEW_EXPNAMES)
 	ToInit.AllExpSrc =  ModMvcDefines#GetRelToBase(VIEW_EXPSRC)
+	ToInit.SelWaveStr = ModMvcDefines#GetRelToBase(VIEW_SELECTEDWAVE)
 	// Ensure that the data folder exists
 	// Kill the waves, if they already exist:
 	// /Z: Silent
 	Killwaves /Z $(VIEW_AllPATHSWAVE),$(VIEW_USERPATHSWAVE),$(VIEW_MODFUNCWAVE)
 	Killwaves /Z $(ToInit.AllFileWaveStr ),$(ToInit.UserFileWaveStr),$(ToInit.ModelFunctionHook)
-	KillWaves /Z $(ToInit.AllExpNames), $(ToInit.AllExpSrc)
+	// do *not* kill the experiment and source files, since it is OK if they are already loaded.
 	// Make the wave, so we never have a null pointer
 	Make /T/O/N=0 $ToInit.AllFileWaveStr
 	Make /T/O/N=0 $ToInit.UserFileWaveStr
 	Make /T/O/N=0 $ToInit.ModelFunctionHook
-	Make /T/O/N=0 $ToInit.AllExpNames
-	Make /T/O/N=0 $ToInit.AllExpSrc
+	ModDataStruct#EnsureTextWaveExists(ToInit.AllExpNames)
+	ModDataStruct#EnsureTextWaveExists(ToInit.AllExpSrc)
+	//SelWave is *not* a string wave.
+	Make /O/N=0 $ToInit.SelWaveStr
 	// Ensure  the paths we need for saving traces actually exist
 	ModIoUtil#EnsurePathExists(TraceSavingFolder(GetBaseDir(toInit)))
 End Function
@@ -237,45 +251,48 @@ Static Function SetExperimentUnsafe(ToAddTo,ExpName,SourceFile)
 	ToAddTo.ExpFileName = SourceFile
 End Function
 
-Static Function SetExperiment(ToAddTo,LoadedDataFolder,systemSrcFileName,[dataSubfolder])
+// PRE: AllFileWaveStr is updated (should usually be called in setWaveList)
+Static Function UpdateSelWave(mData)
+		Struct ViewGlobalDat & mData
+		Variable nWaves = DimSize($mData.AllFileWaveStr,0)
+		Wave tmpRef = $(mData.SelWaveStr)
+		Redimension /N=(nWaves) tmpRef
+		tmpRef[] = LISTBOX_SELWAVE_NOT_SELECTED 
+End Function
+
+Static Function SetWaveList(mData,NewWaveFullPath,NewWaveUserStub,Concat)
+	Struct ViewGlobalDat & mData
+	Wave /T NewWaveFullPath
+	Wave /T NewWaveUserStub
+	Variable Concat
+	Wave /T fileWaves = $mData.AllFileWaveStr
+	Wave /T userWaves = $mData.UserFileWaveStr
+	if (!Concat)
+		// just duplicate the results
+		Duplicate /O/T NewWaveFullPath,fileWaves
+		Duplicate /O/T NewWaveUserStub,userWaves
+	Else
+		// /NP: no promotion, keep it 1D
+		Concatenate /NP/T {NewWaveFullPath},fileWaves
+		Concatenate /NP/T {NewWaveUserStub},userWaves
+	EndIf
+	// POST: our waves are updated
+	// Need to provide a selection wave for the elements
+	UpdateSelWave(mData)
+End Function
+
+Static Function SetExperiment(ToAddTo,LoadedDataFolder,systemSrcFileName)
 	// set the current experiment to 'name'
 	Struct ViewGlobalDat &ToAddTo
-	String LoadedDataFolder,systemSrcFileName,dataSubfolder
+	String LoadedDataFolder,systemSrcFileName
 	// Get just the file name from the data folder path (ie: whatever is under the data directory/Igor Datafolder)
 	ToAddTo.ExpFileName = ModIoUtil#GetFileName(LoadedDataFolder)
 	// POST: we know the correct source.
 	// Determine the root of this experiment
 	String rootDir = ModViewGlobal#GetExperimentDataDir(ToAddTo)
 	// Find the experiements here
-	// XXX for now, assume one experiment per loaded file
-	String experimentPath
-	String experiment
-	String subfolder
-	// We need to actually find the experiment directories
-	if (ParamIsDefault(dataSubfolder))
-		dataSubfolder = ModCypherUtil#PathToExpSubfolder()
-		subFolder = ModIoUtil#AppendedPath(rootDir,dataSubfolder)
-		// Assume we are using the default asylum subfolder
-		Variable mCount=ModIoUtil#CountDataFolders(subFolder)
-		// Ensure we just have the one experiment
-		// XXX TO TODO: switch this.
-		if (mCount != 1)
-			String mErr
-			sprintf mErr, "Need exactly 1 subexperiment (found %d) from file:\n%s\n",mCount,systemSrcFileName
-			ModErrorUtil#OutOfRangeError(description=mErr)
-		EndIf
-		// POST: only one experiment
-		dataSubfolder = ModCypherUtil#PathToExpSubfolder()
-		// Get the data folder we have (guarenteed to exit by above)
-		experiment = ModIoUtil#GetDataFolderAtIndex(subfolder,0)
-		experimentPath = ModIoUtil#AppendedPath(subfolder,experiment)
-	else
-		// Assume the user knows what they are doing, they are effectively using the
-		// non-asylum format
-		 subfolder = ModIoUtil#AppendedPath(rootDir,dataSubfolder)
-		experimentPath = subfolder
-		experiment = LoadedDataFolder
-	EndIf
+	String experimentPath = rootDir
+	String experiment = LoadedDataFolder
 	// POST: experiment and experimentPath are set
 	ToAddTo.CurrentExpName = experiment
 	ToAddTo.SourceFileName= systemSrcFileName
@@ -283,66 +300,64 @@ Static Function SetExperiment(ToAddTo,LoadedDataFolder,systemSrcFileName,[dataSu
 	String markedFolderForExp = GetExperimentFolder(ToAddTo)
 	ModIoUtil#EnsurePathExists(markedFolderForExp)
 	// If the experiment already exists, then don't bother loading anything
-	if (ExperimentAlreadyLoaded(ToAddTo,LoadedDataFolder))
-		// pass...
-	else
-		// Get all the waves in this experiment we are interested in for this wave...
-		Make /O/N=0/T allPathWave
-		Make /O/N=0/T allUserWave
-		// Try to find waves here
-		Variable nTotalWaves = ModViewGlobal#GetUserAndPathWaves(ToAddTo,allUserWave,allPathWave,experimentPath)
-		if (nTotalWaves == 0)
-			// We didn't actually load anything. quit while we are ahead, before we screw up the state.
-			String noWaves
-			sprintf noWaves,"Couldn't load waves from file; are your X and Y file suffixes correct?\nFound no waves to load in file %s\n",systemSrcFileName
-			ModErrorUtil#AlertUser(noWaves)
-			// Kill the directories we just made, prevent switching.
-			KillDataFolder /Z (markedFolderForExp)
-			KillDataFolder /Z (experimentPath)
-		else
-			// POST: found at least one wave to load.
-			// /NP: no promotion, keep it 1D
-			Concatenate /NP {allPathWave},$ToAddTo.AllFileWaveStr
-			Concatenate /NP {allUserWave},$ToAddTo.UserFileWaveStr
-			// POST: we now just need to save a ('local') copy of the meta info for this (new) experiment
-			// XXX TODO: add in support for writing to this when we update it, etc
-			String metaName = GetExperimentMetaName(ToAddTo)
-			Struct MetaExpData toSave
-			// Get the wave names
-			String expAllWaves = ModIoUtil#AppendedPath(markedFolderForExp,VIEW_AllPATHSWAVE)
-			String expSelectedWaves = ModIoUtil#AppendedPath(markedFolderForExp,VIEW_SELECTEDWAVE)
-			// Save a copy of all the relevant waves just found.
-			Duplicate /O allPathWave,$(expAllWaves)
-			// Make space for the selected waves (concatenated, later)
-			Make /O/N=0 $expSelectedWaves
-			// Add all the waves we just found
-			toSave.AllWaveStubsName =expAllWaves
-			toSave.SelWaveStubsName = expSelectedWaves
-			toSave.SourceFileName = systemSrcFileName
-			//  XXX check that there is at least one wave, we index 0 here
-			// We *know* that the suffixyplot should be OK, since getuser and path waves 
-			// checks for the suffixes.
-			Wave firstPlot = $(allPathWave[0] + toAddTo.SuffixYPlot)
-			toSave.DateTimeCreated = ModCypherUtil#GetTimeStampStart(firstPlot)
-			toSave.DateTimeUpdated= DateTime
-			// The total number of waves taken (unique stems)
-			toSave.nWavesExp = nTotalWaves
-			// Save out the data structure as a wave. (make sure there is a wave for it)
-			Make /O/N=(0) $metaName
-			StructPut /B=(ModDefine#StructFmt())  toSave, $metaName
-			// POST: everything has been added, go ahead and save this experiment.
-			// Push the experiment and source onto the list of known experiments
-			// XXX probably a faster way to do this?
-			Make /O/T newSrc = {LoadedDataFolder }
-			Make /O/T newExp = {experiment}
-			// NP: keep dimension constant (no promotion)
-			Concatenate /NP {newSrc},$(ToAddTo.AllExpSrc)
-			Concatenate /NP {newExp},$(ToAddTo.AllExpNames)
-			KillWaves /Z $(metaName)
-		EndIf // end "did we find any waves"
+	// Get all the waves in this experiment we are interested in for this wave...
+	Make /O/N=0/T allPathWave
+	Make /O/N=0/T allUserWave
+	// Try to find waves here
+	Variable nTotalWaves = ModViewGlobal#GetUserAndPathWaves(ToAddTo,allUserWave,allPathWave,experimentPath)
+	if (nTotalWaves == 0)
+		// We didn't actually load anything. quit while we are ahead, before we screw up the state.
+		String noWaves
+		sprintf noWaves,"Couldn't load waves from file; are your X and Y file suffixes correct?\nFound no waves to load in file %s\n",systemSrcFileName
+		ModErrorUtil#AlertUser(noWaves)
+		// Kill the directories we just made, prevent switching.
+		KillDataFolder /Z (markedFolderForExp)
+		KillDataFolder /Z (experimentPath)
+		return ModDefine#False()
 	EndIf
+	// POST: found at least one wave to load.
+	// Concat is true: we want to add allPath and UserPath to the end
+	SetWaveList(toAddTo,allPathWave,allUserWave,ModDefine#True())
+	// If we *haven't* already loaded this experiment,  then we need to add its meta information
+	if (!ExperimentAlreadyLoaded(ToAddTo,LoadedDataFolder))
+		// we now just need to save a ('local') copy of the meta info for this (new) experiment
+		// XXX TODO: add in support for writing to this when we update it, etc
+		String metaName = GetExperimentMetaName(ToAddTo)
+		Struct MetaExpData toSave
+		// Get the wave names
+		String expAllWaves = ModIoUtil#AppendedPath(markedFolderForExp,VIEW_AllPATHSWAVE)
+		// Save a copy of all the relevant waves just found.
+		Duplicate /O allPathWave,$(expAllWaves)
+		// Add all the waves we just found
+		toSave.AllWaveStubsName =expAllWaves
+		toSave.SourceFileName = systemSrcFileName
+		//  XXX check that there is at least one wave, we index 0 here
+		// We *know* that the suffixyplot should be OK, since getuser and path waves 
+		// checks for the suffixes.
+		Wave firstPlot = $(allPathWave[0] + toAddTo.SuffixYPlot)
+		toSave.DateTimeCreated = ModCypherUtil#GetTimeStampStart(firstPlot)
+		toSave.DateTimeUpdated= DateTime
+		// The total number of waves taken (unique stems)
+		toSave.nWavesExp = nTotalWaves
+		// Save out the data structure as a wave. (make sure there is a wave for it)
+		Make /O/N=(0) $metaName
+		StructPut /B=(ModDefine#StructFmt())  toSave, $metaName
+		print(WaveExists($metaName))
+		// POST: everything has been added, go ahead and save this experiment.
+		// Push the experiment and source onto the list of known experiments
+		// XXX probably a faster way to do this?
+		Make /O/T newSrc = {systemSrcFileName }
+		Make /O/T newExp = {experiment}
+		// NP: keep dimension constant (no promotion)
+		Concatenate /NP {newSrc},$(ToAddTo.AllExpSrc)
+		Concatenate /NP {newExp},$(ToAddTo.AllExpNames)
+	EndIf // end "did we find any waves"
 	// Kill all the temporary waves we just made
 	KillWaves /Z allUserWave,allPathWave,newSrc,newExp
+End Function	
+
+Static Function /S GetGlobalDatPath()
+	return ModMvcDefines#GetRelToBase(VIEW_GLOBALWAVE)
 End Function	
 
 Static Function SetGlobalData(GlobalDat)
@@ -351,10 +366,11 @@ Static Function SetGlobalData(GlobalDat)
 	// because all the information is centralized.
 	Struct ViewGlobalDat &GlobalDat
 	// Make sure the wave we want exists
-	if (!WaveExists($VIEW_GLOBALWAVE))
-		Make /O/N=0 $VIEW_GLOBALWAVE
+	String mPath = GetGlobalDatPath()
+	if (!WaveExists($mPath))
+		Make /O/N=0 $mPath
 	EndIf
-	StructPut /B=(ModDefine#StructFmt())  GlobalDat, $VIEW_GLOBALWAVE
+	StructPut /B=(ModDefine#StructFmt())  GlobalDat, $mPath
 End Function
 
 Static Function GetGlobalDataStr(GlobalDat,StrPathToWave)
@@ -367,7 +383,7 @@ Static Function GetGlobalData(GlobalDat)
 	// Note: Must call SetGlobalData Before	
 	// XXX check this? WaveExists
 	Struct ViewGlobalDat &GlobalDat
-	GetGlobalDataStr(GlobalDat,VIEW_GLOBALWAVE)
+	GetGlobalDataStr(GlobalDat,GetGlobalDatPath())
 End Function
 
 Static Function SetViewFunctions(mData,FuncNames)
@@ -421,16 +437,24 @@ Static Function /S GetExperimentFolder(mData)
 	return GetExperimentFolderByString(mData,GetExpFolder(mData))
 End Function
 
+// given an experiment name and a full path to a trace, dives its data folder.
+Static Function /S CurrentDataFolderByString(mData,expFolder,currentTraceFullPath)
+	Struct ViewGlobalDat &mData
+	String expFolder,currentTraceFullPath
+	 // Get the file name of the current path. Assume we always want the force extension
+ 	String mGraphFolder = ModIoUtil#GetFileName(currentTraceFullPath)
+ 	// Get the current Experiment name
+ 	String mFolder = ModIoUtil#AppendedPath(expFolder,mGraphFolder)
+ 	return mFolder
+End Function
+
 Static Function /S CurrDataFolder(mData)
 	Struct ViewGlobalDat &mData
 	// Uses the information in the globlaDat struct to determine  the name
 	// of the current folder for saving data For now, we assume it is "root:to:experiment:....:<PullName>"
 	// Note that this is dependent on whatever is currently plotted.
-	String expFolder = GetExperimentFolder(mData)
-	 // Get the file name of the current path. Assume we always want the force extension
- 	String mGraphFolder = ModIoUtil#GetFileName(mData.CurrentTracePathStub + mData.SuffixForcePlot)
- 	// Get the current Experiment name
- 	String mFolder = ModIoUtil#AppendedPath(expFolder,mGraphFolder)
+	String mPath = mData.CurrentTracePathStub + mData.SuffixForcePlot
+	String mFolder = CurrentDataFolderByString(mData,GetExperimentFolder(mData),mPath)
 	return mFolder
 End Function
 
@@ -476,6 +500,11 @@ Static Function SetOptionsGlobalAndFolder(toInit)
 	ToInit.ForceUpdate = ModDefine#True()
 	ToInit.SuffixForcePlot = ModCypherUtil#ForceSuffix()
 	ToInit.SuffixSepPlot = ModCypherUtil#SepSuffix()
+	// Make the list of model-independent controls to kill if we dont select a model.
+	String mBaseDir = ModMvcDefines#GetRelToBase("")
+	ModIoUtil#EnsurePathExists(mBaseDir)
+	ToInit.ControlDisableWaves = ModMvcDefines#GetRelToBase(VIEW_CONTROLWAVE)
+	Make /T/O/N=0 $ToInit.ControlDisableWaves 
 End Function 
 
 Static Function GetFileSaveInfo(mPath,toReadInto)
@@ -590,7 +619,7 @@ Static Function UpdateFileSaveInfo(mData,[mParam])
 	// XXX add in support for repeated values
 	if (!ParamIsDefault(mParam))
 		// Write out the parameter info.
-		toUpdate.ParamsDefined[mParam.Id] = 1
+		toUpdate.ParamsDefined[mParam.ParameterNumber] = 1
 	EndIf
 	// Update the date time and current experiment
 	toUpdate.DateTimeUpdated = DateTime
@@ -639,7 +668,7 @@ Static Function IsPreProc(mData,mPar)
 		// Then we have something to check. make the wave with all the 'n' pre-processing indices
 		Make /O/N=(n) mTmpPreProc
 		mTmpPreproc[0,n-1] = mProc.paramIdx[p]
-		Variable toRet =  ModIoUtil#InWave(mPar.id,mTmpPreproc)
+		Variable toRet =  ModIoUtil#InWave(mPar.ParameterNumber,mTmpPreproc)
 		// Kill the ewave we made
 		KillWaves /Z mTmpPreProc
 		return toRet
@@ -765,29 +794,16 @@ Static Function /S GetCacheName(ForceName)
 	Wave mWave = $ForceName
 	String mTimeStamp 
 	sprintf mTimeStamp,"%d",ModCypherUtil#GetTimeStampEnd(mWave)
-	return ModCypherUtil#ExperimentNameFromPath(ForceName) +"-"+ ModIoUtil#GetFileName(ForceName) + "-" + mTimeStamp
+	String mExp
+	if (!FindExpIfExists(ForceName,mExp))
+		ModErrorUtil#DevelopmentError(description="No experiment found")
+	EndIf
+	String mFormat = "%s-%s-%s"
+	String toRet
+	String mFIleName = ModIoUtil#GetFileName(ForceName)
+	sprintf toRet,mFormat,mExp,mTimeStamp,mFIleName
+	return toRet
 End Function
-
-Static Function SaveAllStubsAsFEC(mData,Stubs)
-	// mData is the global data, for the suffixes (e.g. Force/Sep) of the stubs and savedir
-	// Stubs is the wave of stubs we will save out
-	Struct ViewGlobalDat &mData
-	Wave /T Stubs
-	Variable nWaves = DimSize(Stubs,0)
-	Variable i=0
-	String sepSuffix = mData.SuffixSepPlot
-	String forceSuffix =  mData.SuffixForcePlot
-	String mStub,sep,force,name
-	String mFolder = mData.CachedSaveDir
-	for (i=0; i< nWaves; i+=1)
-		mStub =  Stubs[i]
-		sep = mStub+ sepSuffix
-		force = mStub+ forceSuffix
-		name = GetCacheName(force)
-		ModIoUtil#SaveForceExtensionFromStub(sep,force,mFolder,name)
-	EndFor
-End Function	
-
 
 Static Function KillAllParamsPanels(mData)
 	// Kills all the current panels
@@ -903,14 +919,7 @@ Static Function LoadNewExperiment(fileLoaded,folderName,[subfolder])
  	 ModViewGlobal#GetGlobalData(mData)
 	// Set the experiment
 	String srcFile = ModIoUtil#GetFileName(fileLoaded)
-	// We may need to give a subfolder within the loaded data
-	// For example, Asylum has root:ForceCurves:SubFolders:X<6 digits>
-	// However, if we are loading 'custom' files, then not so much
-	if (!ParamIsDefault(subfolder))
-		ModViewGlobal#SetExperiment(mData,folderName,srcFile,dataSubfolder=subFolder)
-	else
-		ModViewGlobal#SetExperiment(mData,folderName,srcFile)
-	EndIf
+	ModViewGlobal#SetExperiment(mData,folderName,srcFile)
 	// Write the global data back, since we change the experiment
 	// in setExperiment (but setExperiment doesn't write or us)
 	ModViewGlobal#SetGlobalData(mData)
@@ -1096,6 +1105,21 @@ Static Function GetParameters(paramFolder,mObj,[onlyPreProc])
 	// POST: mObj has everything we want
 End Function
 
+Static Function GetAllParamProtos(mData,mObj)
+	Struct ViewGlobalDat & mData 
+	Struct ParamObj & mObj
+	Struct Parameter tmpParam
+	Variable i
+	Variable nObjects = mData.NparamSet
+	mObj.nParams = 0
+	for (i=0; i<nObjects; i+=1)
+		GetParamProtoType(mData,tmpParam,i)
+		mObj.params[i] = tmpParam
+		mObj.nParams += 1
+	Endfor
+	// POST: mParams has everything...
+End Function 
+
 Static Function RunPreprocAndGetSepForce(mData,mSepName,mForceName)
 	Struct ViewGlobalDat & mData 
 	String &mSepName,&mForceName
@@ -1123,17 +1147,6 @@ Static Function PlotVersusTime(mData)
 	return mData.PlotXType == PLOT_TYPE_X_VS_TIME
 End Function
 
-// returns if it matches, sets if so (strToSet is pass by reference)
-Static Function SetandReturnIfMatch(strToMatchAgainstRegex,mRegex,strToSet)
-	String strToMatchAgainstRegex,mRegex,&strToSet
-	if (GrepString(strToMatchAgainstRegex,mRegex))
-		// Our experiment exists
-		SplitString /E=(mRegex) strToMatchAgainstRegex, strToSet
-		return ModDefine#True()
-	EndIf
-	return ModDefine#False()
-End Function
-
 // Looks for an experiment on 'mFilePath' (ie: marked curve) and sets 'toModIfExists' 
 // if we find something. returns true/false if we did/didn't find something
 Static Function GetExperimentFromMarkedIfExists(mFilePath,toModIfExists)
@@ -1141,11 +1154,45 @@ Static Function GetExperimentFromMarkedIfExists(mFilePath,toModIfExists)
 	String & toModIfExists // note: pass by *reference
 	// The first directory after *mark traces* is the experiment name.
 	String mRegex = ".+:" + VIEW_MARKTRACES + ":([^:]+):"
-	return SetandReturnIfMatch(mFilePath,mRegex,toModIfExists)
+	return ModIoUtil#SetandReturnIfMatch(mFilePath,mRegex,toModIfExists)
 End Function
 
 Static Function GetExperimentFromDataIfExists(mWaveStub,mExp)
 	String mWaveStub, & mExp
-	String mRegex = ".+:" + VIEW_IMPORT_DATA + ":([^:]+):"
-	return SetandReturnIfMatch(mWaveStub,mRegex,mExp)
+	String mRegex = ".+:" + VIEW_IMPORT_DATA + ":([^:]+):*"
+	return ModIoUtil#SetandReturnIfMatch(mWaveStub,mRegex,mExp)
 End Function
+
+// Sets mExp by reference, using fullPath to find the experiment name
+Static Function FindExpIfExists(fullPath,mExp)
+	String fullPath
+	String & mExp
+	if (ModViewGlobal#GetExperimentFromMarkedIfExists(fullPath,mExp))
+		// then this trace is already in the marked curves
+		return ModDefine#True()	
+	elseif(ModViewGlobal#GetExperimentFromDataIfExists(fullPath,mExp))
+		// then we need to check if this curves is marked.
+		// If it isnt' then just skip it.
+		return ModDefine#True()
+	else
+		// just skip it!		
+		return ModDefine#False()
+	EndIf	
+End Function
+
+Static Function FindExpAndTraceIfExists(mData,fullPath,mExp,mTrace)
+	Struct ViewGlobalDat & mData	
+	String fullPath, &mExp,&mTrace
+	mTrace = ModIoUtil#GetFileName(fullPath) + mData.SuffixForcePlot
+	return FindExpIfExists(fullPath,mExp)
+End Function 
+
+Static Function /S GetSqlSaveFolder(TraceFolder)
+	String TraceFolder
+	return ModIoUtil#AppendedPath(TraceFolder,VIEW_SQL_SAVE)
+End Function
+
+Static Function /S GetSqlIdInf(TraceFolder)
+	String TraceFolder
+	return ModIoUtil#AppendedPath(GetSqlSaveFolder(TraceFolder),VIEW_SQL_ID_WAVE)
+End Function	

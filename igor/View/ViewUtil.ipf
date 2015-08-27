@@ -4,6 +4,10 @@
 #include "::Util:IoUtil"
 #include "::Model:ModelDefines"
 
+// Name of the listbox control
+StrConstant WAVE_SELECTOR_LISTBOX_NAME = "AllWaveSel"
+// MOdel control name
+StrConstant MODEL_CONTROL_NAME = "LoadModel"
 // Default for ListBox
 Constant VIEW_DEF_LISTBOX_RESIZE = 1
 //m=0: No selection allowed.
@@ -12,11 +16,16 @@ Constant VIEW_DEF_LISTBOX_RESIZE = 1
 //m=3: Multiple, but not disjoint, selections allowed.
 //m=4: Multiple and disjoint selections allowed.
 Constant VIEW_DEF_LISTBOX_SELECT = 1
-Constant VIEW_LISTBOX_SINGLE_SEL = 1
+Constant VIEW_LISTBOX_MULTIPLE_SELECTS = 4
+//Bit 0 (0x01): Cell is selected.
+Constant SELWAVE_ENABLE_SELECTION = 1
+Constant LISTBOX_SELWAVE_SELECTED = 1
+Constant LISTBOX_SELWAVE_NOT_SELECTED  = 0 
 // Events for list
-Constant EVENT_LIST_DOUBLE_CLICK = 3
+Constant EVENT_LIST_MOUSE_UP = 2
 Constant EVENT_LIST_SEL = 4
 Constant EVENT_LIST_KEYSTROKE = 12
+Constant EVENT_SHIFT_SELECT = 5
 // Events for Button (pp 42 of igor manual)
 Constant EVENT_BUTTON_MUP_OVER= 2
 // Events for SetVariable
@@ -33,8 +42,8 @@ Constant EVENT_NOT_HANDLED = 0
 // Popup constants. V-503: on mode of 0, title is in popupmenu
 Constant EVENT_POPUP_MOUSEUP = 2
 Constant POPUP_MENU_TITLE_MODE = 1 
-Constant POPUP_ENABLE = 0 // Editability Normal.
-Constant POPUP_DISABLE = 2 // Draw in gray state; disable control action
+Constant CONTROL_ENABLE = 0 // Editability Normal.
+Constant CONTROL_DISABLE = 2 // Draw in gray state; disable control action
 Constant LISTBOX_HEIGHT_REL = 0.35, LISTBOX_WIDTH_REL =0.4, graphWidth = 0.4, graphHeight = 0.4
 // Relative meta params height and width
 Constant META_WIDTH_REL = 0.3
@@ -120,7 +129,7 @@ End Function
 Static Function /S GetParamSaveName(mParam)
 	Struct Parameter & mParam	
 	String toRet
-	sprintf toRet,"RP%d_%s_%s",mParam.repeatNumber,GetParamPanelName(mParam.id),mParam.name
+	sprintf toRet,"RP%d_%s_%s",mParam.repeatNumber,GetParamPanelName(mParam.ParameterNumber),mParam.name
 	return toRet
 End Function
 
@@ -161,10 +170,11 @@ Static Function ConvertRelativeToAbs(posxRel,posyRel,widthRel,HeightRel,absX,abs
 End Function
 
 
-Static Function MakeListBox(name,helpText,mWave,posx,posy,width,height,mProc,[AllowResize,mFont,SelectionMode,wAbs,hAbs])
+Static Function MakeListBox(name,helpText,mWave,posx,posy,width,height,mProc,[selWave,AllowResize,mFont,SelectionMode,wAbs,hAbs])
 	// Makes a postbox at (posx,posy) with height and width, using the rest of the parameters for the listbox control
 	// Note: if hAbs and wAbs are present, x,y,height, and width are assumined between 0 and 1
 	Wave /T mWave
+	Wave selWave
 	FuncRef ListBoxProto mProc
 	Struct Font &mFont
 	String name,helpText
@@ -192,65 +202,11 @@ Static Function MakeListBox(name,helpText,mWave,posx,posy,width,height,mProc,[Al
 	ListBox $name,pos={posx,posy},size={width,height},proc=$mFuncName,listWave=mWave
 	ListBox $name,userColumnResize=AllowResize,mode=SelectionMode
 	ListBox $name,font="Helvetica",fsize=fontToUse.FontSize
-End Function
-
-
-Static Function /S DisplayGen(xAbsI,yAbsI,xAbsF,yAbsF,[hostname,graphName])
-	Variable xAbsI,yAbsI,xAbsF,yAbsF
-	String hostname,graphName
-	// Make sure we have the parameters we need.
-	if (ParamIsDefault(graphName))
-		// Then get a new graph name
-		graphName = ModIoUtil#UniqueGraphName("prhGraph")
+	// record the selection wave, if we need to.
+	if (!ParamIsDefault(selWave))
+		ListBox $name, selWave=selWave
 	EndIf
-	if (ParamISDefault(hostname))
-		Display /W=(xAbsI,yAbsI,xAbsF,yAbsF)/N=$(GraphName) 			
-	else
-		Display /W=(xAbsI,yAbsI,xAbsF,yAbsF)/N=$(GraphName) 	/HOST=$(hostName)
-	EndIf
-	return graphName
 End Function
-
-// Returns the name of the screen displayed
-Static Function /S DisplayRelToScreen(xRel,yRel,widthRel,heightRel)
-	Variable xRel,yRel,widthRel,heightRel
-	Variable width,height
-	ModIoUtil#GetScreenHeightWidth(width,height)	
-	// POST: we have the screen height, no ahead and get the rest.
-	Variable xAbsI,yAbsI,xAbsF,yAbsF
-	SetAbsByRelAndAbs(xRel,yRel,widthRel,heightRel,width,height,xAbsI,yAbsI,xAbsF,yAbsF)
-	return DisplayGen(xAbsI,yAbsI,xAbsF,yAbsF)
-End Function
-
-// Set the absolute X,Y locations by relative X/Y/Width/Height and absolute width/height.
-// Useful for sizing based on a screen. Note that the final 4 parameters (sent to displayGen)
-// are pass by reference
-Static Function SetAbsByRelAndAbs(xRel,yRel,widthRel,heightRel,abswidth,absHeight,xAbsI,yAbsI,xAbsF,yAbsF)
-	Variable xRel,yRel,widthRel,heightRel,abswidth,absHeight
-	Variable & xAbsI, &yAbsI,&xAbsF,&yAbsF // Reference!
-	 xAbsI = xRel * absWidth
-	 yAbsI = yRel*absHeight
-	 xAbsF = xAbsI + widthRel * absWidth
-	 yAbsF = yAbsI + heightRel * absHeight
-End Function
-
-Static Function DisplayRel(hostName, GraphName,mWindow,xRel,yRel,widthRel,heightRel)
-	Struct pWindow &mWindow
-	String hostName,GraphName
-	Variable xRel,yRel,widthRel,heightRel
-	// Determine the absolute left top right bottom coordinates
-	Variable absHeight = mWindow.height
-	Variable absWidth = mWindow.width
-	Variable xAbsI,yAbsI,xAbsF,yAbsF
- 	SetAbsByRelAndAbs(xRel,yRel,widthRel,heightRel,abswidth,absHeight,xAbsI,yAbsI,xAbsF,yAbsF)
-	// Make the display as usual
-	DisplayGen(xAbsI,yAbsI,xAbsF,yAbsF,hostname=hostname,graphname=graphName)
-End Function
-
-Structure pWindow
-	Variable width,height
-	Variable Left,Top,Right,Bottom
-EndStructure
 
 Structure ViewOptions
 	Struct pWindow Win
@@ -364,12 +320,12 @@ End Function
 
 Static Function EnablePopup(popupName)
 	String popupName
-	PopupMenu $(popupName) disable=(POPUP_ENABLE)
+	PopupMenu $(popupName) disable=(CONTROL_ENABLE)
 End Function
 
 Static Function DisablePopup(popupName)
 	String popupName
-	PopupMenu $(popupName) disable=(POPUP_DISABLE)
+	PopupMenu $(popupName) disable=(CONTROL_DISABLE)
 End Function
 
 Static Function MakePopupMenu(panelName,mTitle,helpStr,x,y,width,height,mProc,mStr,[wAbs,hAbs,format,font,userdata])
@@ -522,4 +478,25 @@ Static Function GetScreenWidthHeight(width,height,[mOpt])
 	EndIf
 	height = toUse.win.height
 	width = toUse.win.width
+End Function
+
+// Populates mWaveRef with all controls in mWindow
+Static Function GetAllControlsInWindow(mWaveRef,MWindow)
+	String mWaveRef,mWindow
+	String mSep = ModDefine#DefListSep()
+	String mControls = ControlNameList(mWindow,mSep)
+	Variable nControls = ItemsInList(mControls,mSep)
+	Redimension /N=(nControls) $mWaveRef 
+	Wave /T toPop = $mWaveRef
+	ModDataStruct#ListToTextWave(toPop,mControls,mSep)
+End Function
+
+Static Function UpdateAllControls(ListToDisable,Enable)
+	Wave /T ListToDisable
+	Variable enable
+	Variable nToDisable = DimSize(ListToDisable,0)
+	Variable i
+	For (i=0; i<nToDisable;i+=1)
+		ModifyControl $(ListToDisable[i]) disable=(enable)
+	EndFor
 End Function

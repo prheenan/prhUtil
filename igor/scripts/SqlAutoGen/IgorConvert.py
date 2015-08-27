@@ -36,12 +36,12 @@ VARCHAR_NAME_LENGTH = "MAX_NAME_LEN"
 DefinedConstants = {VARCHAR_DESC_LENGTH:200,
                     VARCHAR_NAME_LENGTH:100}
 SqlUtilInclude = "SqlUtil"
-DefineInclude = "..\Util\Defines"
+DefineInclude = "::Util:Defines"
 GLOBALDEF_NAME = "SqlCypherAutoDefines"
 UTILFUNCS_NAME = "SqlCypherUtilFuncs"
 DEFFUNC_NAME = "SqlCypherAutoFuncs"
 GUI_HANDLE_FUNC = "SqlCypherGuiHandle"
-ERROR_MOD_PATH = "..\Util\ErrorUtil"
+ERROR_MOD_PATH = "::Util:ErrorUtil"
 # we need to get the table directory from this file
 FuncInclude = "SqlCypherInterface"
 IgorTrue = "ModDefine#True()"
@@ -52,7 +52,12 @@ IGOR_NUMERIC_TYPE = "Variable"
 
 # general preamble
 def igorInclude(toinclude):
-    return '''#include ".\{:s}"'''.format(toinclude)
+    if (not toinclude.startswith(":")):
+        # add a colon
+        return '''#include ":{:s}"'''.format(toinclude)
+    else:
+        # dont add a colon
+        return '''#include "{:s}"'''.format(toinclude)        
 
 def igorPreambleGen(mName,isIndependent=False):
     # get a general preamble
@@ -480,7 +485,8 @@ class IgorConvert:
         defStructFmt = "ModDefine#StructFmt()"
         declarations = "\tStruct {:s} & {:s}\n".format(mStructName,localStruct)
         declarations += "\tString {:s}\n".format(localPath)
-        mStr = "Function SetIdTable({:s},{:s})\n".format(localStruct,localPath)
+        mStr = "Static Function SetIdTable({:s},{:s})\n".\
+               format(localStruct,localPath)
         mStr += declarations
         mStr += ("\tif (!WaveExists(${:s}))\n"+
                  "\t\tMake /O/N=(0) $({:s})\n"+
@@ -490,7 +496,7 @@ class IgorConvert:
                 format(defStructFmt,localStruct,localPath)
         mStr += "End Function\n\n"
         # add in the getter
-        mStr += "Function GetIdTable({:s},{:s})\n".\
+        mStr += "Static Function GetIdTable({:s},{:s})\n".\
                 format(localStruct,localPath)
         mStr += declarations
         mStr += "\tStructGet /B=({:s}) {:s},$({:s})\n".\
@@ -594,6 +600,7 @@ class IgorConvert:
                 if (fieldType == HandlerTypes.Foreignkey):
                     mKey = IgorConvert.foreignKeyToTableName(fieldName)
                     # make sure we are consistent
+
                     assert mKey in mTables
                     # POST: table exists
                     mList.append(IgorConvert.getTableConstName(mKey))

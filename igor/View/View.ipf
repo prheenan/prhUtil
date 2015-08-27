@@ -10,9 +10,13 @@
 #include "::ModelInstances:DnaWlc"
 #include "::ModelInstances:Nug2"
 #include "::MVC_Common:MvcDefines"
+#include ":ViewTraverse"
 #include "::Model:Model"		
 #include ":ViewUtil"
 #include ":ViewGlobal"
+// Include ViewSqlInterface, which does most of the Sql work
+#include ":ViewSqlInterface"
+#include "::Sql:SqlCypherInterface"
 // Include ViewSetter, which dynamically sets the SQL values the user wans
 #include ":ViewSetter"
 // Constants for the common handler of meta information
@@ -384,8 +388,16 @@ Static Function UpdateParam(mPoint,paramID)
  	String X = mData.CurrentXPath
  	// Note we are using the plottracename, insted of the current Y plot,
  	// since we want to get *exactly* what is on the cursor (enorce this?)
- 	String Y = mData.PlotTraceName
  	String mMetaDataPath = ModViewGlobal#GetFileSaveInfoPath(mData)
+ 	Variable saveCache = ModVIewGlobal#AllPreProcMade(mData)
+ 	String Y
+	if ( saveCache)
+		// Pre-processing is done; we can work with the true force
+		Y = mData.CurrentTracePathStub + mData.SuffixForcePlot
+	else
+		// pre-processing is *not* done, work with whatever is plotted
+		Y = mData.PlotTraceName
+	EndIf
  	// TODO: check out DuplicateDataFolder, for saving a copy
  	if (!DataFolderExists(mFolder))
  		// Need to make this folder
@@ -394,7 +406,6 @@ Static Function UpdateParam(mPoint,paramID)
  	endIf
  	 if (!WaveExists($mMetaDataPath))
  		// Create the meta data folder
- 		Variable saveCache = ModVIewGlobal#AllPreProcMade(mData)
  		ModViewGlobal#WriteFileSaveInfo(mData,X,Y,saveCache)
  	EndIf
  	// XXX move this until we are sure the pre-processing is one.
@@ -423,7 +434,7 @@ Static Function UpdateParam(mPoint,paramID)
 	// go ahead and run the pre-procesing steps
 	// Note: if there are *no* preprocessing steps, this will never happen
 	 Variable preProcFinishedAfter = ModVIewGlobal#AllPreProcMade(mData)
-	if (!mMeta.beenPreProcessed && preProcFinishedAfter)
+	if (!mMeta.beenPreProcessed && preProcFinishedAfter && mPar.isPreProc)
 		// then run the pre-processor.
 		String mSepName,mForceName
 		ModViewGlobal#RunPreProcAndGetSepForce(mData,mSepname,mForceName)
@@ -504,7 +515,16 @@ Static Function SetModel(modelObj)
 	Wave /T tmpUserWaves = $(mData.UserFileWaveStr)
 	Variable wAbs,habs
 	ModViewUtil#GetScreenWidthHeight(wAbs,hAbs,mOpt=mOpt)
-	ModViewUtil#MakeListBox("AllWaves","Choose a wave to view and analyze",tmpUserWaves,META_WIDTH_REL,0,LISTBOX_WIDTH_REL,LISTBOX_HEIGHT_REL,HandleWaveSelect,hAbs=hAbs,wAbs=wAbs)
+	// Push the model, if we need to.
+	Wave mSelWave = $(mData.SelWaveStr)
+	ModViewUtil#MakeListBox(WAVE_SELECTOR_LISTBOX_NAME,"Choose a wave to view and analyze",tmpUserWaves,META_WIDTH_REL,0,LISTBOX_WIDTH_REL,LISTBOX_HEIGHT_REL,HandleWaveSelect,SelectionMode=VIEW_LISTBOX_MULTIPLE_SELECTS,selWave=mSelWave,hAbs=hAbs,wAbs=wAbs)
+	// Push to SQL / update our model
+	// Need to load the id struct first
+	Struct SqlIdTable mIds
+	ModSqlCypherInterface#LoadGlobalIdStruct(mIds)
+	ModViewSqlInterface#AddCurrentExpAndModelSetIds(mData,mIds)
+	// Write the Id structure back.
+	ModSqlCypherInterface#SaveGlobalIdStruct(mIds)
 	// Save the preprocessing object, when we are done
 	ModViewGlobal#SavePreProcWave(mData,modelObj.mProc)
 	ModViewGlobal#SetGlobalData(mData) 
@@ -547,24 +567,32 @@ Static Function CreatePanel()
 	// too clunky.
 	// make the meta information gui
 	FuncRef PopupMenuListProto mProc = $("ModMvcDefines#GetModelOptions")
-	ModViewUtil#MakePopupMenu("LoadModel","Load A Model","Load a known model.",0,0,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleModelSelect,mProc)
+	ModViewUtil#MakePopupMenu(MODEL_CONTROL_NAME,"Load A Model","Load a known model.",0,0,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleModelSelect,mProc)
 	ModViewUtil#MakeButton("MarkLoad","Load Previously Analyzed Curves","Loads curves you have previously marked",0,BUTTON_HEIGHT_REL,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleLoadMarked,hAbs=habs,wAbs=wAbs)
 	ModViewUtil#MakeButton("ExpLoad","Load Single PXP file","Load a new Asylum Experimental (.pxp) File",0,2*BUTTON_HEIGHT_REL,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleLoadExp,habs=hAbs,wAbs=wAbs)
 	ModViewUtil#MakeButton("FolderLoad","Load a folder as a single experiment","Loads a series of data files (e.g. ibw,itx,pxp) from a single folder, interpreting it as a single experiment. Useful for post-processing",0,3*BUTTON_HEIGHT_REL,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleLoadFolder,habs=hAbs,wAbs=wAbs)
 	// Add the sql setters (meta information about traces)
-	 Variable startYRel = BUTTON_HEIGHT_REL*(nLoadButtons+nMeta)
-	  ModViewSetter#InitSqlSetter(mData.WindowName,0,startYRel,META_WIDTH_REL,SETTER_DEF_HEIGHT,SETVAR_WIDTH_REL,wAbs,hAbs)
 	 // update where the Y should start
-	  startYRel += SETTER_DEF_HEIGHT
+	  Variable startYRel = BUTTON_HEIGHT_REL * (nLoadButtons+nMeta)
 	 ModViewUtil#MakeButton("ToggleX","Toggle X Axis","Toggle X Axis between time and separation",0,startYRel,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleToggleX,habs=hAbs,wAbs=wAbs)
 	 startYRel += BUTTON_HEIGHT_REL 
+	ModViewUtil#MakeButton("SaveSqlInfo","Apply To Selected Curves with Parameters","Apply currently selected SQL information (e.g. Rating) to selected curves that have been marked",0,startYRel,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleApplyToSelected,habs=hAbs,wAbs=wAbs)
+	startYRel += BUTTON_HEIGHT_REL 
 	ModViewUtil#MakeButton("SetSaveDir","Save Marked Curves","Set where to save marked curves as tsv: [time,sep,force]",0,startYRel,META_WIDTH_REL,BUTTON_HEIGHT_REL,HandleSaveMarked,habs=hAbs,wAbs=wAbs)
+	startYRel += BUTTON_HEIGHT_REL 
+	// Before adding the setter, disable everything
+	ModViewUtil#GetAllControlsInWindow(mData.ControlDisableWaves,mData.WindowName)
+	Wave /T mControls = $mData.ControlDisableWaves
+	ModDataStruct#RemoveTextFromWave(MODEL_CONTROL_NAME,mControls)
+	// POST: mControls has everything except te model load; disable them.
+	ModViewUTil#UpdateAllControls(mControls,CONTROL_DISABLE)
+	 ModViewSetter#InitSqlSetter(mData.WindowName,0,startYRel,META_WIDTH_REL,SETTER_DEF_HEIGHT,SETVAR_WIDTH_REL,wAbs,hAbs)
 	 // POST default regex is set up.
 	 //GetUserAndPathWaves(mData,strAllWaves,strUserWaves,baseDir)
 	// Create the View for the graph; go ahead and plot a bit.
 	String GraphName = mData.PlotName
 	// Make a display in this window.
-	ModViewUtil#DisplayRel(mData.windowName, GraphName, mOpt.win,META_WIDTH_REL,LISTBOX_HEIGHT_REL,graphWidth,graphHeight)
+	ModPlotUtil#DisplayRel(mData.windowName, GraphName, mOpt.win,META_WIDTH_REL,LISTBOX_HEIGHT_REL,graphWidth,graphHeight)
 	// Add a button to analyze everything
 	ModViewUtil#MakeButton("Analyze","Analyze","Click To Analyze All Tagged Graphs",META_WIDTH_REL,LISTBOX_HEIGHT_REL+graphHeight,graphWidth,BUTTON_HEIGHT_REL,HandleAnalyzeButton,hAbs=hAbs,wAbs=wAbs)
 	// Update the struct containing the global data. This *must* happen at the end of a
@@ -657,6 +685,10 @@ Static Function GetModelByNum(mNum,mObj)
 	Struct ModelObject & mObj
 	// Assume we succeed, by default
 	Variable toRet = ModDefine#True()
+	// Global data needed to disable all the controls.
+	Struct ViewGlobalDat mData
+	ModViewGlobal#GetGlobalData(mData)
+	Wave /T mControls = $mData.ControlDisableWaves
 	switch (mNum)
 		case MVC_MODEL_DNA:
 			ModDnaWLC#InitDNAModel(mObj)
@@ -667,9 +699,6 @@ Static Function GetModelByNum(mNum,mObj)
 		case MVC_MODEL_NONE:
 			// return false; nothing loaded
 			toRet =  MOdDefine#False()
-			// Disable all parameters
-			Struct ViewGlobalDat mData
-			ModViewGlobal#GetGlobalData(mData)
 			MOdViewGlobal#KillAllParamsPanels(mData)
 			break
 		default:
@@ -678,6 +707,13 @@ Static Function GetModelByNum(mNum,mObj)
 			ModErrorUtil#DevelopmentError(description="Bad Model Number.")
 			break
 	EndSwitch
+	if (toRet)
+		// We can enable everything
+		ModViewUTil#UpdateAllControls(mControls,CONTROL_ENABLE)
+	Else
+		// disable everything dependent on the model.
+		ModViewUTil#UpdateAllControls(mControls,CONTROL_DISABLE)
+	EndIF
 	return toRet
 End Function
 
@@ -718,33 +754,110 @@ Function HandleMetaSet(event) : SetVariableControl
 	 EndSwitch
 End Function 
 
+Function HandleApplyToSelected(BTN_Struct): ListboxControl
+	STRUCT WMButtonAction &BTN_Struct
+	switch (BTN_STRUCT.eventCode)
+		case EVENT_BUTTON_MUP_OVER:
+		// Get all the stubs		
+		Struct ViewGlobalDat mData
+		ModViewGlobal#GetGlobalData(mData)
+		Wave /T mFullPaths = $mData.AllFileWaveStr
+		// POST: we have all the marked stubs.
+		// Get all of the currently selected waves.
+		Wave mSel = $(mData.SelWaveStr)
+		Variable nWavesDomain = DimSize(mSel,0)
+		// Get which of the full paths we are selecting.
+		// NOte: we assume selected waves are one, so the 
+		// sum gives the total number
+		Variable nSelected= sum(mSel)
+		Make /O/N=(nWavesDomain) mSelectedIndex
+		// Make an index to sort from large to small
+		// /R :sort from large to small
+		MakeIndex /R mSel,mSelectedIndex
+		// POST: mSelectedIndex from 0 to (n-1) where n is nSelected are the
+		// indices of the  waves we want
+		MAke /T/O/N=(nSelected) mWaves
+		mWaves[] = mFullPaths[mSelectedIndex[p]]
+		// POST: mWaves has all of the waves we are interested in.
+		// now we need to see which ones are already marked, and
+		// add the ID structure to all of those 
+		Variable i
+		String mFullFile
+		Struct SqlIdTable mStruct
+		ModSqlCypherInterface#LoadGlobalIdStruct(mStruct)
+		// use a copy of mData to set the source and experiment name
+		// without worrying about messing up local state.
+		Struct ViewGlobalDat mDataCopy
+		mDataCopy = mData
+		// Get the source files and expeirment files we have defined
+		Wave /T mSrcWave = $(mData.AllExpSrc)
+		Wave /T mExpWave = $(mData.AllExpNames)
+		for (i=0; i<nSelected; i+=1)
+			mFullFile = mWaves[i]
+			String mExp,mTrace
+			// Waves could be from *either* already marked curves
+			// or just raw data.
+			if (!ModViewGlobal#FindExpAndTraceIfExists(mData,mFullFile,mExp,mTrace))
+				continue
+			EndIf
+			// POST: mExp has the experiment, mTrace has the trace name
+			// Get the marked crve folder for this experiment.
+			String mFullExpFolder = ModViewGlobal#GetExperimentFolderByString(mData,mExp)
+			String mFolder = ModViewGlobal#CurrentDataFolderByString(mData,mFullExpFolder,mTrace)
+			// Check if the folder exists
+			if (!DataFolderExists(mFolder))
+				continue
+			EndIF
+			// POST: data folder exists, copy the ID information there.
+			// Need to set the experment and experiment folder appropriately
+			mDataCopy.ExpFileName = mExp
+			// Find the index for the source; can use this to match with the index
+			Variable index
+			if (!ModDataStruct#TextInWave(mExp,mExpWave,index=index))
+					ModErrorUTil#DevelopmentError(description="Exp wasn't saved.")
+			EndIf
+			// POST: mIndex has the index we want for this source
+			mDataCopy.SourceFileName = mSrcWave[index]
+			// POST: mDataCopy has the src, experimentfiel, and model set as we want
+			String mSqlWavePath = ModViewGlobal#GetSqlIdInf(mFolder)
+			ModIoUtil#EnsurePathExists(ModIoUtil#GetDirectory(mSqlWavePath))
+			// Set the experiment and model ID, based on the *data copy*
+			ModViewSqlInterface#AddCurrentExpAndModelSetIds(mDataCopy,mStruct)
+			ModViewSqlInterface#CopySqlIds(mStruct,mSqlWavePath)
+		EndFor		
+		// XXX for now, assume model is constant, go ahead and save the Ids...
+		ModSqlCypherInterface#SaveGlobalIdStruct(mStruct)
+		break
+	EndSwitch
+End Function
+
 Function HandleSaveMarked(BTN_Struct): ListboxControl
 	STRUCT WMButtonAction &BTN_Struct
 	switch (BTN_STRUCT.eventCode)
 		case EVENT_BUTTON_MUP_OVER:
 			String WhereToSave
-			if (MOdIoUtil#GetFolderInteractive(WhereToSave))
-				// Then the user picked somewhere
-				// Namely "WhereToSave" (pass by ref)
-				Struct ViewGlobalDat mData
-				ModViewGlobal#GetGlobalData(mData)
-				// Save the directory to save in mData
-				mData.CachedSaveDir = WheretoSave
-				// Save all the files we have marked out
-				// Search for waves here
-				Make /O/T/N=0 UserWaves
-				Make /O/T/N=0 PathWaves
-				ModVIewGlobal#GetAllMarkedStubs(mData,UserWaves,PathWaves)
-				// POST: Pathwaves has all the stubs we want
-				// Save all the stubs out
-				ModViewGlobal#SaveAllStubsAsFEC(mData,PathWaves)
-				// We modified GlobalDat, need to update
-				ModViewGlobal#SetGlobalData(mData)
-				// Done with the waves, we can toss them.
-				Killwaves /Z UserWaves,PathWaves
+			// Get where to save
+			if (!MOdIoUtil#GetFolderInteractive(WhereToSave))
+				return ModDefine#False()
 			EndIf
-			// POST: saved, if the user wanted.
-			break
+			// Then the user picked somewhere
+			// Namely "WhereToSave" (pass by ref)
+			Struct ViewGlobalDat mData
+			ModViewGlobal#GetGlobalData(mData)
+			// Save the directory to save in mData
+			mData.CachedSaveDir = WheretoSave
+			// Save all the files we have marked out
+			// Search for waves here
+			Make /O/T/N=0 UserWaves
+			Make /O/T/N=0 PathWaves
+			ModVIewGlobal#GetAllMarkedStubs(mData,UserWaves,PathWaves)
+			// POST: Pathwaves has all the stubs we want
+			// Save all the stubs out
+			ModViewSqlInterface#SaveAllStubsAsFEC(mData,PathWaves)
+			// We modified GlobalDat (cachedDir), need to update
+			ModViewGlobal#SetGlobalData(mData)
+			// Done with the waves, we can toss them.
+			Killwaves /Z UserWaves,PathWaves
 	EndSwitch
 End Function
 
@@ -762,11 +875,12 @@ Function HandleLoadMarked(BTN_Struct): ButtonControl
 		Make /O/T/N=0 PathWaves
 		ModVIewGlobal#GetAllMarkedStubs(mData,UserWaves,PathWaves)
 		// Overwrite whatever is in the current global wavs
-		Duplicate /O UserWaves,$(mData.UserFileWaveStr)
-		Duplicate /O PathWaves,$(mData.AllFileWaveStr)
+		// Concat is false: overwrite
+		ModViewGlobal#SetWaveList(mData,PathWaves,UserWaves,ModDefine#False())
 		// Kill the temporary waves
 		KillWaves UserWaves,PathWaves
 		// No need to save back; the global state has not changed.
+		// We only changed the waves we referred to.
 		break
 	EndSwitch
 End Function
@@ -802,18 +916,56 @@ Function HandleLoadExp(BTN_Struct) : ButtonControl
 	STRUCT WMButtonAction &BTN_Struct
  	 switch (BTN_STRUCT.eventCode)
 		case EVENT_BUTTON_MUP_OVER:
+			// Get the global object, used in a read-only manner (no need to save)
+			Struct ViewGlobalDat mData
+			ModViewGlobal#GetGlobalData(mData)
 			// Interactively load the data into "ImportDir", setting "fileLoaded" to the 
 			// full path name and 'folderName' to the data folder name where we loaded it.
 			String fileLoaded
 			String folderName
 			 // Load the data into the appropriate directory
 		 	 String ImportDir = ModViewGlobal#GetDataDirLoadGlobal()
-			if(!ModIoUtil#LoadInteractive(fileLoaded,ImportDir,ifPresentLoadIntoFileFolder=folderName))
+		 	 String Subfolder = ModCypherUtil#PathToExpSubfolder()
+		 	 // Get what is in our import dir before the load
+		 	 Make /O/N=(0)/T beforeImport,afterImport
+		 	 ModIoUtil#ListDataFoldersInDir(ImportDir,NameOfWave(beforeImport))
+			if(!ModIoUtil#LoadInteractive(fileLoaded,ImportDir,Subfolder=Subfolder))
 				// If we didn't load anything (user cancelled), then return
 				return ModDefine#False()
 			EndIf
+			// Get what is in the import dir after the load
+			 ModIoUtil#ListDataFoldersInDir(ImportDir,NameOfWave(afterImport))
+			 // Get the number before
+			 Variable nBefore = DimSize(beforeImport,0)		
+			 // Get which waves are not in the first (ie: newly loaded experiment folder)
+			 Wave /T shouldBeSingle = ModDataStruct#ExtractWhereFirstNotInSecond(afterImport,beforeImport)
+			  String mFolder // what folder to load
+			  Variable nOverlap = DimSize(shouldBeSingle,0)
+			 if (nOverlap> 1)
+			 	// throw an error; more than one file was loaded
+			 	ModErrorUtil#DevelopmentError(description="More than one file loaded in load single pxp")
+			 elseif (nOverlap == 0 && nBefore > 0)
+			 	// Then the data is already loaded. should be able to load the
+			 	// information we need from the 
+			 	Wave /T mSrc = $(mData.AllExpSrc) // Note: this is just the file name
+				Wave /T mFolderNames = $(mData.AllExpNames)
+				// Find which index in source is this file
+				Variable mIndex
+				String fileNameLoaded = ModIoUtil#GetFileName(fileLoaded)
+				if (!ModDataStruct#TextInWave(fileNameLoaded,mSrc,index=mIndex))
+					ModErrorUTil#DevelopmentError(description="Source wasn't saved.")
+				EndIf
+				// POST: we know what folder we want based on mFolderNames
+				mFolder = mFolderNames[mIndex]
+			 elseif (nOverlap == 1) 
+			 	 // POST: just one wave
+				mFolder = shouldBeSingle[0]
+			else 
+				// XXX error; nothing loaded...
+				ModErrorUtil#DevelopmentError()
+			 EndIf			
 			// Use the default naming convention
-			ModVIewGlobal#LoadNewExperiment(fileLoaded,folderName)
+			ModVIewGlobal#LoadNewExperiment(fileLoaded,mFolder)
 	EndSwitch
 End Function 
 
@@ -881,12 +1033,12 @@ Function HandleWaveSelect(LB_Struct) : ListboxControl
  	Variable eventcode = LB_Struct.eventCode
  	// XXX look into WaveSelectorWidget.ipf
  	// IT have a FilterProc, which allows filtering.
+ 	Struct ViewGlobalDat mData
  	Switch (eventCode)
  		// XXX Have a common defined object or function for event codes
  		// Cell Selection with mouse or arrow
  		case EVENT_LIST_SEL:
 			// Get the global data
- 			Struct ViewGlobalDat mData 
  			ModViewGlobal#GetGlobalData(mData)
  			Wave /T globalPaths = $(mData.AllFileWaveStr)
  			 if (mRow >= DimSize(globalPaths,0))
@@ -931,8 +1083,20 @@ Function HandleWaveSelect(LB_Struct) : ListboxControl
 		 	ModViewGlobal#SetGlobalData(mData)
 	 		break
 	 	case EVENT_LIST_KEYSTROKE:
+	 		// Add in control A
 	 		break
-	 	case EVENT_LIST_DOUBLE_CLICK:
+	 	case EVENT_SHIFT_SELECT:
+ 			ModViewGlobal#GetGlobalData(mData)
+ 			// Get the last selected value
+ 			Variable mLastSel= mData.selectedWaveIdx
+ 			// Get the selected wave
+ 			Wave mSel = $(mData.SelWaveStr)
+ 			// Get the min and max index
+ 			// Useful for 'either way' selection
+ 			Variable minIndex = min(mLastSel,mRow)
+ 			Variable maxIndex = max(mLastSel,mRow)
+ 			// Set all of these to selected
+ 			mSel[minIndex,maxIndex] = LISTBOX_SELWAVE_SELECTED
 	 		break
  	EndSwitch
 End Function
@@ -955,7 +1119,17 @@ Function HandleModelParam(event) : SetVariableControl
 			Struct ViewGlobalDat mData
 			ModViewGlobal#GetGlobalData(mData)
 			// Get the closest X index
-			Variable mPoint = x2pnt($(mData.PlotTraceName),mXValue)
+			Variable mPoint
+			Wave mPointWave
+			if (ModViewGlobal#PlotVersusTime(mData))
+				Wave mPointWave = $(mData.PlotTraceName)
+			Else
+				Wave mPointWave = $(mData.CurrentXPath)			
+			EndIF
+			mPoint = x2pnt(mPointWave,mXValue)
+			Variable nPoints = DimSize(mPointWave,0)
+			mPoint = max(mPoint,0)
+			mPoint = min(mPoint,nPoints-1)
 			UpdateParam(mPoint,mID)
 			break
 	 EndSwitch

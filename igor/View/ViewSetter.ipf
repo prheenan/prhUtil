@@ -1,14 +1,21 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3	
+// this file has functions for creating setters for the various sql tables
+// needed (ie: can't be auto-generated, like sample) and functions for pushing a single trace
 
 #pragma ModuleName = ModViewSetter
 #include ":ViewUtil"
 #include "::Sql:SqlCypherInterface"
 #include "::Sql:SqlCypherUtilFuncs"
 #include "::Sql:SqlCypherGuiHandle"
+#include "::Sql:SqlCypherAutoFuncs"
 #include "::Util:DataStructures"
-Constant SETTER_DEF_HEIGHT = 0.4
+// Include the model, so we can set all of the parameters.
+#include "::Model:ModelDefines"
+// Include the cypher util, so we can include the force information
+#include "::Util:CypherUtil"
 
+Constant SETTER_DEF_HEIGHT = 0.4
 Static StrConstant SET_DEFAULT_STR = ""
 Static Constant SET_DEFAULT_NUM = 0
 // location of handlers

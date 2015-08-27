@@ -5,6 +5,16 @@
 Constant CMPSTR_EQ = 0
 // V-143, You can add selector values to test more than one field at a time or pass -1 to compare all aspects.
 Constant EQUALWAVES_FULL = -1
+//Wavetype constant
+CONSTANT WAVETYPE_SEL_TYPES = 1
+Constant WAVETYPE_IS_STR = 2
+
+// WaveType V-751
+// If selector = 1, WaveType returns 0 for a null wave, 1 if numeric, 2 if string ... 
+Static Function IsTextWave(mWave)
+	Wave mWave
+	return WaveType(mWave,WAVETYPE_SEL_TYPES) == WAVETYPE_IS_STR
+End Function
 
 Static Function WavesAreEqual(WaveA,WaveB,[options])
 	Wave WaveA,WaveB
@@ -28,11 +38,29 @@ Static Function TextInWave(Needle,HayStack,[index])
 	return V_Value >=0
 End Function
 
+Static Function RemoveTextFromWave(Needle,Haystack)
+	STring Needle
+	Wave /T Haystack 
+	Variable index
+	// Delete the points if we find them.
+	if (TextInWave(Needle,Haystack,index=index))
+		DeletePoints index,1,Haystack
+	EndIF
+End Function
+
 Static Function /Wave ExtractSetTextIntersection(WaveA,WaveB)
 	Wave /T WaveA
 	Wave /T WaveB
 	Extract WaveA, mSetIntersect, TextInWave(WaveA,WaveB)
 	return mSetIntersect
+End Function
+
+Static Function /Wave ExtractWhereFirstNotInSecond(WaveA,WaveB)
+	Wave /T WaveA
+	Wave /T WaveB
+	// If an element of waveA is *not* in waveB
+	Extract WaveA, mExtractNot, !TextInWave(WaveA,WaveB)
+	return mExtractNot
 End Function
 
 Static Function EnsureTextWaveExists(StrName,[size])

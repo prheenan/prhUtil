@@ -35,8 +35,6 @@ Static Function Main([Debugging])
 	ModSqlCypherBootstrap#AddDefaultUsers()
 	ModSqlCypherBootstrap#AddDefaultTipPreps()
 	ModSqlCypherBootstrap#AddDefaultSamplePreps()
-	ModSqlCypherBootstrap#AddDefaultSamples()
-	ModSqlCypherBootstrap#AddDefaultTipManifests()
 	// Kill the waves we made
 	KillWaves /Z mTables
 End Function

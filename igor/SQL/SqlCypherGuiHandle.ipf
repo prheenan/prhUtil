@@ -15,9 +15,6 @@ Static Function /S GetMenuByTable(mTab)
 		case TAB_ExpMeta:
 			return "GetMenuExpMeta"
 			break
-		case TAB_ExpUserData:
-			return "GetMenuExpUserData"
-			break
 		case TAB_LinkDataMeta:
 			return "GetMenuLinkDataMeta"
 			break
@@ -26,9 +23,6 @@ Static Function /S GetMenuByTable(mTab)
 			break
 		case TAB_LinkModelParams:
 			return "GetMenuLinkModelParams"
-			break
-		case TAB_LinkModelTrace:
-			return "GetMenuLinkModelTrace"
 			break
 		case TAB_LinkMoleTrace:
 			return "GetMenuLinkMoleTrace"
@@ -107,9 +101,9 @@ Static Function InitHandleExpMeta(mTab,mStr,mNum)
 	Struct ExpMeta & mTab
 	Wave/T mStr
 	Wave/D mNum
-	mTab.idExpUserData=mNum[0]
-	mTab.TimeStarted=mStr[1]
-	mTab.NAttemptedPulls=mNum[2]
+	mTab.idExpMeta=mNum[0]
+	mTab.Name=mStr[1]
+	mTab.Description=mStr[2]
 	mTab.SourceFile=mStr[3]
 End Function
 
@@ -120,9 +114,9 @@ Static Function InitWavesExpMeta(mTab,mStr,mNum)
 	Variable mSize = 4
 	Redimension /N=(mSize) mStr
 	Redimension /N=(mSize) mNum
-	mNum[0]=mTab.idExpUserData
-	mStr[1]=mTab.TimeStarted
-	mNum[2]=mTab.NAttemptedPulls
+	mNum[0]=mTab.idExpMeta
+	mStr[1]=mTab.Name
+	mStr[2]=mTab.Description
 	mStr[3]=mTab.SourceFile
 End Function
 
@@ -136,60 +130,15 @@ Function SqlHandleExpMeta(mStr,mNum,mHandler)
 	//Add to the global object pointed to by our setter
 	//*Note*: ID should be set by lower methods.
 	String tabName = TAB_ExpMeta
-	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idExpUserData),mTabStruct.idExpUserData)
-	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_TimeStarted),mTabStruct.TimeStarted)
-	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_NAttemptedPulls),mTabStruct.NAttemptedPulls)
+	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idExpMeta),mTabStruct.idExpMeta)
+	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_Name),mTabStruct.Name)
+	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_Description),mTabStruct.Description)
 	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_SourceFile),mTabStruct.SourceFile)
 	//Call the routine to push this to Sql.
 End Function
 
 Static Function /S GetMenuExpMeta()
 	String mTab=TAB_ExpMeta
-	return ModSqlCypherInterface#HandleMenu(mTab)
-End Function 	
-
-Static Function InitHandleExpUserData(mTab,mStr,mNum)
-	Struct ExpUserData & mTab
-	Wave/T mStr
-	Wave/D mNum
-	mTab.idExpUserData=mNum[0]
-	mTab.Name=mStr[1]
-	mTab.Description=mStr[2]
-	mTab.idUser=mNum[3]
-End Function
-
-Static Function InitWavesExpUserData(mTab,mStr,mNum)
-	Struct ExpUserData & mTab
-	Wave/T mStr
-	Wave/D mNum
-	Variable mSize = 4
-	Redimension /N=(mSize) mStr
-	Redimension /N=(mSize) mNum
-	mNum[0]=mTab.idExpUserData
-	mStr[1]=mTab.Name
-	mStr[2]=mTab.Description
-	mNum[3]=mTab.idUser
-End Function
-
-Function SqlHandleExpUserData(mStr,mNum,mHandler)
-	Wave /T mStr
-	Wave /D mNum
-	Struct SqlHandleObj & mHandler
-	Struct ExpUserData mTabStruct
-	InitHandleExpUserData(mTabStruct,mStr,mNum)
-	//POST: mTab is populated with all fields of ExpUserData
-	//Add to the global object pointed to by our setter
-	//*Note*: ID should be set by lower methods.
-	String tabName = TAB_ExpUserData
-	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idExpUserData),mTabStruct.idExpUserData)
-	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_Name),mTabStruct.Name)
-	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_Description),mTabStruct.Description)
-	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idUser),mTabStruct.idUser)
-	//Call the routine to push this to Sql.
-End Function
-
-Static Function /S GetMenuExpUserData()
-	String mTab=TAB_ExpUserData
 	return ModSqlCypherInterface#HandleMenu(mTab)
 End Function 	
 
@@ -241,7 +190,7 @@ Static Function InitHandleLinkExpModel(mTab,mStr,mNum)
 	Wave/D mNum
 	mTab.idLinkExpModel=mNum[0]
 	mTab.idModel=mNum[1]
-	mTab.idExpUserData=mNum[2]
+	mTab.idExpMeta=mNum[2]
 End Function
 
 Static Function InitWavesLinkExpModel(mTab,mStr,mNum)
@@ -253,7 +202,7 @@ Static Function InitWavesLinkExpModel(mTab,mStr,mNum)
 	Redimension /N=(mSize) mNum
 	mNum[0]=mTab.idLinkExpModel
 	mNum[1]=mTab.idModel
-	mNum[2]=mTab.idExpUserData
+	mNum[2]=mTab.idExpMeta
 End Function
 
 Function SqlHandleLinkExpModel(mStr,mNum,mHandler)
@@ -268,7 +217,7 @@ Function SqlHandleLinkExpModel(mStr,mNum,mHandler)
 	String tabName = TAB_LinkExpModel
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idLinkExpModel),mTabStruct.idLinkExpModel)
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idModel),mTabStruct.idModel)
-	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idExpUserData),mTabStruct.idExpUserData)
+	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idExpMeta),mTabStruct.idExpMeta)
 	//Call the routine to push this to Sql.
 End Function
 
@@ -316,48 +265,6 @@ End Function
 
 Static Function /S GetMenuLinkModelParams()
 	String mTab=TAB_LinkModelParams
-	return ModSqlCypherInterface#HandleMenu(mTab)
-End Function 	
-
-Static Function InitHandleLinkModelTrace(mTab,mStr,mNum)
-	Struct LinkModelTrace & mTab
-	Wave/T mStr
-	Wave/D mNum
-	mTab.idLinkModelTrace=mNum[0]
-	mTab.idModel=mNum[1]
-	mTab.idTraceModel=mNum[2]
-End Function
-
-Static Function InitWavesLinkModelTrace(mTab,mStr,mNum)
-	Struct LinkModelTrace & mTab
-	Wave/T mStr
-	Wave/D mNum
-	Variable mSize = 3
-	Redimension /N=(mSize) mStr
-	Redimension /N=(mSize) mNum
-	mNum[0]=mTab.idLinkModelTrace
-	mNum[1]=mTab.idModel
-	mNum[2]=mTab.idTraceModel
-End Function
-
-Function SqlHandleLinkModelTrace(mStr,mNum,mHandler)
-	Wave /T mStr
-	Wave /D mNum
-	Struct SqlHandleObj & mHandler
-	Struct LinkModelTrace mTabStruct
-	InitHandleLinkModelTrace(mTabStruct,mStr,mNum)
-	//POST: mTab is populated with all fields of LinkModelTrace
-	//Add to the global object pointed to by our setter
-	//*Note*: ID should be set by lower methods.
-	String tabName = TAB_LinkModelTrace
-	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idLinkModelTrace),mTabStruct.idLinkModelTrace)
-	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idModel),mTabStruct.idModel)
-	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idTraceModel),mTabStruct.idTraceModel)
-	//Call the routine to push this to Sql.
-End Function
-
-Static Function /S GetMenuLinkModelTrace()
-	String mTab=TAB_LinkModelTrace
 	return ModSqlCypherInterface#HandleMenu(mTab)
 End Function 	
 
@@ -492,8 +399,8 @@ Static Function InitHandleModel(mTab,mStr,mNum)
 	Wave/T mStr
 	Wave/D mNum
 	mTab.idModel=mNum[0]
-	mTab.ModelName=mStr[1]
-	mTab.ModelDescription=mStr[2]
+	mTab.Name=mStr[1]
+	mTab.Description=mStr[2]
 End Function
 
 Static Function InitWavesModel(mTab,mStr,mNum)
@@ -504,8 +411,8 @@ Static Function InitWavesModel(mTab,mStr,mNum)
 	Redimension /N=(mSize) mStr
 	Redimension /N=(mSize) mNum
 	mNum[0]=mTab.idModel
-	mStr[1]=mTab.ModelName
-	mStr[2]=mTab.ModelDescription
+	mStr[1]=mTab.Name
+	mStr[2]=mTab.Description
 End Function
 
 Function SqlHandleModel(mStr,mNum,mHandler)
@@ -519,8 +426,8 @@ Function SqlHandleModel(mStr,mNum,mHandler)
 	//*Note*: ID should be set by lower methods.
 	String tabName = TAB_Model
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idModel),mTabStruct.idModel)
-	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_ModelName),mTabStruct.ModelName)
-	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_ModelDescription),mTabStruct.ModelDescription)
+	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_Name),mTabStruct.Name)
+	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_Description),mTabStruct.Description)
 	//Call the routine to push this to Sql.
 End Function
 
@@ -1077,20 +984,26 @@ Static Function InitHandleTraceData(mTab,mStr,mNum)
 	Wave/T mStr
 	Wave/D mNum
 	mTab.idTraceData=mNum[0]
-	mTab.FileName=mStr[1]
-	mTab.idExpUserData=mNum[2]
+	mTab.FileTimSepFor=mStr[1]
+	mTab.idExpMeta=mNum[2]
+	mTab.FileOriginal=mStr[3]
+	mTab.OriginalX=mStr[4]
+	mTab.OriginalY=mStr[5]
 End Function
 
 Static Function InitWavesTraceData(mTab,mStr,mNum)
 	Struct TraceData & mTab
 	Wave/T mStr
 	Wave/D mNum
-	Variable mSize = 3
+	Variable mSize = 6
 	Redimension /N=(mSize) mStr
 	Redimension /N=(mSize) mNum
 	mNum[0]=mTab.idTraceData
-	mStr[1]=mTab.FileName
-	mNum[2]=mTab.idExpUserData
+	mStr[1]=mTab.FileTimSepFor
+	mNum[2]=mTab.idExpMeta
+	mStr[3]=mTab.FileOriginal
+	mStr[4]=mTab.OriginalX
+	mStr[5]=mTab.OriginalY
 End Function
 
 Function SqlHandleTraceData(mStr,mNum,mHandler)
@@ -1104,8 +1017,11 @@ Function SqlHandleTraceData(mStr,mNum,mHandler)
 	//*Note*: ID should be set by lower methods.
 	String tabName = TAB_TraceData
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idTraceData),mTabStruct.idTraceData)
-	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_FileName),mTabStruct.FileName)
-	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idExpUserData),mTabStruct.idExpUserData)
+	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_FileTimSepFor),mTabStruct.FileTimSepFor)
+	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idExpMeta),mTabStruct.idExpMeta)
+	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_FileOriginal),mTabStruct.FileOriginal)
+	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_OriginalX),mTabStruct.OriginalX)
+	ModSqlCypherInterface#AddToFIeldWaveTxt(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_OriginalY),mTabStruct.OriginalY)
 	//Call the routine to push this to Sql.
 End Function
 
@@ -1165,7 +1081,7 @@ Static Function InitHandleTraceExpLink(mTab,mStr,mNum)
 	Wave/D mNum
 	mTab.idTraceExpLink=mNum[0]
 	mTab.idTraceMeta=mNum[1]
-	mTab.idExpUserData=mNum[2]
+	mTab.idExpMeta=mNum[2]
 End Function
 
 Static Function InitWavesTraceExpLink(mTab,mStr,mNum)
@@ -1177,7 +1093,7 @@ Static Function InitWavesTraceExpLink(mTab,mStr,mNum)
 	Redimension /N=(mSize) mNum
 	mNum[0]=mTab.idTraceExpLink
 	mNum[1]=mTab.idTraceMeta
-	mNum[2]=mTab.idExpUserData
+	mNum[2]=mTab.idExpMeta
 End Function
 
 Function SqlHandleTraceExpLink(mStr,mNum,mHandler)
@@ -1192,7 +1108,7 @@ Function SqlHandleTraceExpLink(mStr,mNum,mHandler)
 	String tabName = TAB_TraceExpLink
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idTraceExpLink),mTabStruct.idTraceExpLink)
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idTraceMeta),mTabStruct.idTraceMeta)
-	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idExpUserData),mTabStruct.idExpUserData)
+	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idExpMeta),mTabStruct.idExpMeta)
 	//Call the routine to push this to Sql.
 End Function
 
@@ -1222,20 +1138,21 @@ Static Function InitHandleTraceMeta(mTab,mStr,mNum)
 	mTab.ThermalQ=mNum[14]
 	mTab.LocationX=mNum[15]
 	mTab.LocationY=mNum[16]
-	mTab.OffsetX=mNum[17]
-	mTab.OffsetY=mNum[18]
-	mTab.Spot=mNum[19]
-	mTab.idTipManifest=mNum[20]
-	mTab.idUser=mNum[21]
-	mTab.idTraceRating=mNum[22]
-	mTab.idSample=mNum[23]
+	mTab.LocationZ=mNum[17]
+	mTab.OffsetX=mNum[18]
+	mTab.OffsetY=mNum[19]
+	mTab.Spot=mNum[20]
+	mTab.idTipManifest=mNum[21]
+	mTab.idUser=mNum[22]
+	mTab.idTraceRating=mNum[23]
+	mTab.idSample=mNum[24]
 End Function
 
 Static Function InitWavesTraceMeta(mTab,mStr,mNum)
 	Struct TraceMeta & mTab
 	Wave/T mStr
 	Wave/D mNum
-	Variable mSize = 24
+	Variable mSize = 25
 	Redimension /N=(mSize) mStr
 	Redimension /N=(mSize) mNum
 	mNum[0]=mTab.idTraceMeta
@@ -1255,13 +1172,14 @@ Static Function InitWavesTraceMeta(mTab,mStr,mNum)
 	mNum[14]=mTab.ThermalQ
 	mNum[15]=mTab.LocationX
 	mNum[16]=mTab.LocationY
-	mNum[17]=mTab.OffsetX
-	mNum[18]=mTab.OffsetY
-	mNum[19]=mTab.Spot
-	mNum[20]=mTab.idTipManifest
-	mNum[21]=mTab.idUser
-	mNum[22]=mTab.idTraceRating
-	mNum[23]=mTab.idSample
+	mNum[17]=mTab.LocationZ
+	mNum[18]=mTab.OffsetX
+	mNum[19]=mTab.OffsetY
+	mNum[20]=mTab.Spot
+	mNum[21]=mTab.idTipManifest
+	mNum[22]=mTab.idUser
+	mNum[23]=mTab.idTraceRating
+	mNum[24]=mTab.idSample
 End Function
 
 Function SqlHandleTraceMeta(mStr,mNum,mHandler)
@@ -1291,6 +1209,7 @@ Function SqlHandleTraceMeta(mStr,mNum,mHandler)
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_ThermalQ),mTabStruct.ThermalQ)
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_LocationX),mTabStruct.LocationX)
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_LocationY),mTabStruct.LocationY)
+	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_LocationZ),mTabStruct.LocationZ)
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_OffsetX),mTabStruct.OffsetX)
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_OffsetY),mTabStruct.OffsetY)
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_Spot),mTabStruct.Spot)
@@ -1313,18 +1232,20 @@ Static Function InitHandleTraceModel(mTab,mStr,mNum)
 	mTab.idTraceModel=mNum[0]
 	mTab.idTraceMeta=mNum[1]
 	mTab.idTraceData=mNum[2]
+	mTab.idModel=mNum[3]
 End Function
 
 Static Function InitWavesTraceModel(mTab,mStr,mNum)
 	Struct TraceModel & mTab
 	Wave/T mStr
 	Wave/D mNum
-	Variable mSize = 3
+	Variable mSize = 4
 	Redimension /N=(mSize) mStr
 	Redimension /N=(mSize) mNum
 	mNum[0]=mTab.idTraceModel
 	mNum[1]=mTab.idTraceMeta
 	mNum[2]=mTab.idTraceData
+	mNum[3]=mTab.idModel
 End Function
 
 Function SqlHandleTraceModel(mStr,mNum,mHandler)
@@ -1340,6 +1261,7 @@ Function SqlHandleTraceModel(mStr,mNum,mHandler)
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idTraceModel),mTabStruct.idTraceModel)
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idTraceMeta),mTabStruct.idTraceMeta)
 	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idTraceData),mTabStruct.idTraceData)
+	ModSqlCypherInterface#AddToFIeldWaveNum(ModSqlCypherInterface#GetFieldWaveName(tabName,FIELD_idModel),mTabStruct.idModel)
 	//Call the routine to push this to Sql.
 End Function
 

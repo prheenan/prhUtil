@@ -106,9 +106,9 @@ Static Function DevelopmentError([description])
 	String finalDescr = "Development (programming) error"
 	Variable mCode = ERR_PROGRAMMING
 	If(ParamIsDefault(description))
-		ThrowFatalError(mCode,finalDescr,SpecificDesc=description)
-	else
 		ThrowFatalError(mCode,finalDescr)
+	else
+		ThrowFatalError(mCode,finalDescr,SpecificDesc=description)
 	EndIf
 End Funciton
 

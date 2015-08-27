@@ -118,7 +118,7 @@ Function InterpAtI(mProc,index)
 	InterpolateSingleWave(mLowResX,mHighResY,mHighResX)
 End Function
 
-Function OffsetX(WaveToOffset,AmountOffset)
+Static Function OffsetX(WaveToOffset,AmountOffset)
 	// The x values of WaveToOffset are shifted to the right by 'amountoffset'
 	String WaveToOffset
 	Variable AmountOffset
