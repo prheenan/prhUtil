@@ -541,3 +541,27 @@ Static Function /S SepSuffix()
 	// Endings for types for X file types (e.g. separation, z sensor)
 	return FILE_END_X_SEP
 End Function
+
+Static Function ConvertSepForceToZsnsrDeflV(Sep,RawForce,Zsnsr,DeflV)
+	Wave Sep,RawForce,Zsnsr,DeflV
+	// Make a duplicate of the raw force as deflMeters, use the constant to convert
+	Duplicate /O RawForce,DeflMeters
+	ModCypherUtil#ConvertY(RawForce,MOD_Y_TYPE_FORCE_NEWTONS,DeflV,MOD_Y_TYPE_DEFL_VOLTS,DeflMeters=DeflMeters)
+	// Convert Sep to Zsnsr
+	Duplicate /O sep,Zsnsr
+	ModCypherUtil#ConvertX(Sep,MOD_X_TYPE_SEP,Zsnsr,MOD_X_TYPE_Z_SENSOR,DeflMeters)
+	// No longer need deflM
+	KillWaves /Z DeflMeters
+End Function
+
+Static Function ConvertZsnsrDeflVToSepForce(Zsnsr,DeflV,Sep,RawForce)
+	Wave Sep,RawForce,Zsnsr,DeflV
+	// Make a duplicate of the raw force as deflMeters, use the constant to convert
+	Duplicate /O RawForce,DeflMeters
+	ModCypherUtil#ConvertY(DeflV,MOD_Y_TYPE_DEFL_VOLTS,RawForce,MOD_Y_TYPE_FORCE_NEWTONS,DeflMeters=DeflMeters)
+	// Convert Sep to Zsnsr
+	Duplicate /O sep,Zsnsr
+	ModCypherUtil#ConvertX(Zsnsr,MOD_X_TYPE_Z_SENSOR,Sep,MOD_X_TYPE_SEP,DeflMeters)
+	// No longer need deflM
+	KillWaves /Z DeflMeters
+End Function

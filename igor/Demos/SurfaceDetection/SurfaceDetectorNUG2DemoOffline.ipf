@@ -7,7 +7,7 @@
 // Hint: Pretty much the same, just a pre-processing step where we smooth the interference artifact out.
 #include ":::Util:IoUtil"
 #include ":::Util:CypherUtil"
-#include ":::SurfaceDetector:SurfaceDetectorUtil"
+#include ":::SurfaceDetector:SurfaceDetectorIo"
 #include ":::SurfaceDetector:SurfaceDetector"
 #include ":::Util:StartUpUtil"
 #include ":::SurfaceDetector:SurfacePlotting"
@@ -39,7 +39,7 @@ Static Function Main([limitNum,startNum])
 		EndIF
 		// Convert the zsnsr and deflv (what the detector uses) 
 		Make /O/N=0  Zsnsr,DeflVolts
-		ModSurfaceDetectorUtil#GetSepForce(Zsnsr,DeflVolts,allFiles[i])
+		ModSurfaceDetectorIo#GetSepForce(Zsnsr,DeflVolts,allFiles[i])
 		ModSurfacePlotting#AnalyzeSensorDefl(Zsnsr,DeflVolts,outPath,i,saveFIle=ModDefine#True())
 	EndFor
 End Function

@@ -208,49 +208,6 @@ Static Function GetSurfaceLocationAndInvols(ApproachOrRetractRaw,ApproachOrRetra
 	KillWaves /Z  fitCoeffsBefore,fitCoeffsAfter,beforeCurve,afterCurve,diffBefore,diffAfter
 End Function
 
-Static Function ConvertSepForceToZsnsrDeflV(Sep,RawForce,Zsnsr,DeflV)
-	Wave Sep,RawForce,Zsnsr,DeflV
-	// Make a duplicate of the raw force as deflMeters, use the constant to convert
-	Duplicate /O RawForce,DeflMeters
-	ModCypherUtil#ConvertY(RawForce,MOD_Y_TYPE_FORCE_NEWTONS,DeflV,MOD_Y_TYPE_DEFL_VOLTS,DeflMeters=DeflMeters)
-	// Convert Sep to Zsnsr
-	Duplicate /O sep,Zsnsr
-	ModCypherUtil#ConvertX(Sep,MOD_X_TYPE_SEP,Zsnsr,MOD_X_TYPE_Z_SENSOR,DeflMeters)
-	// No longer need deflM
-	KillWaves /Z DeflMeters
-End Function
-
-Static Function ConvertZsnsrDeflVToSepForce(Zsnsr,DeflV,Sep,RawForce)
-	Wave Sep,RawForce,Zsnsr,DeflV
-	// Make a duplicate of the raw force as deflMeters, use the constant to convert
-	Duplicate /O RawForce,DeflMeters
-	ModCypherUtil#ConvertY(DeflV,MOD_Y_TYPE_DEFL_VOLTS,RawForce,MOD_Y_TYPE_FORCE_NEWTONS,DeflMeters=DeflMeters)
-	// Convert Sep to Zsnsr
-	Duplicate /O sep,Zsnsr
-	ModCypherUtil#ConvertX(Zsnsr,MOD_X_TYPE_Z_SENSOR,Sep,MOD_X_TYPE_SEP,DeflMeters)
-	// No longer need deflM
-	KillWaves /Z DeflMeters
-End Function
-
-
-
-// Get force and extension versus time
-Static Function GetSepForce(sep,force,mFileName)
-	Wave Sep,Force
-	String mFileName
-	// POST: this wave has Time,Sep,Force in the first three columns
-	ModIoUtilHDF5#GetSepForceFromFile(mFileName,sep,force)
-End Function
-
-Static Function GetZsnsrDeflV(Zsnsr,DeflVolts,fileName)
-	String fileNAme
-	Wave Zsnsr,DeflVolts
-	Make /O/N=(0) Sep,RawForce
-	GetSepForce(sep,RawForce,fileName)
-	ConvertSepForceToZsnsrDeflV(Sep,RawForce,Zsnsr,DeflVolts)
-	KillWaves /Z Sep,RawForce
-End Function
-
 // Get the halfway point, using the dwell times and velocities as a guide (the
 // wave must have the cyphers notes )
 Static Function GetHalfThroughDwellIdx(notedWave)

@@ -4,7 +4,8 @@
 #pragma ModuleName = ModSurfaceDetectorDemoOffline
 #include ":::Util:IoUtil"
 #include ":::Util:CypherUtil"
-#include ":::SurfaceDetector:SurfaceDetectorUtil"
+#include ":::SurfaceDetector:SurfaceDetectorIo"
+#include ":::SurfaceDetector:SurfacePlotting"
 #include ":::Util:StartUpUtil"
 
 // This file reads in hdf5 binary files of force and separation, and
@@ -37,7 +38,7 @@ Static Function Main([limitNum,startNum])
 		EndIF
 		// Convert the zsnsr and deflv (what the detector uses) 
 		Make /O/N=0  Zsnsr,DeflVolts
-		ModSurfaceDetectorUtil#GetZsnsrDeflV(Zsnsr,DeflVolts,(allFiles[i]))
+		ModSurfaceDetectorIo#GetZsnsrDeflV(Zsnsr,DeflVolts,(allFiles[i]))
 		// For kicks and giggles, try in another folder, leadng to saving the graphics files.
 		String mDir = ModIoUtil#Sanitize(ModIoUtil#GetFileName(allFiles[i],removeExt=ModDefine#True()))
 		NewDataFolder $mDir

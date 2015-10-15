@@ -3,6 +3,7 @@
 
 // For reading in test files (offline)
 #include "::Util:IoUtilHDF5"
+#include "::Util:CypherUtil"
 
 // Get force and extension versus time
 Static Function GetSepForce(sep,force,mFileName)
@@ -12,12 +13,11 @@ Static Function GetSepForce(sep,force,mFileName)
 	ModIoUtilHDF5#GetSepForceFromFile(mFileName,sep,force)
 End Function
 
-
 Static Function GetZsnsrDeflV(Zsnsr,DeflVolts,fileName)
 	String fileNAme
 	Wave Zsnsr,DeflVolts
 	Make /O/N=(0) Sep,RawForce
 	GetSepForce(sep,RawForce,fileName)
-	ConvertSepForceToZsnsrDeflV(Sep,RawForce,Zsnsr,DeflVolts)
+	ModCypherUtil#ConvertSepForceToZsnsrDeflV(Sep,RawForce,Zsnsr,DeflVolts)
 	KillWaves /Z Sep,RawForce
 End Function

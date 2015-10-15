@@ -99,7 +99,7 @@ Static Function /S PlotArtifactCorrectionCurve(Zsnsr,mDeflV,mDeflVCorrected,mDet
 	mTime[] = DimOffset(mDeflV,0) + DimDelta(mDeflV,0) * p
 	// Convert Zsnsr and DeflV to Sep and Force
 	Duplicate /O Zsnsr,Sep,Force,ForceCorrected
-	ModsurfaceDetectorUtil#ConvertZsnsrDeflVToSepForce(Zsnsr,mDeflV,Sep,Force)
+	ModCypherUtil#ConvertZsnsrDeflVToSepForce(Zsnsr,mDeflV,Sep,Force)
 	ModCypherUtil#ConvertY(mDeflVCorrected,MOD_Y_TYPE_DEFL_VOLTS,ForceCorrected,MOD_Y_TYPE_FORCE_NEWTONS)
 	Variable surfaceIndex = mDetector.surfaceIndex
 	Variable surfaceTime = pnt2x(mDeflV,surfaceIndex)
