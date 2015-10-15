@@ -342,7 +342,6 @@ Static Function SetExperiment(ToAddTo,LoadedDataFolder,systemSrcFileName)
 		// Save out the data structure as a wave. (make sure there is a wave for it)
 		Make /O/N=(0) $metaName
 		StructPut /B=(ModDefine#StructFmt())  toSave, $metaName
-		print(WaveExists($metaName))
 		// POST: everything has been added, go ahead and save this experiment.
 		// Push the experiment and source onto the list of known experiments
 		// XXX probably a faster way to do this?
@@ -976,8 +975,6 @@ Static Function GetUserAndPathWaves(mData,UserWave,PathWave,baseDir,[listSep,Dat
 	// everything up to and including the fileID
 	// XXX ensure that the regex is some size?
 	String FullPathStemPattern = "(" +  mData.RegexWave + ")"
-	// Get just the last file
-	String FileRegex = ModIoUtil#DefFileRegex()
 	// Get the suffixes needed
 	// XXX change this -- right now, if no X suffix is given, we don't check for it.
 	if (ParamIsDefault(SuffixNeeded))
@@ -987,70 +984,29 @@ Static Function GetUserAndPathWaves(mData,UserWave,PathWave,baseDir,[listSep,Dat
 			SuffixNeeded = mData.suffixYPlot + listSep
 		EndIf
 	EndIf
-	// POST: suffixNeed is not null
-	String mWaves = ModIoUtil#GetWaveList(baseDir,ListSep,DataSep)
-	// Convert mWaves to a text wave, which is easier to work with
-	Variable NFullWaves = ItemsInList(mWaves,listSep)
-	Variable toRet = 0
-	// No waves found
-	if (nFullWaves == 0)
+	Make /O/N=(0) tmpUnique
+	Variable toRet = ModIoUtil#GetUniqueStems(tmpUnique,baseDir,SuffixNeeded,fullPathStemPattern=fullPathStemPattern,listSep=listSep,DirSep=DataSep)
+	// didnt find any 
+	if (toRet == 0)
 		return toRet
 	EndIf
-	Make /O/N=(NFullWaves)/T rawWaves
-	ModDataStruct#ListToTextWave(rawWaves,mWaves,ListSep)
-	// get all the 'fullpath' stems
-	Make /O/N=(NFullWaves)/T fullPathStemsRaw
-	 ModIoUtil#GetWaveStems(rawWaves,fullPathStemsRaw,FullPathStemPattern)
-	 // Use the stems to get the files with the appropriate suffixes.
-	Make /T/O/N=(0) fullPathWithPrefix 
-	ModIoUtil#GetWavesWithStems(fullPathStemsRaw,fullPathWithPrefix,SuffixNeeded,Sep=ListSep)
-	// post: tmpAllWaves has all the waves with appropriate suffixes.
-	// Get the new path stems (see below):
-	Variable nWaves = DImSize(fullPathWithPrefix,0)
-	// check that we found waves.
-	if (nWaves == 0)
-		return toRet
-	EndIf
-	Make /O/N=(nWaves)/T filePathStems
-	 ModIoUtil#GetWaveStems(fullPathWithPrefix,filePathStems,FullPathStemPattern)
-	 // Make a wave for the file *stems* (ie: "DNA_130ng_ul", not "foo:bar:X0506060:DNA_130ng_ulForce"")
-	 Make /O/N=(NFullWaves)/T mFileStems
-	 ModIoUtil#GetWaveStems(filePathStems,mFileStems,FileRegex)
-	 // Get which file stems are unique. This is so we only have one file like (e.g. "foo0010")
-	 // We know from above it will have the recquired prefixes (multiple prefixes are what
-	 // can give us non-unique stems, e.g. "foo0010Sep and foo0010Force each have the file stem
-	 // foo0010
-	 Wave tmpUniIdx = ModIoUtil#GetUniTxtWaveIndex(mFileStems)
-	 // Get just the unique waves; need a wave for the unique and the non-unique waves
-	 Variable NUnique = DImSIze(tmpUniIdx,0)
-	 if (NUnique == 0)
-	 	return toRet
-	 EndIf
-	 Make /O/T/N=(NUnique) tmpUnique
-	 // The next line slices tmpUnique from 0--> N-1 on both sides
-	 // It assigns the waveNames at each sorted index in order
-	 // essentially, 'p' is an igor-approved stand-in for "0,(NUnique-1)"
-	 // XXX functionalize to a slice method?
-	 // XXX ensure /NUnique > 1?
-	tmpUnique[0,(NUnique-1)] = filePathStems[tmpUniIdx[p]]
 	// Get the stems for the unique ones.
+	Variable nUnique = DimSize(tmpUnique,0)
 	Make /O/N=(NUnique) /T allStems
 	ModIoUtil#GetWaveStems(tmpUnique,allStems,FullPathStemPattern)
 	// POST: everything in tmpUnique is a full file path, with a path and suffix
 	// Need to get just the file path (past the colon)
 	// and just the stem (past the colon, use the regex to cut off extra)
 	// Use the FilePathStemPattern for 'tmpAllFiles', allowing us free reference
+	String FileRegex = ModIoUtil#DefFileRegex()
 	ModIoUtil#GetWaveStems(allStems,PathWave,FullPathStemPattern)
 	ModIoUtil#GetWaveStems(allStems,UserWave,FileRegex)
-
-	// Use the FileStem Pattern to get the user-friendly version
 	// After a colon, get everything after
 	// Kill the waves we made
-	KillWaves /Z tmpAllWaves,tmpUnique,allStems,finalWaves,mStems,tmpUniIdx,mFileNames,mFileStems
+	KillWaves /Z tmpUnique,allStems
 	// If there is a pre-processing step, performs the steps to turn the waves into force and separation.
 	Struct ProcessStruct mProc
 	LoadPreProcWave(mData,mProc)
-	toRet = NUnique
 	// Only preprocessi s we need it an it is enabled.
 	if (mProc.PreProcessingRecquired && allowPreProc)
 		// POST: mProc has the force and separation curves needed.
@@ -1060,6 +1016,7 @@ Static Function GetUserAndPathWaves(mData,UserWave,PathWave,baseDir,[listSep,Dat
 		// pre-processing, since otherwise we may have a 'stale' wave
 		// stored somewhere.
 		Wave /T YCurves = $(mProc.YHighRes)
+		toRet = DimSize(yCurves,0)
 		// Get the final user stems
 		ModIoUtil#GetWaveStems(YCurves,PathWave,FullPathStemPattern)
 		ModIoUtil#GetWaveStems(YCurves,UserWave,FileRegex)

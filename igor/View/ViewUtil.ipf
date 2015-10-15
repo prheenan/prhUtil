@@ -2,6 +2,7 @@
 #pragma rtGlobals=3	
 #pragma ModuleName = ModViewUtil
 #include "::Util:IoUtil"
+#include "::Util:PlotUtil"
 #include "::Model:ModelDefines"
 
 // Name of the listbox control
@@ -10,6 +11,8 @@ StrConstant WAVE_SELECTOR_LISTBOX_NAME = "AllWaveSel"
 StrConstant MODEL_CONTROL_NAME = "LoadModel"
 // Default for ListBox
 Constant VIEW_DEF_LISTBOX_RESIZE = 1
+// Checkbox: default to checkbox on right
+Constant DEF_SIDE_CHECK = 1
 //m=0: No selection allowed.
 //m=1: One or zero selection allowed.
 //m=2: One and only one selection allowed.
@@ -30,6 +33,7 @@ Constant EVENT_SHIFT_SELECT = 5
 Constant EVENT_BUTTON_MUP_OVER= 2
 // Events for SetVariable
 Constant EVENT_SETVAR_ENTER = 2
+Constant EVENT_SETVAR_MOUSEUP = 1
 // Keystrokes
 Constant KEYSTROKE_CONTROL_A =  1
 Constant KEYSTROKE_SHIFT_A = 65
@@ -59,6 +63,7 @@ Constant nMeta =  4
 // Types for setvariable: numeric and string
 Constant SETVAR_TYPE_NUMERIC = 1
 Constant SETVAR_TYPE_STRING = 2
+Constant SETVAR_TYPE_NONE_GIVEN = 3
 // LISTBOX_SEP 
 StrConstant VIEW_PARAM_FMT = "Param%d"
 StrConstant VIEW_SETVAR_STR = "_STR:tmp"
@@ -93,6 +98,10 @@ End Function
 // Options prototype for populating Popup MEnu
 Function/S PopupMenuListProto()
 	return ""
+End Function
+
+Function CheckboxProto(CB_Struct) : CheckBoxControl 
+	STRUCT WMCheckboxAction &CB_Struct
 End Function
 
 Static Function SetVariableStrOrNum(panelName,isStr,[sVal,dVal])
@@ -264,8 +273,6 @@ End Function
 
 Static Function MakeSetVariable(panelName,mTitle,helpStr,x,y,width,height,mProc,[wAbs,hAbs,format,font,userdata,type])
 		// Set the font and XY
-		// XXX make the format specifiable
-		// XXX assumes numeric in the format
 		String panelName,mTitle,helpStr,format,userdata
 		Variable x,y,width,height,wAbs,hAbs,type
 		FuncRef SetVarProto mProc
@@ -287,7 +294,10 @@ Static Function MakeSetVariable(panelName,mTitle,helpStr,x,y,width,height,mProc,
 					format = DEF_FMT_NUM
 					break
 				case SETVAR_TYPE_STRING:
-					format = DEF_FMT_STR
+					format = SETVARIABLE_STR_FORMAT
+					break
+				default: 
+					ModErrorUtil#DevelopmentError(description="Bad setVariable type")
 					break
 			EndSwitch
 		EndIF
@@ -326,6 +336,33 @@ End Function
 Static Function DisablePopup(popupName)
 	String popupName
 	PopupMenu $(popupName) disable=(CONTROL_DISABLE)
+End Function
+
+Static Function MakeCheckBox(panelName,mTitle,helpStr,x,y,width,height,mProc,[wAbs,hAbs,userdata])
+		String panelName,mTitle,helpStr,userdata
+		Variable x,y,width,height,wAbs,hAbs
+		FuncRef CheckboxProto mProc
+		// check if x,y,height,width are relative or absolute
+		if (!paramIsDefault(hAbs) && !paramIsDefault(wAbs))
+		// then multiply all the positions to get absolute weights
+			 ConvertRelativeToAbs(x,y,width,height,wAbs,hAbs)
+		endif
+		String mFontName = "Helvetica"
+		CheckBox $(panelName) side=(DEF_SIDE_CHECK)
+		CheckBox $(panelName) pos={x,y}
+		CheckBox $(panelName) size={width,height}		
+		// Set the userdata to the parameter number, if it exists
+		if (!ParamIsDefault(userdata))
+			CheckBox $(panelName) userdata=userdata
+		endIf
+		// Set the title and help
+		CheckBox $(panelName) title=mTitle, help={helpStr}
+		CheckBox $(panelName) font="Helvetica"
+		CheckBox $(panelName) fsize=(DEF_FONTSIZE)
+		// Set the handler function. For the parameters, this is 
+		// All the same
+		String mFuncHandlerName = ModIoUtil#GetFuncName(FuncRefInfo(mProc))
+		CheckBox $(panelName) proc=$(mFuncHandlerName)
 End Function
 
 Static Function MakePopupMenu(panelName,mTitle,helpStr,x,y,width,height,mProc,mStr,[wAbs,hAbs,format,font,userdata])
@@ -424,6 +461,24 @@ Static Function SetStringVariableColumn(panels,names,helpStr,startXRel,startyRel
 	KillWaves /Z mTypes,mHeight
 End Function
 
+// function which creates a new window, returns its name
+Static Function /S CreateNewWindow(width,height,[windowName])
+	Variable width,height
+	String windowName
+	if (ParamIsDefault(windowName))
+		windowName = ModIoUtil#UniquePanelWindowName("pWin")
+	EndIf
+	// Get  a proper name
+	ModIoUtil#SafeKillWindow(windowName)
+	// Get the screen size
+	Variable wAbsScreen,hAbsScreen
+	ModViewUtil#GetScreenWidthHeight(wAbsScreen,hAbsScreen)
+	Variable wAbsSetter = width * wAbsScreen
+	Variable hAbsSetter = height * hAbsScreen
+	NewPanel /W=(0,0,wAbsSetter,hAbsSetter) /N=$(windowName)
+	return windowName
+End Function
+
 Static Function SetVariableColumn(panels,names,helpStr,startXRel,startyRel,widthRel,heightRel,commonHandle,wabs,habs,userdata,types)
 	// See SetStringVariableColumn, except:
 	// type is a wave of string/numvals
@@ -441,7 +496,13 @@ Static Function SetVariableColumn(panels,names,helpStr,startXRel,startyRel,width
 	Variable yRel = startYRel
 	for (i=0; i <nVariables; i+= 1)
 		String mData = num2str(userdata[i])
-		ModViewUtil#MakeSetVariable(panels[i],names[i],helpStr[i],xRel,yRel,widthRel,heightRel[i],commonHandle,habs=hAbs,wAbs=wAbs,format=SETVARIABLE_STR_FORMAT,userdata=mData,type=types[i])
+		String fmt
+		if (types[i] == SETVAR_TYPE_NUMERIC)
+			fmt = DEF_FMT_NUM
+		else
+			fmt = SETVARIABLE_STR_FORMAT
+		endIf
+		ModViewUtil#MakeSetVariable(panels[i],names[i],helpStr[i],xRel,yRel,widthRel,heightRel[i],commonHandle,habs=hAbs,wAbs=wAbs,format=fmt,userdata=mData,type=types[i])
 		yRel += heightRel[i]
 	EndFor
 End Function
@@ -488,7 +549,7 @@ Static Function GetAllControlsInWindow(mWaveRef,MWindow)
 	Variable nControls = ItemsInList(mControls,mSep)
 	Redimension /N=(nControls) $mWaveRef 
 	Wave /T toPop = $mWaveRef
-	ModDataStruct#ListToTextWave(toPop,mControls,mSep)
+	ModDataStruct#ListToTextWave(toPop,mControls,sep=mSep)
 End Function
 
 Static Function UpdateAllControls(ListToDisable,Enable)
@@ -499,4 +560,94 @@ Static Function UpdateAllControls(ListToDisable,Enable)
 	For (i=0; i<nToDisable;i+=1)
 		ModifyControl $(ListToDisable[i]) disable=(enable)
 	EndFor
+End Function
+
+Constant VIEW_SETVAR = 0
+Constant VIEW_CHECK= 1
+Constant VIEW_POPUP= 2
+Constant VIEW_BUTTON = 3
+
+Static Function AddViewEle(viewTitle,widthRel,heightRel,viewType,mProc,[mOptStr,mOptNum,setVarType,startXRel,startYRel,yUpdated,xUpdated,panelName,helpStr,windowName,userData])
+	String viewTitle,panelName,helpStr,windowName,userData
+	Variable widthRel,heightRel,startXRel,startYRel
+	Variable &yUpdated,&xUpdated
+	Variable viewType,setVarType,mOptNum
+	String mOptStr,mProc
+	// Determine the optional values for everything given
+	if (ParamIsDefault(startYRel))
+		startYRel = 0 
+	EndIf
+	if (ParamIsDefault(startXRel))
+		startXRel = 0 
+	EndIf
+	if (ParamIsDefault(windowName))
+		windowName = ModPlotUtil#gcf()
+	EndIf
+	if (ParamIsDefault(	panelName))
+		panelName = ModIoUtil#UniqueControlName("Panel")
+	EndIf
+	if (ParamIsDefault(helpStr))
+		helpStr = ""
+	EndIf
+	if (ParamIsDefault(userData))
+		userData = panelName
+	EndIf
+	Variable left,top,right,bottom
+	ModIoUtil#GetWindowLeftTopRightBottom(windowName,left,top,right,bottom)
+	Variable wAbs = abs(right-left)
+	Variable hAbs = abs(top-bottom)
+	Variable xRel = startXRel
+	Variable yRel = startYRel
+	Variable type
+	// XXX check if string and num are both set?
+	if (!ParamIsDefault(mOptStr))
+		type = SETVAR_TYPE_STRING
+	elseif (!ParamIsDefault(mOptNum))
+		type = SETVAR_TYPE_NUMERIC
+	else
+		// both are default
+		type = SETVAR_TYPE_NONE_GIVEN
+	endIf
+	switch (viewType)
+		case VIEW_SETVAR:
+			FuncRef SetVarProto mProcRef = $mProc
+			MakeSetVariable(panelName,viewTitle,helpStr,xRel,yRel,widthRel,heightRel,mProcRef,wAbs=wAbs,hAbs=hAbs,userdata=userData,type=type)
+			// put the optional value in the set variable
+			if (type != SETVAR_TYPE_NONE_GIVEN)
+				Variable isStr = type == SETVAR_TYPE_STRING
+				if (isStr)
+					SetVariableStrOrNum(panelName,isStr,sVal=mOptStr)
+				else 
+					SetVariableStrOrNum(panelName,isStr,dVal=mOptNum)				
+				endIf
+			endIf
+			break
+		case VIEW_CHECK:
+			FuncRef CheckboxProto mProcCheck = $mProc
+			MakeCheckBox(panelName,viewTitle,helpStr,xRel,yRel,widthRel,heightRel,mProcCheck,wAbs=wAbs,hAbs=hAbs,userdata=userdata)
+			break
+		case VIEW_POPUP:
+			// *must* be given mOptStr
+			if (ParamIsDefault(mOptStr))
+				ModErrorUtil#DevelopmentError(description="Popup recquires mOptStr to be function giving semi-colon delimited list")
+			EndIF
+			FuncRef PopupMenuProto funcRefPop = $mProc
+			FuncRef PopupMenuListProto mStr = $mOptStr
+			MakePopupMenu(panelName,viewTitle,helpStr,xRel,yRel,widthRel,heightRel,funcRefPop,mStr,wAbs=wAbs,hAbs=hAbs,userdata=str2num(userData))
+			break
+		case VIEW_BUTTON:
+			FuncRef ButtonProto mProcButton = $mProc
+			MakeButton(panelName,viewTitle,helpStr,xRel,yRel,widthRel,heightRel,mProcButton,hAbs=hAbs,wAbs=wAbs)
+			break
+		default:
+			ModErrorUtil#OutOfRangeError(description="Unkown View Type.")
+			break
+	endSwitch
+	// update the ending x and y, if the user wanted to 
+	if (!ParamIsDefault(yUpdated))
+		yUpdated = startyRel + heightRel
+	endIf
+	if (!ParamIsDefault(xUpdated))
+		xUpdated =  startXRel + widthRel
+	EndIf
 End Function

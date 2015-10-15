@@ -18,18 +18,6 @@ Static Function /Wave GetColsOfExpMeta([IncludeId])
 End Function
 
 
-Static Function /Wave GetColsOfLinkDataMeta([IncludeId])
-	Variable IncludeId
-	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
-	if (IncludeId)
-		Make /O/T LinkDataMeta = {FIELD_idLinkDataMeta,FIELD_idTraceMeta,FIELD_idTraceData}
-	else
-		Make /O/T LinkDataMeta = {FIELD_idTraceMeta,FIELD_idTraceData}
-	endif
-	return LinkDataMeta
-End Function
-
-
 Static Function /Wave GetColsOfLinkExpModel([IncludeId])
 	Variable IncludeId
 	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
@@ -238,9 +226,9 @@ Static Function /Wave GetColsOfTraceData([IncludeId])
 	Variable IncludeId
 	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
 	if (IncludeId)
-		Make /O/T TraceData = {FIELD_idTraceData,FIELD_FileTimSepFor,FIELD_idExpMeta,FIELD_FileOriginal,FIELD_OriginalX,FIELD_OriginalY}
+		Make /O/T TraceData = {FIELD_idTraceData,FIELD_idTraceMeta,FIELD_FileTimSepFor,FIELD_FileOriginal,FIELD_OriginalX,FIELD_OriginalY,FIELD_idExpMeta}
 	else
-		Make /O/T TraceData = {FIELD_FileTimSepFor,FIELD_idExpMeta,FIELD_FileOriginal,FIELD_OriginalX,FIELD_OriginalY}
+		Make /O/T TraceData = {FIELD_idTraceMeta,FIELD_FileTimSepFor,FIELD_FileOriginal,FIELD_OriginalX,FIELD_OriginalY,FIELD_idExpMeta}
 	endif
 	return TraceData
 End Function
@@ -250,9 +238,9 @@ Static Function /Wave GetColsOfTraceDataIndex([IncludeId])
 	Variable IncludeId
 	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
 	if (IncludeId)
-		Make /O/T TraceDataIndex = {FIELD_idParameterValue,FIELD_StartIndex,FIELD_EndIndex,FIELD_idTraceData}
+		Make /O/T TraceDataIndex = {FIELD_idParameterValue,FIELD_StartIndex,FIELD_EndIndex}
 	else
-		Make /O/T TraceDataIndex = {FIELD_StartIndex,FIELD_EndIndex,FIELD_idTraceData}
+		Make /O/T TraceDataIndex = {FIELD_StartIndex,FIELD_EndIndex}
 	endif
 	return TraceDataIndex
 End Function
@@ -274,9 +262,9 @@ Static Function /Wave GetColsOfTraceMeta([IncludeId])
 	Variable IncludeId
 	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
 	if (IncludeId)
-		Make /O/T TraceMeta = {FIELD_idTraceMeta,FIELD_Description,FIELD_ApproachVel,FIELD_RetractVel,FIELD_TimeStarted,FIELD_TimeEnded,FIELD_DwellTowards,FIELD_DwellAway,FIELD_SampleRate,FIELD_FilteredSampleRate,FIELD_DeflInvols,FIELD_Temperature,FIELD_SpringConstant,FIELD_FirstResRef,FIELD_ThermalQ,FIELD_LocationX,FIELD_LocationY,FIELD_LocationZ,FIELD_OffsetX,FIELD_OffsetY,FIELD_Spot,FIELD_idTipManifest,FIELD_idUser,FIELD_idTraceRating,FIELD_idSample}
+		Make /O/T TraceMeta = {FIELD_idTraceMeta,FIELD_Description,FIELD_ApproachVel,FIELD_RetractVel,FIELD_TimeStarted,FIELD_TimeEnded,FIELD_DwellTowards,FIELD_DwellAway,FIELD_SampleRate,FIELD_FilteredSampleRate,FIELD_DeflInvols,FIELD_Temperature,FIELD_SpringConstant,FIELD_FirstResRef,FIELD_ThermalQ,FIELD_LocationX,FIELD_LocationY,FIELD_LocationZ,FIELD_OffsetX,FIELD_OffsetY,FIELD_ForceDist,FIELD_StartDist,FIELD_Spot,FIELD_idTipManifest,FIELD_idUser,FIELD_idTraceRating,FIELD_idSample}
 	else
-		Make /O/T TraceMeta = {FIELD_Description,FIELD_ApproachVel,FIELD_RetractVel,FIELD_TimeStarted,FIELD_TimeEnded,FIELD_DwellTowards,FIELD_DwellAway,FIELD_SampleRate,FIELD_FilteredSampleRate,FIELD_DeflInvols,FIELD_Temperature,FIELD_SpringConstant,FIELD_FirstResRef,FIELD_ThermalQ,FIELD_LocationX,FIELD_LocationY,FIELD_LocationZ,FIELD_OffsetX,FIELD_OffsetY,FIELD_Spot,FIELD_idTipManifest,FIELD_idUser,FIELD_idTraceRating,FIELD_idSample}
+		Make /O/T TraceMeta = {FIELD_Description,FIELD_ApproachVel,FIELD_RetractVel,FIELD_TimeStarted,FIELD_TimeEnded,FIELD_DwellTowards,FIELD_DwellAway,FIELD_SampleRate,FIELD_FilteredSampleRate,FIELD_DeflInvols,FIELD_Temperature,FIELD_SpringConstant,FIELD_FirstResRef,FIELD_ThermalQ,FIELD_LocationX,FIELD_LocationY,FIELD_LocationZ,FIELD_OffsetX,FIELD_OffsetY,FIELD_ForceDist,FIELD_StartDist,FIELD_Spot,FIELD_idTipManifest,FIELD_idUser,FIELD_idTraceRating,FIELD_idSample}
 	endif
 	return TraceMeta
 End Function
@@ -286,9 +274,9 @@ Static Function /Wave GetColsOfTraceModel([IncludeId])
 	Variable IncludeId
 	IncludeId = ParamIsDefault(IncludeId) ? ModDefine#False() : IncludeId
 	if (IncludeId)
-		Make /O/T TraceModel = {FIELD_idTraceModel,FIELD_idTraceMeta,FIELD_idTraceData,FIELD_idModel}
+		Make /O/T TraceModel = {FIELD_idTraceModel,FIELD_idTraceMeta,FIELD_idModel}
 	else
-		Make /O/T TraceModel = {FIELD_idTraceMeta,FIELD_idTraceData,FIELD_idModel}
+		Make /O/T TraceModel = {FIELD_idTraceMeta,FIELD_idModel}
 	endif
 	return TraceModel
 End Function

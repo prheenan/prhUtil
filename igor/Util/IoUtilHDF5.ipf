@@ -3,6 +3,8 @@
 
 #pragma ModuleName = ModIoUtilHDF5
 #include ":IoUtil"
+#include ":ErrorUtil"
+#include ":DataStructures"
 
 // See: HDF5 Help.ihf
 Static Constant HDF5_SAVEDATA_GZIP  = 1 // An integer from 0 to 9. 0 is no compression, 9 is maximum compression.
@@ -16,7 +18,7 @@ Static Constant HDF5_SAVEDATA_ATTRIBUTES = -1 // If attributesMask  is -1, all a
 Static Constant HDF5_SAVEDATA_TRUEWRITE = 1//  ' The dataset is created and the data is  written to it. '
 Static Constant HDF5_SAVEDATA_CHUNKED_LAYOUT = 2 // : Chunked layout. For a dataset to be extendible [or gzipped], the layout must be chunked.
 Static StrConstant HDF5_DEFAULT_DATASET = "PrhHD5GenericData"
-
+Static StrConstant FILEEXT_HDF5 = ".hdf"
 Static Constant HDF5_SUCESSFUL_RET = 0 
 
 Static Function CloseAndReturn(mID)
@@ -25,9 +27,20 @@ Static Function CloseAndReturn(mID)
 	return (V_FLAG == HDF5_SUCESSFUL_RET)
 End Function
 
+// Automagically put .hdf5 on the end of all incoming / outgoing file names
+Static Function /S SafeFileName(mFile)
+	String mFIle
+	if (!ModDataStruct#EndsWith(FILEEXT_HDF5,mFile))
+		mFile += FILEEXT_HDF5
+	EndIF
+	return mFile
+End Function
+
 // Reads 'mFile' into 'mOutName'. Returns false if it fails.
 Static Function Read2DWaveFromFile(mOutName,mFile,[datasetName])
 	String mOutName,mFile,datasetName
+	// Make sure the file name ends with hdf5; that is how we output
+	mFile = SafeFileName(mFile)
 	if (ParamIsDefault(datasetName))
 		datasetName = HDF5_DEFAULT_DATASET
 	EndIf
@@ -63,6 +76,8 @@ Static Function Write2DWaveToFile(mWave,mFIle,[gzip,datasetName])
 	Wave mWave
 	String mFile,datasetName
 	Variable gzip
+	// make sure the file name is safe...
+	mFile = SafeFileName(mFile)
 	if (ParamIsDefault(datasetName))
 		datasetName = HDF5_DEFAULT_DATASET
 	EndIf
@@ -93,7 +108,7 @@ End Function
 
 
  Static Function SaveForceExtensionFromStub(StubSep,StubForce,Folder,Name)
- 	// Note: Force information natively saved in single point as of 8/13/2015.
+ 	// Note: Force information natively saved in single point precision as of 8/13/2015.
  	// If we switch to double, will want to use double here and in duplicate.
 	String StubForce,StubSep,Folder,Name
 	// XXX make sure wave exists?
@@ -120,4 +135,31 @@ End Function
 	Write2DWaveToFile(combinedWave,filePath)
 	// Kill the wave we make
 	KillWaves /Z combinedWave
+End Function
+
+Static Function GetSepForceFromFile(mFile,mSep,mForce)
+	String mFile
+	Wave mSep,mForce
+	String mWaveName ="tmpSepForceHDF5"
+	Wave mWave
+	if (!ModIoUtilHDF5#Read2DWaveFromFile(mWaveName,mFile))
+		ModErrorUtil#DevelopmentError(description="Couldnt find the test file...")
+	EndIF
+	Wave mWave = $mWaveName
+	// POST: just need to set up the sep and force parts of the wave
+	// Get the time offset and delta
+	// column 0 is time, assume it is regular
+	Variable timeOffset = mWave[0][0]
+	Variable timeDelta = mWave[1][0]- mWave[0][0]
+	Variable nRows = DimSize(mWave,0)
+	//  column 1 is sep
+	Duplicate /O/R=[][1] mWave,mSep
+	// column 2 is force
+	Duplicate /O/R=[][2] mWave,mForce
+	// We assume time (x scale) is in seconds (s)
+	// V-578
+	// /P: second number is the delta 
+	SetScale /P x,timeOffset,timeDelta,"s",mSep,mForce
+	Redimension /N=(nRows) mSep,mForce
+	Killwaves /Z mWave
 End Function

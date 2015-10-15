@@ -22,9 +22,6 @@ Constant WINTYPE_NOT_A_WINDOW = 0
 Constant SEC2TIME_FMT_ELAPSED_FULL = 3
 // Give time down to this number of fractional digits
 Constant SEC2TIME_DIG = 6
-// case insenitive match
-Constant CMPSTR_CASE_IN = 0 
-Constant CMPSTR_MATCH = 0 
 // GetDataFolder full path
 Constant GETDATAFOLDER_FULLPATH = 1
 // Loading constants 
@@ -38,12 +35,14 @@ Constant UNIQUENAME_GRAPH = 6
 Constant UNIQUENAME_PANELWINDOW = 9
 Constant UNIQUENAME_DATAFOLDER = 11
 Constant UNIQUENAME_PATH = 12
+Constant UNIQUENAME_Control = 15
 // UniqueName: Wave
 Constant UNIQUENAME_WAVE = 1
 Constant CLEANUP_NAME_STRICT = 0
 // GetFileFolderInfo: V-215
 Constant GETFILEFOLDER_RETSUCESS = 0
-Constant GETFILEFOLDER_ONLYEXISTING = 2
+Constant GETFILEFOLDER_ONLYEXISTING = 1 // dont display a dialog if the file doesnt exist
+Constant GETFILEFOLDER_INTERACTIVE = 2 // *do* display a dialog if the file doesnt exist
 //NumType return for a normal number V-471
  Constant NUMTYPE_NORMAL = 0
 // Separator for dates
@@ -86,6 +85,10 @@ Static StrConstant DEF_LOADFILE_DELIM = "\t," // CSV or tab by default, see Load
 // Regex for matching the *last* directory/folder, with optional pre-directories
 // and file names. Something like "root:foobar:Image2401Time_Ret" --> "foobar"
 StrConstant MATCH_LAST_DIR = ".*:([^:]+):[^:]*"
+// For 'newpath', pp V-455, V_flag is zero if we succeeed 
+Constant PATH_RET_SUCESS = 0
+// default wave name for initialization
+StrConstant DEF_WAVE_NAME = "prhWave"
 
 Structure Font
 	String FontName
@@ -224,6 +227,28 @@ Static Function GetScreenHeightWidth(width,height)
 	height= str2num(bottom)-str2num(top)
 End Function
 
+// Return if a given symbolic path exists
+Static Function IgorPathExists(pathName)
+	String pathName
+	return strlen(PathList(pathName,ModDefine#DefListSep(),"")) > 0 
+End Function
+
+// Create an igor path for this system path. Does *not* overwrite by default. 
+// If no path name is given, just gets a generic unique name (recommended)
+Static Function /S GetIgorPathFromSys(sysPath,[pathName])
+	String sysPath,pathName
+	// Get the name of this path
+	if (ParamIsDefault(pathName))
+		pathName = UniquePathName()
+	EndIf
+	// make a path to the folder
+	String mMessage = "Looking for folder [" + sysPath + "]..."
+	NewPath /Q/M=(mMessage) $(pathName) (sysPath)
+	if (V_FLAG != PATH_RET_SUCESS)
+		ModErrorUtil#IoError(description="Couldn't make path [" + sysPath + "]")
+	EndIf
+	return pathName
+End Function
 
 Static Function  GetWavesWithStems(List,toRet,RecStems,[Sep])
 	// Look through each element of "List", and return those which 
@@ -322,24 +347,10 @@ Static Function /Wave GetUniqueIndex(StrList,Sep)
 	String strList,Sep
 	// Make a text wave for the list
 	Wave /T tmp = ModDataStruct#MakeWaveForList("TmpUni",StrList,Sep)
-	ModDataStruct#ListToTextWave(tmp,StrList,Sep)
+	ModDataStruct#ListToTextWave(tmp,StrList,Sep=Sep)
 	return GetUniTxtWaveIndex(tmp)
 End Function 
 
-Static Function EndsWith(Needle,Haystack,[CaseSensitive])
-	String Needle,Haystack
-	Variable CaseSensitive
-	CaseSensitive = ParamIsDefault(CaseSensitive) ? CMPSTR_CASE_IN : CaseSensitive
-	Variable lenNeedle = strlen(Needle)
-	Variable lenHaystack = strlen(HayStack)
-	// If the Needle *can* be found, then perform the cmpstr
-	if (lenHayStack >= lenNeedle && lenNeedle > 0)
-		String mSearch = Haystack[lenHaystack-lenNeedle,lenHayStack-1]
-		return cmpstr(mSearch,Needle,CaseSensitive) == CMPSTR_MATCH
-	EndIf
-	// POST: bad length, doesnt work
-	return ModDefine#False()
-End Function
 
 Static Function GetSet(mWave,toRet)
 	Wave /T mWave
@@ -424,14 +435,19 @@ Static Function /S GetFileName(Str,[DirSep,RemoveExt])
 	EndIf
 End Function
 
+Static Function /S RemoveAfterLast(toMod,strToLookForLast)
+	String toMod,strToLookForLast
+	Variable colonIndex = GetLastIndex(toMod,strToLookForLast)
+	if (colonIndex > 0)
+		return toMod[0,colonIndex-1]
+	else
+		return toMod
+	EndIf
+End Function
+
 Static Function /S RemoveExt(filePath)
 	String filePath
-	Variable colonIndex = GetLastIndex(filePath,EXT_START)
-	if (colonIndex > 0)
-		return filePath[0,colonIndex-1]
-	else
-		return filePath
-	EndIf
+	return RemoveAfterLast(filePath,EXT_START)
 End Function
 
 Static Function /S GetFileExt(filePath)
@@ -648,7 +664,7 @@ Static Function GetFolderInteractive(NameReference)
 	// /Q: quiet
 	// /Z: only get information about existing files
 	// V-214 of igor manual
-	GetFileFolderInfo /D/Q/Z=(GETFILEFOLDER_ONLYEXISTING)
+	GetFileFolderInfo /D/Q/Z=(GETFILEFOLDER_INTERACTIVE)
 	// Side effect: this sets 
 	// XXX check that this is really a folder?
 	// V_Flag is zero if the file or folder was foud 
@@ -666,7 +682,7 @@ Static Function GetFileInteractive(NameReference)
 	// /Q: quiet
 	// /Z: way to handle errors
 	// No file name given: use dialogue
-	GetFileFolderInfo /Q/Z=(GETFILEFOLDER_ONLYEXISTING)
+	GetFileFolderInfo /Q/Z=(GETFILEFOLDER_INTERACTIVE)
 	if (V_FLAG == GETFILEFOLDER_RETSUCESS && V_isFile)
 		// Then we found the file!
 		NameReference = S_Path
@@ -857,6 +873,13 @@ Static Function /S UniqueGraphName(base,[startSuffix])
 	return UniqueName(base,UNIQUENAME_GRAPH,startSuffix)
 End Function
 
+Static Function /S UniqueControlName(base,[startSuffix])
+	String base
+	Variable startSuffix
+	startSuffix =  ParamIsDefault(startSuffix) ? 0 : startSuffix
+	return UniqueName(base,UNIQUENAME_Control,startSuffix)
+End Function
+
 Static Function /S UniquePanelWindowName(base,[startSuffix])
 	String base
 	Variable startSuffix
@@ -876,6 +899,19 @@ Static Function /S UniqueWave(base,[StartSuffix])
 	Variable startSuffix
 	startSuffix =  ParamIsDefault(startSuffix) ? UNQUENAME_DEF_SUFFIX : startSuffix
 	return UniqueName(base,UNIQUENAME_Wave,startSuffix)
+End Function
+
+// initialize a unique wave. only recommended for plotting; could cause memory leaks
+Static Function /Wave InitUniWave([base])
+	String base
+	if (ParamIsDefault(base))
+		base = DEF_WAVE_NAME
+	EndIf
+	String trueName = UniqueWave(base,startSuffix=UNQUENAME_DEF_SUFFIX)
+	// *dont* use /O: should be unique...
+	Make /N=0 $trueName
+	Wave toRet = $trueName
+	return toRet
 End Function
 
 Static Function /S UniquePathName([base,startSuffix])
@@ -977,7 +1013,7 @@ End Function
 // pathName is the name of an Igor symbolic path that you created
 // using NewPath or the Misc->New Path menu item.
 // extension is a file name extension like ".txt" or "????" for all files. // recurse is 1 to recurse or 0 to list just the top-level folder.
-// level is the recursion level - pass 0 when calling PrintFoldersAndFiles. // Example: PrintFoldersAndFiles("Igor", ".ihf", 1, 0)
+// level is the recursion level - pass 0 when calling GetFoldersAndFiles. // Example: GetFoldersAndFiles("Igor", ".ihf", 1, 0)
 Function GetFoldersAndFiles(pathName, waveToPop,[extension, recurse, level])
 	String pathName
 	Wave /T waveToPop
@@ -1088,4 +1124,68 @@ Static Function SetandReturnIfMatch(strToMatchAgainstRegex,mRegex,strToSet)
 		return ModDefine#True()
 	EndIf
 	return ModDefine#False()
+End Function
+
+Static Function GetUniqueStems(tmpUnique,baseDir,SuffixNeeded,[fullPathStemPattern,listSep,DirSep])
+	Wave /T tmpUnique 
+	String baseDir,SuffixNeeded,listSep,DirSep,fullPathStemPattern
+	if (ParamIsDefault(fullPathStemPattern))
+		// everything up to and including the digit identifier in the wave
+		fullPathStemPattern = "(.+:[^:\d]+\d+)" 
+	EndIf
+	if (ParamIsDefault(ListSep))
+		ListSep = ModDefine#DefListSep()
+	EndIf
+	if (ParamISDefault(dirSep))
+		dirSep = ModDefine#DefDirSep()
+	EndIf
+	// Get just the last file
+	String FileRegex = ModIoUtil#DefFileRegex()
+	// POST: suffixNeed is not null
+	String mWaves = ModIoUtil#GetWaveList(baseDir,ListSep,dirSep)
+	// Convert mWaves to a text wave, which is easier to work with
+	Variable NFullWaves = ItemsInList(mWaves,listSep)
+	Variable toRet = 0
+	// No waves found
+	if (nFullWaves == 0)
+		return toRet
+	EndIf
+	Make /O/N=(NFullWaves)/T rawWaves
+	ModDataStruct#ListToTextWave(rawWaves,mWaves,Sep=ListSep)
+	// get all the 'fullpath' stems
+	Make /O/N=(NFullWaves)/T fullPathStemsRaw
+	 ModIoUtil#GetWaveStems(rawWaves,fullPathStemsRaw,FullPathStemPattern)
+	 // Use the stems to get the files with the appropriate suffixes.
+	Make /T/O/N=(0) fullPathWithPrefix 
+	ModIoUtil#GetWavesWithStems(fullPathStemsRaw,fullPathWithPrefix,SuffixNeeded,Sep=ListSep)
+	// post: tmpAllWaves has all the waves with appropriate suffixes.
+	// Get the new path stems (see below):
+	Variable nWaves = DImSize(fullPathWithPrefix,0)
+	// check that we found waves.
+	if (nWaves == 0)
+		return toRet
+	EndIf
+	Make /O/N=(nWaves)/T filePathStems
+	 ModIoUtil#GetWaveStems(fullPathWithPrefix,filePathStems,FullPathStemPattern)
+	 // Make a wave for the file *stems* (ie: "DNA_130ng_ul", not "foo:bar:X0506060:DNA_130ng_ulForce"")
+	 Make /O/N=(NFullWaves)/T mFileStems
+	 ModIoUtil#GetWaveStems(filePathStems,mFileStems,FileRegex)
+	 // Get which file stems are unique. This is so we only have one file like (e.g. "foo0010")
+	 // We know from above it will have the recquired prefixes (multiple prefixes are what
+	 // can give us non-unique stems, e.g. "foo0010Sep and foo0010Force each have the file stem
+	 // foo0010
+	 Wave tmpUniIdx = ModIoUtil#GetUniTxtWaveIndex(mFileStems)
+	 // Get just the unique waves; need a wave for the unique and the non-unique waves
+	 Variable NUnique = DImSIze(tmpUniIdx,0)
+	 if (NUnique == 0)
+	 	return toRet
+	 EndIf
+	 Redimension /N=(NUnique) tmpUnique
+	 // The next line slices tmpUnique from 0--> N-1 on both sides
+	 // It assigns the waveNames at each sorted index in order
+	 // essentially, 'p' is an igor-approved stand-in for "0,(NUnique-1)"
+	 // XXX functionalize to a slice method?
+	 // XXX ensure /NUnique > 1?
+	tmpUnique[] = filePathStems[tmpUniIdx[p]]
+	KillWaves /Z tmpAllWaves,tmpUniIdx,mFileStems,filePathStems
 End Function

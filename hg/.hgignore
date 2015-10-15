@@ -1,5 +1,6 @@
 syntax: glob
 
+*.bak
 *.out
 *~
 *.DS_Store

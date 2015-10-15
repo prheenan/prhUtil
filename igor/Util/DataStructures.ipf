@@ -5,9 +5,30 @@
 Constant CMPSTR_EQ = 0
 // V-143, You can add selector values to test more than one field at a time or pass -1 to compare all aspects.
 Constant EQUALWAVES_FULL = -1
+Constant EQUALWAVES_DATAONLY = 1
+Constant EQUALWAVES_DEFTOL =1e-8
 //Wavetype constant
 CONSTANT WAVETYPE_SEL_TYPES = 1
 Constant WAVETYPE_IS_STR = 2
+
+// case insenitive match
+Constant CMPSTR_CASE_IN = 0 
+Constant CMPSTR_MATCH = 0 
+
+Static Function EndsWith(Needle,Haystack,[CaseSensitive])
+	String Needle,Haystack
+	Variable CaseSensitive
+	CaseSensitive = ParamIsDefault(CaseSensitive) ? CMPSTR_CASE_IN : CaseSensitive
+	Variable lenNeedle = strlen(Needle)
+	Variable lenHaystack = strlen(HayStack)
+	// If the Needle *can* be found, then perform the cmpstr
+	if (lenHayStack >= lenNeedle && lenNeedle > 0)
+		String mSearch = Haystack[lenHaystack-lenNeedle,lenHayStack-1]
+		return cmpstr(mSearch,Needle,CaseSensitive) == CMPSTR_MATCH
+	EndIf
+	// POST: bad length, doesnt work
+	return ModDefine#False()
+End Function
 
 // WaveType V-751
 // If selector = 1, WaveType returns 0 for a null wave, 1 if numeric, 2 if string ... 
@@ -16,12 +37,13 @@ Static Function IsTextWave(mWave)
 	return WaveType(mWave,WAVETYPE_SEL_TYPES) == WAVETYPE_IS_STR
 End Function
 
-Static Function WavesAreEqual(WaveA,WaveB,[options])
+Static Function WavesAreEqual(WaveA,WaveB,[options,tolerance])
 	Wave WaveA,WaveB
-	Variable options
+	Variable options,tolerance
 	options = ParamIsDefault(options)? EQUALWAVES_FULL : options
+	tolerance = ParamIsDefault(tolerance) ? EQUALWAVES_DEFTOL : tolerance
 	// XXX add in tolerance
-	return EqualWaves(WaveA,WaveB,options)	
+	return EqualWaves(WaveA,WaveB,options,tolerance)	
 End Function
 
 Static Function TextInWave(Needle,HayStack,[index])
@@ -137,10 +159,14 @@ Static Function /Wave MakeWaveForList(Name,List,Sep)
 	return MakeWave(Name,ItemsInList(List,Sep))
 End Function
 
-Static Function ListToTextWave(ToRet,List,  Sep)
+Static Function ListToTextWave(ToRet,List, [Sep])
 	String List,Sep
 	Wave /T ToRet
+	if (ParamIsDefault(Sep))
+		Sep = ModDefine#DefListSep()
+	EndIf
 	Variable NPoints = ItemsInList(List,Sep), i=0
+	Redimension /N=(nPoints) toRet
 	// Overright / Make  a text wave (/T)  with N points
 	For (i=0; i< NPoints; i+=1)
 		ToRet[i] = StringFromList(i,List,Sep)

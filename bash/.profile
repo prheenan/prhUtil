@@ -71,6 +71,11 @@ mach()
     cd csci_5622_machine_learning/hw/ml-hw
 }
 
+matnu()
+{
+    cp "${utilDir}mathematica/config.nb" ./$1.nb
+}
+
 pynu()
 {
     # copy the configuration files with the appropriate imports

@@ -24,6 +24,39 @@ plt.rcParams['font.sans-serif'] = 'Georgia'
 plt.rcParams['font.family'] = 'sans-serif'
 # to get a list of all fonts:
 
+def addColorbar(fig,cmap,nPoints,colorRange=None,left=0.80,bottom=0.15,
+                width=0.03,height=0.7,tickLabels=None,
+                orientation='vertical',tickOffsets=None,
+                ticklocation='right',**kwargs):
+    # XXX for now, assume the color bar is on the right; only need to 
+    # adjust right
+    fig.subplots_adjust(right=left-width)
+        # add in a colorbar 
+    cbar_axis = fig.add_axes([left,bottom,width,height])
+    m = plt.cm.ScalarMappable(cmap=cmap)
+    mArr = [0,1.]
+    if (colorRange is not None):
+        mArr = colorRange
+    # figure out where to put the ticks
+    # by default, just assume we space things linearly
+    if (tickOffsets is None):
+        # get an array going from the start of the array to the 
+        # end uniformly
+        mArrOffsets = np.linspace(mArr[0],mArr[-1],len(tickLabels),
+                                  endpoint=True)
+        tickOffsets = mArrOffsets
+    m.set_array(mArr)
+    cbar = fig.colorbar(cax= cbar_axis,mappable=m,orientation=orientation,
+                        ticklocation=ticklocation,ticks=tickOffsets)
+    mAx = cbar.ax
+    # add the labels, if we need them.
+    if (tickLabels is not None):
+        if (orientation == 'vertical'):
+            cbar.ax.set_yticklabels(tickLabels)
+        else:
+            cbar.ax.set_xticklabels(tickLabels)
+    tickAxisFont(ax=mAx)
+
 
 def errorbar(x,y,yerr,label,fmt=None,alpha=0.1,ecolor='r',markersize=3.0,
              *args,**kwargs):
@@ -74,10 +107,11 @@ def lazyLabel(xlab,ylab,titLab,yrotation=90,frameon=False,loc='best',**kwargs):
     tickAxisFont(**kwargs)
     legend(frameon=frameon,loc=loc,**kwargs)
 
-def tickAxisFont(fontsize=g_font_label):
+def tickAxisFont(fontsize=g_font_label,ax=None):
     plt.tick_params(axis='both', which='major', labelsize=fontsize)
     plt.tick_params(axis='both', which='minor', labelsize=fontsize)
-    ax = plt.gca()
+    if (ax is None):
+        ax = plt.gca()
     ax.xaxis.set_tick_params(width=g_tick_thickness,length=g_tick_length)
     ax.yaxis.set_tick_params(width=g_tick_thickness,length=g_tick_length)
 
@@ -154,7 +188,7 @@ def pm(stdOrMinMax,mean=None,fmt=".3g"):
         delta = np.mean(np.abs(arr-mean))
     return ("{:"+ fmt + "}+/-{:.2g}").format(mean,delta)
 
-def savefig(figure,fileName,close=True,tight=True):
+def savefig(figure,fileName,close=True,tight=True,**kwargs):
     # source : where to save the output iunder the output folder
     # filename: what to save the file as. automagically saved as high res pdf
     # override IO: if true, ignore any path infomation in the file name stuff.
@@ -169,7 +203,7 @@ def savefig(figure,fileName,close=True,tight=True):
         _,formatStr = os.path.splitext(fileName)
         fullName = fileName
     figure.savefig(fullName,format=formatStr[1:], 
-                   dpi=figure.get_dpi())
+                   dpi=figure.get_dpi(),**kwargs)
     if (close):
         plt.close(figure)
 

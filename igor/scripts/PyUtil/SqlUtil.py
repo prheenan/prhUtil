@@ -27,6 +27,8 @@ DefaultWorkDir = '/Volumes/group/4Patrick/PrhWorking/'
 
 # we need the HDF5 routines  to read in files
 import HDF5Util
+# We need the sql alchemy bridge for some help functions
+from SqlAlchemyBridge import get_state_dict
 
 class SqlAlchemyObj:
     def __init__(self,session,engine,mConnStr):
@@ -36,7 +38,12 @@ class SqlAlchemyObj:
         self._conn = engine.connect()
     def setCls(self,mClasses):
         self._mCls = mClasses
-
+    # return the connection, class, and session
+    def connClassSess(self):
+        conn = self._conn
+        mCls = self._mCls
+        sess = self._sess
+        return conn,mCls,sess
 
 def MakeSqlSessionAndEngine(DatabaseStr):
     engine = create_engine(DatabaseStr)
@@ -63,13 +70,11 @@ def GetTraceModelId(mSqlObj,fileObj):
     trMod = mCls.TraceModel
     traceMod = mCls.TraceModel
     mSel = mSess.query(traceMod).\
-           filter(traceMod.idTraceData == fileObj.idTraceData).all()
+           filter(traceMod.idTraceMeta == fileObj.idTraceMeta).all()
     return mSel[0].idTraceModel
 
 def GetTraceParams(mSqlObj,fileObj):
-    conn = mSqlObj._conn
-    mCls = mSqlObj._mCls
-    sess = mSqlObj._sess
+    conn,mCls,sess = mSqlObj.connClassSess()
     modelId = GetTraceModelId(mSqlObj,fileObj)
     mParams = sess.query(mCls.LinkTraceParam).\
               filter(mCls.LinkTraceParam.idTraceModel == modelId).all()
@@ -83,6 +88,15 @@ def GetTraceParams(mSqlObj,fileObj):
                      .filter(mCls.ParamMeta.idParamMeta.in_(mMetaIds))\
                      .order_by(mCls.ParamMeta.idParamMeta).all()
     return mParamVals,mParamMeta
+
+def GetMeta(mSqlObj,fileObj):
+    conn,mCls,sess = mSqlObj.connClassSess()
+    mTrace = sess.query(mCls.TraceMeta)\
+                 .filter(mCls.TraceMeta.idTraceMeta ==
+                         fileObj.idTraceMeta).\
+                 order_by(mCls.TraceMeta.idTraceMeta).all()
+    # XXX assume that there is at least one. Check this?
+    return get_state_dict(mTrace[0])
     
 # function to get the source name of *every* file to read.
 def GetSrcFiles(mSqlObj):

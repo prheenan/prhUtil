@@ -1,0 +1,1701 @@
+•	MFP3D.xop
+Interface for the Asylum Research MFP-3D
+v31 up20, 2012/10/24
+
+This Igor XOP and Help File are © 2001-2012 Asylum Research Corporation
+
+This Xop uses the LGPL-licensed (open source) libelf library.  As required by the terms of the LGPL, the code changes we made to this library to get it to run as a separate Windows DLL are available at https://support.asylumresearch.com/fogbugz/default.php?W48
+
+This Igor XOP may only be used to operate or control the Asylum Research MFP-3D Controller/ARC2 and attached peripherals.  This XOP is not licensed for any other use.
+
+
+•	Asylum Research Controller (ARC) Introduction
+
+The ARC, aka controller, connects to the computer with a USB cable.  If the controller is on and connected when Igor is booted, the MFP-3D Xop will reset it and download DSP code to it.  After this download process, the controller is fully initialized, and the status bar in Igor will reflect this.  If the controller is not found, the status bar will indicate "Disconnected".  The controller may be connected and disconnected or power cycled at any time and the MFP-3D Xop will again reset and download the code when appropriate.
+
+If you have a Cypher, it also has a USB connection.  The Cypher USB connection must be plugged into the computer before turning on the controller.
+
+All MFP3D Xop functions begin with "td_", which is an abbreviation for 3D (functions cannot start with numbers).  These two letters also happen to be my initials.
+
+
+•	Device, Group, and Parameter Reference
+Previous versions of this Xop had many different functions for manipulating device parameters.  These functions would be different for each type of device.  This system was quickly getting out of control as more devices were added.  So a new system has been created that provides a consistent interface to all parameters on all devices.
+
+Before I continue, some definitions are required.  A parameter is simply a value that has a name.  These parameters can stand for an input (ie, A/D on the controller), an output (ie, D/A on the controller), or a control (ie, a gain in a feedback loop).  A group is simply a collection of parameters or other groups.  A device is a piece of hardware that is controlled by the Xop (ie, the controller or the head).
+
+The idea behind the new system is that you can use the same functions to access a parameter no matter which group it is in or what device it is on.  Each access function takes an "address" as an argument.  The addresses look like internet hostnames in reverse - "Device.Group.Parameter".  For example, to specify the laser sum in the head, one would use "Head.Laser.Sum".  The X sensor input on the ARC becomes "ARC.Input.X".
+
+Because both the ARC and the Cypher have an Input group, I recommend that you always use the device name when referencing parameters.  "Input.A" exists on both the ARC and the Cypher.  Since it is possible for either device to show up in the device list first, referencing "Input.A" could resolve to the ARC one day and resolve to the Cypher the next day.
+
+Device Names
+
+Here is a list of the devices you are likely to encounter.
+
+ARC - The Asylum Research Controller.  This is the "root" device.  All other devices are linked to the Xop via this device.  Contains all of the high-speed inputs and outputs.
+Cypher - This is the main board in the "backpack" of a Cypher system.  It is practically a controller in its own right.  As we add more capability, eventually this board will take over almost all functionality from the ARC except for the XY scanning.
+XYLVDT - On an MFP-3D system, this device drives the X and Y LVDT sensors in the Scanner.  It also controls video magnification in Stand-Alone bases.
+Scanner - On an MFP-3D system, this is a Flash memory device for recording the scanner sensitivities and a temperature sensor to help track thermal drift.  On a Cypher system, this device scans in all axes and handles half of the engage movement.
+Head - On an MFP-3D system, this is a combination of both XYLVDT and Scanner, but only for the Z axis.  This board provides A/Ds for tracking the laser target and a method for discovering which type of fluid cell has been snapped in.  On a Cypher system, this device controls the position of the laser.
+Unknown - This device only appears when an unprogrammed device is found, or a device that is not compatible with this particular Xop.
+Other Devices are optional. A separate help document provides more information on a particular device.
+
+Group Names
+
+Each of the devices above have a default group, which is unnamed.  The following is a list of some additional groups on the controller.
+
+ARC.InwaveCount - Current pixel count of various Inwaves.  Set td_xSetInWave().
+ARC.Input - Contains all of the A/Ds and some parameters that control these A/Ds, as well as a digital input registers.  Some of the data in this group is filtered.
+ARC.pipe - Various data that is copied from the Cypher, if it exists.  This group will eventually disappear.
+ARC.Raw - The unfiltered version of the some of the Input signals.  This is here for backwards compatibility, as all of these items can also be found in the Input group.
+ARC.Output - Contains all of the D/As, as well as a digital output register.  Also contains the two drive signals for the scan engine.
+ARC.Lockin - Contains parameters that control the DDS output.  It also contains some "calculated" data, like r and theta which come from i and q,
+ARC.PassFilter - Low/High pass filtering of Input and Lockin group signals.
+ARC.BandFilter - Band pass/stop filtering of Input and Lockin group signals.
+ARC.PIDSLoop - Controls the PIDS feedback loops.  There are six PIDS loops, and thus six groups, named "PIDSLoop.0" through "PIDSLoop.5".
+ARC.Damping - Active damping for Q-control.
+ARC.FastScanXY - XY Scanning.
+ARC.Crosspoint - Controls the crosspoint switch.
+ARC.Event - Provides user triggerable events.
+ARC.Hamster - Interface to Hamster device.
+ARC.CTFC - Complex Triggered Force Curve - runs at 10kHz.
+ARC.Log - Logarithmic scaling of a  channel.
+ARC.LinearCombo - Linear combination of two channels.
+ARC.InfoBlock - All devices have FLASH programmable EPROM in which parameters are stored for later retrieval.  All info blocks contain hardware version information, but some might also include sensitivities, voltage limits, LVDT drive information, and other factory calibration data.  Unless otherwise noted, most parameters default to zero if the InfoBlock contains invalid or unknown data.
+
+Parameter Names
+
+Here is a brief overview of what each parameter means.  They will be listed under the corresponding Device and Group names.  The following designators might appear in parenthesis to further qualify the parameter.
+
+(RO)	Read Only - the parameter only makes sense being read, not written.
+($)	String - the parameter only makes sense with strings - don't use numeric waves or td_ReadValue, td_WriteValue, etc.  Instead, use textWaves or td_ReadString, td_WriteString, etc.
+(OW)	You can write the parameter with an Out Wave.
+(InW)	You can read the parameter with an In Wave.
+
+Controller
+	Default - There are some undocumented items in this group that should be left alone.
+		QuietMode - Make each device as electrically quiet as possible.  This includes turning off any blinking LEDs plus stop scanning for tip changes.  It is generally not necessary to change this parameter as it is automatically enabled/disabled whenever the xop starts/stops collecting imaging data.
+0	Disabled
+1	Enabled
+		ConnectionStatus (RO) - Returns the connection status of the controller.
+0	Connected
+1	Not Connected
+2	Firmware Failure
+3	Searching For Controller
+		ConnectionStatusCallback ($) - This parameter will cause a user-supplied function to be called whenever the connection state of the controller changes.  Use this parameter in conjunction with ConnectionStatus to reset your software whenever the user resets the controller.  An expression within the supplied string will be executed whenever the controller status changes.  This will typically be the name of a user function (e.g., "MyCallback()").  Of course, if the controller state never changes, the callback function will not be called.  If you want to discontinue notification, simply set this parameter to an empty string (e.g., "").
+		SmartStartStatusCallback ($) - This parameter will cause a user-supplied function to be called whenever the SmartStart bus is rescanned.  This will typically be the name of a user function (e.g., "MyCallback()").  This function will be called whether the rescan is generated by turning on the controller or by the user pressing the button on the status bar or through the use of td_ScanForDevices.  Of course, if the bus is never rescanned, the callback function will not be called.  If you want to discontinue notification, simply set this parameter to an empty string (e.g., "").
+		LinenumOutWave0, LinenumOutWave1, LinenumOutWave2 (RO) - Returns the number of times a particular OutWave bank has run since td_stop was last called.
+		OutWave0StatusCallback, OutWave1StatusCallback, OutWave2StatusCallback ($) - These parameters will cause a user-supplied function to be called whenever the corresponding OutWave bank has run to completion.  This will typically be the name of a user function (e.g., "MyCallback()").  Of course, if the OutWave is never run, the callback function will not be called.  If you want to discontinue notification, simply set this parameter to an empty string (e.g., "").  Use this parameter in conjunction with the corresponding linenumber count parameter above.
+		SampleClockSource ($) - Which clock runs the 100kHz loop. If a Cypher is plugged in then it should use the Cypher clock.
+		ZDACSource ($) - If the controller is plugged into a Cypher then it can use the Cypher Z DAC.
+		HighVoltageXYRelay ($) - Whether the High Voltage XY Relay is open or closed.
+		HighVoltageZRelay ($) - Whether the High Voltage Z Relay is open or closed.
+		LaserRelay ($) - Whether the Laser Relay is open or closed.
+		DACConvertHoldoff  - How much time is allotted between when the clock hits and the DAC is written. This gives the DSP time to do its calculations.
+		DSPCycleCount (RO) - How busy the DSP is. If this number is above 650 things might start to get left out.
+	InwaveCount -
+		0.A, 0.B, 1.A, 1.B, 2.A, 2.B (RO) - How many points a particular Inwave has collected since the corresponding SetInwave function was called.  X.Y corresponds to BankX/ChannelY from the SetInwave commands.  -1 means that particular channel is not set up.
+	Input
+		Z, X, Y, A, B, Fast (RO) - Correspond to the bandwidth-limited (filtered) A/D inputs (see the PassFilter and BandFilter group).  Each of these items has at least two subitems, Raw, and Filter.Freq.  The Raw subitem is unfiltered.  The Filter.Freq value corresponds to a cutoff frequency that also appears in the PassFilter group.
+Z	Sensor on Z-axis
+X	Sensor on X-axis
+Y	Sensor on Y-axis
+A	A/D A
+B	A/D B
+Fast	The A/D used by the lockin subsystem
+		Fast.Gain, Fast.Offset - Control the Fast A/D.
+FastGain	Hardware gain applied to the Fast A/D input, specified in dB.  Allowed gains are 0dB (1x), 2.9dB (1.40x), 5.8dB (1.95x), 11.8dB (3.89x), 14.8dB (5.50x), 17.5dB (7.50x), and 19.5dB (9.44x).  If you change this while collecting data from the Fast A/D, you might notice a slight glitch in the middle of the wave.  Note that the Lockin values for i, q, and r are also affected since they are all ultimately calculated from data collected by the Fast A/D.
+FastOffset	16bit signed offset which is added to the Fast A/D input.  Used mostly for zeroing residual offsets to improve the accuracy of the i and q quadrature inputs.
+		Digital - User digital inputs.  Currently, there is no way to use these without opening up the controller.
+		Counter - 32-bit counter connected to the Digital I/O expansion board.  This value does not make any sense unless it is read in using input wave bank 0 or 1.
+	Raw
+		Z, X, Y, A, B, Fast, i0, q0, i1, q1 (RO) - Correspond to the unfiltered A/D inputs.  See the Input group for more details.
+		Counter (RO) - 32-bit counter connected to the Digital I/O expansion board.  This value is the amount of digital pulses collected in the last 10 us.
+	Output
+		Z, X, Y, A, B, C - Correspond to the D/A outputs.
+Z	Piezo drive on Z-axis
+X	Piezo drive on X-axis
+Y	Piezo drive on Y-axis
+A	D/A A, filtered to 52kHz
+B	D/A B, filtered to 52kHz
+C	D/A C, filtered to 78Hz (yes, that is Hz, not kHz)
+		Digital - User digital outputs.  Currently, this is broken.
+		Dummy - Use with td_xSetOutWave to generate callbacks without actually modifying anything real.
+	Lockin - there are two lockins [0 and 1], but each operate on the same output signal and input signal
+DCOffset		Adds an offset to the DDS output.  Clip checking is not done, so care 		should be taken this value plus the Amp value not exceed 10V.  Should be 	set to zero when not used.
+n.Freq	Center frequency - the main output frequency. n = 0 or 1.
+n.FreqOffset	Offset frequency - this plus the center frequency add to the output frequency.  Useful for frequency modulation.  Should be set to zero when not used.  Range is about 153Hz.
+n.PhaseOffset	This value does not affect the drive signal.  It adds an offset to theta and rotates n.i and n.q. n = 0 or 1.
+n.Amp	Peak amplitude of the DDS output. n = 0 or 1
+n.i	Down-converted in-phase components. n = 0 or 1
+n.q	Down-converted quadrature components. n = 0 or 1
+n.r	Magnitudes developed from filtered n.i and n.q. n = 0 or 1
+n.theta	Phases developed from filtered n.i and n.q. n = 0 or 1
+n.Filter.Freq	Will update the PassFilter for in and qn simultaneously. n = 0 or 1
+RelativePhase	Relative phase between the two DDS drive signals. Useful only when one Freq is a harmonic of the other.
+0.QGain	This the gain on a feedback loop that drives the cantilever. It adjusts the Lockin.0.Amp using Lockin.0.r as an input. If QAngle is set to -90, then increasing the QGain increases the amplitude. A negative number will decrease the amplitude. This is not available on the 1 lockin.
+0.QAngle	The stock setting for this is -90. If set to 90 then the QGain works in the opposite direction. If you set it to any other number you are on your own.
+
+	PassFilter
+		Z, X, Y, A, B, Fast, i0, q0, i1, q1 - Correspond to the frequency cut-off for a low/high pass filter for the named channel.  The value for the parameter is the frequency in Hz of a 3-pole IIR filter.  For lowpass filtering use a positive value and a negative value for highpass filtering.
+		NotchFactor (RO) -  Specifies the ratio of the cut-off frequency (fc) to the notch frequency (fn) of the 3-pole filter. This is useful when a specific notch frequency is desired.
+								NotchFactor = fc/fn
+	BandFilter
+		Z, X, Y, A, B, Fast, i0, q0, i1, q1 - Correspond to the frequency cut-off for a band pass/stop filter for the named channel.  The value for the parameter is the frequency in Hz of a 2-pole IIR filter.  For bandstop filtering use a positive value and a negative value for bandpass filtering. 
+			A value of 25 kHz will defeat the filters.  Alternatively, see the Raw group for unfiltered channels.  Every filtered channel defaults to 25 kHz upon controller reset, but the values read from these parameters might not reflect that, and should not be trusted right after reset.  Note that in order for r0/r1 and theta0/theta1 to make sense, i0/i1 and q0/q1 should always be set to the same bandwidth.
+	PIDSLoop.n - Feedback loops, where n is 0-5.
+InputChannel (RO, $)	The input to the feedback loop.  This can be any channel addressable by td_xSetInWave. This can be set using td_WriteGroup only and is read only for td_WriteValue
+OutputChannel (RO, $)	The output driven by the feedback loop.  This can be any channel addressable by td_xSetOutWave. This can be set using td_WriteGroup only and is read only for td_WriteValue. The InputChannel and OutputChannel can be set using td_WriteGroup only and is read only for td_WriteValue. The rest of the PIDSLoop parameters can be set using both td_WriteGroup and td_WriteValue. Changing either of these channels will stop the PIDSLoop and redefine the parameters using the information provided in td_WriteGroup. 
+DynamicSetpoint	 A boolean to let the feedback loop automatically set the setpoint to the current value grabbed from the specified input channel. This setting overrides the value of the Setpoint. If you have a feedback loop using the LVDT to control Z, this feature is useful for locking the the Z position to whatever the value happens to be when the PISLoop is triggered.
+Setpoint	The reference value for the input signal, where error = setpoint - input. Since the units of this parameter are derived from the input signal, setting this parameter before the InputChannel is defined will result in an error.
+SetpointOffset	Added to the setpoint such that Setpoint + SetpointOffset is the actual reference.  Since the units of this parameter are derived from the input signal, setting this parameter before the InputChannel is defined will result in an error.
+DGain	Differential gain
+PGain	Proportional gain. 
+IGain	Integral gain
+SGain	Secret gain... shhhh!  Also known as double integral gain. The gains are scaled internally such that for a 1V error signal, PGain of 1 will result in an output of 1V,  IGain of 1 will result in "t" V after t seconds and SGain of 1 will result in t2/2 V after t seconds. For a DGain of 1, an instantaneous change of 1V will give an output of 1V. Since the scaling depends on the input and the output, setting these parameters before the InputChannel and OutputChannel is defined will result in an error.
+OutputMin, OutputMax	The control signal from the feedback loop is limited to the min and max set by these parameters. Since the units of this parameter are derived from the output, setting this parameter before the OutputChannel is defined will result in an error.
+StartEvent, StopEvent	The start and stop event triggers for the feedback loop. When the StartEvent is triggered, the feedback loop will begin immediately.  When the StopEvent is triggered and the StartEvent has cleared, the loop will end, after making one more pass. When StartEvent and StopEvent are set to the same event, the loop will toggle between start/stop everytime the event is triggered. Events may be any of those listed in the Event section of Parameter Names.  Note that you do not have to specify the group name, as Event will always be assumed.  "0" refers to "Event.0". To prevent glitches in the output, every time the loop is activated by its start event after being off, the internal accumulators are initialized to the current value of the output.  Plus any dyamic setpoints are grabbed every time the loop is activated via its event.
+Status	When read, returns the status of the feedback loop.  
+-1	Loop is not defined.
+0	Loop is defined but not active.
+1	Loop is active.
+	If written, effects the state of the feedback loop.
+-1	Stop and undefine or unset the loop immediately.
+0	Stop the loop immediately.
+1	Start the loop immediately.
+Writing a "-1" is the only way to unset the loop so that it can be redefined later. Even though the loop is unset, the other PIDSLoop parameters will remain, though not usable, so that the user may review the previous loop definition. Redefining the PIDSLoop will update these parameters using the information provided in td_WriteGroup. Beware! when writing 1 to the Status. If the feedback loop was off and this parmater is used to start it, the feedback loop will skip the process of resetting the accumulators to match the current output and setting the setpoint to match the input if a dynamic setpoint was requested.  If the feedback loop is active and this parameter is used to stop, the feedback loop will shut off immediately instead of going through one more pass like the StopEvent.  The start and stop events have a priority over the Status. 
+
+Looking at the feedback loops is much easier using the menu Programming:Xop Tables: PISLoops.
+
+	FastScanXY - This is what runs scanning. You need to get this all set up and then read the Fast.TrackingError and the Slow.TrackingError. That will tell you where the scan will start in metric units. You then need to move to there using td_SetRamp and then trigger the event that will start the scan.
+RotationAngle	This is the angle that you will be scanning at. Its range is from -180° to 180°. If you write something outside of this range it will wrap it so that it is within range. 10, 370 and -350 will all end up at 10.
+RotationCos(OW)	This is the Cosine of the Rotation Angle. It gets set whenever you write the Rotation Angle. It can be driven by an out wave, so if you want to smoothly change the Rotation Angle while scanning you can ramp this and the RotationSin to get to the angle that you want.
+RotationSin(OW)	This is the Sine of the Rotation Angle. See above for use.
+SkewAngle	This affects the orthogonality of the scan. This actually only works correctly if you scan at 0 degrees. This should always be set to 90è°.
+SkewCos(OW)	Cosine of the Skew Angle. Currently doesn't work.
+SkewSin(OW)	Sine of the Skew Angle. Currently doesn't work.
+ScanDirection($)	Direction of the scan. You can set this to start out in the direction that you want. You can read it to find out the current direction.
+SlowAxis($)	Whether the slow axis is being incremented or not. 
+TimeDelay	This affects the way the feed forward feedback loops work. The stock values are 5 mS for an MFP3D and .5 mS for a Cypher.
+PassesPerSec	The scan rate. You might not get exactly what you write depending what the PixelsPerPass is set to. (50000/(PassesPerSec))/(PixelsPerPass*1.25) has to be an integer.
+PixelsPerPass	This is the number of points that you want to capture in your image multiplied by 2.
+PixelCount(RO)	This is the pixel that the scan is currently on. 
+PassesPerLine	This is the number of passes that you do on each line. This is normally 1, but is set to 2 for nap mode. Currently it can only be 1 or 2.
+PassCount(RO)	Which one of the above passes you are on.
+LinesPerFrame	How many lines will be in a scan.
+LineCount(RO)	Which line you are now doing. The first line, 0, is at the bottom.
+FramesPerStack	This is the number of frames per stack.
+FrameCount(RO)	This counts the number of frames in the current stack. If the Frames Per Stack is set to 3 or higher then this reads -2 for the first frame, then -1. After that it reads from 0 to n-1 and then starts over.
+Callback($)	If the feedback loop becomes unstable, which is defined by the TrackingError being larger than the ErrorThreshold, then the feedback loop stops and calls this function.
+StartEvent($)	This is what event will start the scan. You can use 0 instead of Event.0.
+StopEvent($)	This is what event will stop the scan. There are issues with stopping the scan this way. It is better to set this to Never and stop the scan with the Status.
+Status	This is the current status of scanning. You should always write the wave with this set to 0. When you are scanning this should read 1. The best way to stop scanning is to set this to 0.
+
+	FastScanXY.Fast
+	FastScanXY.Slow - These are other parameters that control the scan. It is best to just think of the Fast as X and the Slow as Y. These usually have to be set up before you set up FastScanXY. If in the description you only see X mentioned, that is for fast. Substitute Y for X for the slow version.
+InputChannel($)	This is the input channel. This is usually XSensor for Fast and YSensor for Slow. You can't use td_WriteString on this parameter, it has to be written in a wave.
+OutputChannel($)  	This is the output channel. This is usually XSensor for Fast and YSensor for Slow. You can't use td_WriteString on this parameter, it has to be written in a wave.
+InputSensitivity	The input sensitivity in m/V. This is usually XLVDTSens
+InputOffset	This compensates for the sensors not being in the exact center of where the scanner can get to running open loop. This in volts and the high level parameter is XLVDTOffset.
+OutputSensitivity	This is the output sensitivity in m/V. This is usually XPiezoSens.
+FrameSize(OW)	How big the scan will be in meters. If it going to be a non-square scan then the fast and slow values will be different.
+ScanOffset(OW)	The offset of the scan in meters.
+OffsetRampRate	????
+ControlMode($)	Closed is the normal method of operation. There is are XY feedback loops and the setpoint is driven to get the sample to move where it needs to go.
+		Open is where the piezo voltage is driven to get the sample to move.
+		Mixed means that the offsets are handled closed loop, and everything else is open loop.
+IGain		This is integral gain that controls the closed loop feedback. The normal value is 10^(XIGain)*XLVDTSens. This value has to be high enough to control the SGain.
+SGain	This is secret gain, which is really double integral gain. Secret gain can actually track a constant slope, which makes it very useful for scanning. The normal value is 10^(XSGain)*XLVDTSens.
+MGain($)	This is whether munging is turned on or off. Munging flips the value of the accumulated secret gain at the end of each pass. At the moment it doesn't really play well with the rounded caps.
+FGain	This is forward gain. 0 to turn this off, and up to 1 to use it. When this is turned on then the way the setpoint is driven is changed to try and get the result closer to what we want. This works best with no secret gain. It usually takes a couple of scans for this to really start to work well.
+TrackingError(RO)(InW)	During a scan this is the current error in meters between where the scanner is supposed to be and where the sensor says it is. After the scan is set up this is where the scan will start in meters.
+ErrorThreshold	If the TrackingError exceeds this value then the scan will stop and the Callback will be called.
+
+	FastScanXY.Trigger	These are triggers that happen at various parts of the scan. These cannot trigger anything on a Cypher, as in they can trigger things that happen in the ARC II controller that is running a Cypher, but they can't trigger PISLoops or other things that actually run out on the Cypher.
+PixelEvent	This gets called every pixel.
+TraceBeginFraction	Where in the scan the TraceBeginEvent gets called.
+TraceBeginEvent	Which event gets called at a set fraction of the scan
+TraceEndFraction	Where the TraceEndEvent gets called.
+TraceEndEvent	Which event gets called at a second set fraction of the scan.
+PassEvent	This even gets called every pass.
+LineEvent	This event gets called every line, which means it is not called every pass if you are running more than 1 PassesPerLine.
+FrameEvent	Gets called at the end of every image.
+StackEvent	Gets called at the end of every stack, which is different from every frame if you have FramesPerStack set to 2 or more.
+
+
+	ScanReplay		This is used to drive Nap mode. At some point there will be more than 2 passes available, at the moment you can only use 2. There are four different channels, so n can be 0 to 3.
+n.RecordChannel($)	This is the channel that will be recorded.
+n.PlaybackChannel($)	This is the channel that will be played back.
+n.PlaybackMode($)		This is the way that the channel will be played back. It mostly pertains to playing back height. NAP means that the all of the ups and downs of the original pass will be duplicated. SNAP means that the playback will just be a straight line fitted to the data in the recorded channel.
+n.RecordPass		Which pass will be recorded.
+n.PlaybackPass		Which pass will be played back.
+n.PassThroughGain	This is similar to forward gain on the scan engine. You shouldn't use this unless you are running a feedback loop.
+n.PlaybackGain		This is the gain applied to the recorded channel when it is played back. For most use this would be set to 1.
+n.PlaybackOffset(OW)	This is the offset between the recorded channel and what is played back. This can be driven by a wave if you want to get fancy.
+
+	Crosspoint - Each of these parameters corresponds to one of 16 crosspoint switch outputs.  Each parameter can be set to one of 17 different values, which correspond to the crosspoint switch inputs.  You can set the crosspoint switch one parameter at a time using td_WriteString, but since each individual update forces an update of the entire crosspoint switch, it is recommended that you set up an entire text wave and then use td_WriteGroup to update the entire crosspoint switch once.
+InA	Connected to Input.A
+InB	Connected to Input.B
+InFast	Connected to Input.Fast
+InAOffset	Summing junction attached to Input.A
+InBOffset	Summing junction attached to Input.B
+InFastOffset	Summing junction attached to Input.Fast
+OutXMod	Summing junction attached to Output.X
+OutYMod	Summing junction attached to Output.Y
+OutZMod	Summing junction attached to Output.Z
+FilterIn	Input to the 36kHz low pass filter
+BNCOut0	Attached to BNC Output 0
+BNCOut1	Attached to BNC Output 1
+BNCOut2	Attached to BNC Output 2
+PogoOut	High current drive
+Chip	Bias for cantilever chip
+Shake	High current drive for cantilever piezo.  The difference between this line and PogoOut is this signal runs on a coax (better shielding).
+		Each of the above parameters can be set to one of the following values, which correspond to a crosspoint switch input.
+OutA	Connected to Output.A
+OutB	Connected to Output.B
+OutC	Connected to Output.C
+Defl	Deflection signal from Head
+ACDefl	A/C coupled deflection signal from Head
+Lateral	Lateral signal from Head
+BNCIn0	Attached to BNC Input 0
+BNCIn1	Attached to BNC Input 1
+BNCIn2	Attached to BNC Input 2
+Ground	Take a guess
+FilterOut	Attached to output of the 36kHz low pass filter
+PogoIn0	This is an input from the cantilever holder. If you have an Orca holder then this is used for Current.
+PogoIn1	The Pogo In 0 & 1 don't have to be anything particular from the cantilever holder. On a dual gain Orca holde PogoIn1 is used for the low gain Current.
+XPT13	Extra input inside the controller
+XPT14	Extra input inside the controller
+DDS	Connected to the DDS output
+Off	Turns off the crosspoint output by killing buffer
+
+The crosspoint switch is easiest to see and use using the menu Programming:Crosspoint Panel. Because of the way that they are wired, OutXMod, OutYMod, and OutXMod should be set to Off if they aren't being used. The rest should be set to Ground.
+
+	Event - Each of these parameters correspond to a different event.  These events can be used to trigger waves, feedback loops, etc.  They are handy for synchronization of different functions.
+		Always, Never (RO) - Constants.
+Never	Always Clear.
+Always	Always Set.
+		0 - 14 - These events are available to both Cypher and ARC.
+Clear	Clear the trigger.  Will stop any wave any wave dependent on it from starting again, but will not stop any waves already in progress.  Use td_StopInWaveBank, td_StopOutWaveBank, or td_Stop to stop waves already in progress.
+Set	Set the trigger.  Will allow any wave dependent on it to start running.
+Once	Sets the trigger, allows one data collection cycle to pass, then clears the trigger.  This should allow any waves dependent on the event to run only once. Once doesn't clear an event that is Set.
+		Local.0 - 14 - These events can only be seen on the ARC.
+	Hamster
+		StatusCallback ($) - This parameter will cause a user-supplied function to be called whenever the hamster wheel is rotated or hamster button is pressed.  Use this function in conjunction with Degrees, Clicks, and Switch to respond to user manipulation of the hamster.  An expression within the supplied string will be executed whenever the hamster status changes.  This will typically be the name of a user function (e.g., "MyCallback()").  Of course, if the hamster state never changes, the callback function will not be called.  If you want to discontinue notification, simply set this parameter to an empty string (e.g., "").
+		Degrees (RO) - This parameter returns the internal relative degree counter.  Every time this function is called, the current running total is cleared.
+		Clicks (RO) - If the Controller has a Click Ring, this parameter returns the internal relative counter.  Every time this function is called, the current running total is cleared. When the MFP3D software starts up, it sets MasterVariableWave[%HasClickRing][0] according to whether the controller infoblock says it has a click ring. If it does, then you need to read clicks, if it doesn't you need to read the Switch.
+		Switch (RO) - If the Controller has a Switch, this parameter returns its status. If the controller doesn't have a switch, this then gets set randomly. You have to know whether there is a click ring or not to know which parameter to read.
+0	Open
+1	Down
+2	Up
+	CTFC - Complex Triggered Force Curve - (This is really complicated and deserves a diagram, but I so very much hate Igor's help editor - truly vile) Ramps a channel to a set position unless a trigger is hit first.  If the trigger is hit, two different events will be toggled and a wait for a specified dwell time will occur.  Then the triggers are toggled once more and a new position will be ramped to, unless another trigger is hit first.  If the second trigger is hit, a second dwell occurs.  If either trigger is missed, the subsequent dwell will not occur.  A trick to not trigger on anything but make the dwell occur anyway is to set the trigger channel to "Output.Dummy".  Note - CTFC runs at 10kHz.
+		RampChannel ($) - The channel to be ramped.  This can be any channel addressable by td_xSetOutWave.  You must set this parameter before setting any of the other ramp parameters.  If you change this parameter, you must update all the other ramp parameters as well.
+		RampOffset1 - The maximum offset from the original position of the ramp channel we can move without a trigger before turning around.  This value cannot be zero.
+		RampSlope1 - The attack speed of the first ramp, in units of the native units of the ramp channel per second.  Must be the same sign as RampOffset1.  This value cannot be zero.
+		RampOffset2 - The offset from the triggered position of the ramp channel, applied after the dwell period.  If the trigger does not occur, this offset will be ramped from RampOffset1.  If this value is zero, no turn around will occur.  If this value is NaN, the ramp channel will be returned to its starting point.  Typically, the sign of this offset will be the opposite of RampOffset1, unless your goal is to ram the tip into the surface.
+		RampSlope2 - The retreat speed of the return ramp, in units of the native units of the ramp channel per second.  Must be the same sign as RampOffset2, unless that is NaN.  Then the value must be the opposite sign of RampSlope1.  This value can only be zero if RampOffset2 is zero.
+		RampTrigger (RO) - The value of the RampChannel at the point of triggering.    This value only makes sense if read from inside a callback.
+		TriggerChannel1 ($) - The Channel which will be read for the first trigger.  This can be any channel addressable by td_xSetInWave.  You must set this parameter before setting TriggerValue.  If you change this parameter, you must update TriggerValue1 as well.
+		TriggerType1 - The type of the first trigger.
+0	Absolute
+1	Relative Start
+2	Relative Min
+3	Relative Max
+		TriggerValue1 - The first trigger will occur at (baseValue + TriggerValue1) where the baseValue is 0 for Absolute trigger, value of the TriggerChannel1 at the start of CTFC for Relative Start, minimum/maximum value of the TriggerChannel1 during the first ramp for Relative Min/Relative Max triggers.
+		TriggerCompare1  - The type of comparision for the first trigger.
+0	>=
+1	<=
+		TriggerPoint1 (RO) - The value of the TriggerChannel1 at the point of the first trigger. This parameter is updated at the end of the CTFC and only makes sense if read from inside a callback.
+		TriggerChannel2 ($) - The Channel which will be read for the second trigger.  This can be any channel addressable by td_xSetInWave.  You must set this parameter before setting TriggerValue.  If you change this parameter, you must update TriggerValue2 as well.
+		TriggerType2 - The type of the second trigger.
+0	Absolute
+1	Relative Start
+2	Relative Min
+3	Relative Max
+		TriggerValue2 - The second trigger will occur at (baseValue + TriggerValue2) where the baseValue is 0 for Absolute trigger, value of the TriggerChannel2 at the start of CTFC for Relative Start, minimum/maximum value of the TriggerChannel2 during the second ramp for Relative Min/Relative Max triggers.
+		TriggerCompare2  - The type of comparision for the second trigger.
+0	>=
+1	<=
+		TriggerPoint2 (RO) - The value of the TriggerChannel2 at the point of the second trigger. This parameter is updated at the end of the CTFC and only makes sense if read from inside a callback.
+		TriggerHoldoff2 - After the first dwell, the second ramp will continue for this amount of time (in seconds) before the trigger value will be obeyed.
+		StartTime (RO) - The time at which the last CTFC cycle began, in seconds.  This value only makes sense if read from inside a callback.
+		TriggerTime1 (RO) - The time at which the first trigger occurred, in seconds, relative to StartTime.  Will return a number greater than 400,000 if trigger did not occur.  This value only makes sense if read from inside a callback.
+		TriggerTime2 (RO) - The time at which the second trigger occurred, in seconds, relative to the beginning of the second ramp.  Therefore, you must add TriggerTime1 plus DwellTime1 (if dwell occurred) to this time in order to get the time relative to StartTime.  Will return a number greater than 400,000 if trigger did not occur.  This value only makes sense if read from inside a callback.
+		DwellTime1 - If the first trigger occurs, this parameter specifies the time before the second ramp begins, in seconds.
+		DwellTime2 - If the second trigger occurs, this parameter specifies the time (in seconds) before the callback will be called, or before the entire CTFC process will repeat.
+		Callback ($) - An Igor function to execute once the CTFC has completed.  This callback will be called whether or not the trigger occured.
+		EventDwell ($) - This event is set during the dwell portions of the CTFC.  It will be cleared during the ramps.  Must be a User Event.  Never or Always cannot be used here.  You can set one or two events, ie "3" or "3,4".  In the first case, Event 3 will be set during both dwells.  In the second case, Event 3 will be set during the first dwell, and Event 4 will be set during the second dwell.
+		EventRamp ($) - This event is set during the ramp portions of the CTFC.  It will be cleared during the dwells.  Must be a User Event.  Never or Always cannot be used here.  You can set one or two events, ie "3" or "3,4".  In the first case, Event 3 will be set during both ramps.  In the second case, Event 3 will be set during the first ramp, and Event 4 will be set during the second ramp.
+		EventEnable ($) - This event is checked at the beginning and end of the CTFC ramping.  If this event is set and a CTFC is not currently running, the CTFC will begin.  If this event is set at the end of a CTFC, another CTFC will repeat immediately.  This should be the last parameter you set before running a CTFC.  Note - an in-progress CTFC can be completely halted by setting this parameter to Never or calling td_Stop.
+	Log - Scales any channel logarithmically. This scaling can be set/reset and stop/unset using td_SetLog and td_StopLog.
+		InputChannel (RO, $) - The channel whose signal is to be scaled logarithmically.  This can be one of the parameters that can be driven by  td_xSetInWave or td_xSetOutWave.  You can set/reset this parameter using td_SetLog only. Writing to this parameter using td_WriteString is disallowed. 
+		InputOffset - This offset parameter is subtracted from the above signal prior to log scaling. This parameter has the same scaling and offset properties as the InputChannel. This parameter can be used to remove any zero-offsets in the input signal.
+		Output (RO) - This is the desired log scaled value of the adjusted input signal. This parameter has the same scaling as the InputChannel. This parameter takes the sign of the adjusted signal and is zero when either the adjusted signal is zero or the Log group is not set, Such a scaling and sign convention makes it convenient to determine the desired setpoints during feedback etc.
+	LinearCombo - Linear combination of any two channels. The functions td_SetLinearCombo and td_StopLinearCombo are used to set/reset and stop/unset this functionality.
+		XChannel and YChannel (RO, $) - Two channels to be combined linearly. These can be one of the parameters that can be driven by  td_xSetInWave or td_xSetOutWave.  You can set/reset this parameter using td_SetLinearCombo only. Writing to this parameter using td_WriteString is disallowed. The coefficients are specified in a floating point wave used in td_SetLinearCombo.
+		Output (RO) - This is the result from the linear combination. This parameter has the same scaling as the YChannel.
+	DSPDebug - A viewport into the black abyss. If you see anything but zeros on this panel, close it quickly and throw a cantilever over your left shoulder.
+	InfoBlock
+		DateWritten (RO, $) - Date that this InfoBlock was last written.
+		SerialNumber - Serial number of the Controller.
+		DeviceRevision ($) - Revision code of the Controller as an entire unit.
+		BoardRevision ($) - Revision code of the Controller motherboard.
+		DateBuilt ($) - Build date of the Controller as an entire unit.
+		Note ($) - Random ramblings of the test engineer.
+		BackPanelRevision ($) - Revision code of the Controller's back panel board.
+		FrontPanelRevision ($) - Revision code of the Controller's front panel board.
+		MinimumVoltage - Smallest or most negative voltage possible on the X, Y, or Z axes.
+		MaximumVoltage - Largest or most positive voltage possible on the X, Y, or Z axes.
+		Has1xACDeflGain - Early controllers have an 8x gain applied to the A/C Deflection signal.  This was removed during later production.
+0	No
+1	Yes
+		HasMDBPullup - Early controllers did not have a pullup resistor on the MultiDrop Bus.  This lead to "ghost" devices appearing on the bus.
+0	No
+1	Yes
+		HasAlteraHeatsink - Early controllers did not have a heatsink on the Altera FPGA.  Subsequent Altera code causes Altera to get pretty damn hot without a heatsink.
+0	No
+1	Yes
+		Is1DPlus - This version of the controller does not support a scanner.
+0	No
+1	Yes
+		Has5ARegulator - Early controllers did not have a 5A 3.3V regulator.  It was possible to execute Altera code that would swamp the 3.3V regulator, causing a reboot.
+0	No
+1	Yes
+		HasTriggerFix - Early controllers have a high-capacitance TranZorb on the Trigger BNC line on the front panel.  This makes the line useless for counting or generating pulses.
+0	No
+1	Yes
+		DACType - The ARC2 controllers have more modern DACs. But the original controller can have any DAC, also.
+0	Original
+1	Raft
+2	Low Noise Raft
+		HasHighVoltageRelays - The ARC2 controllers have the ability to shut off XY and Z high voltage.
+0	No
+1	Yes
+		HasLaserRelay - The ARC2 controllers have the ability to shut off the Laser/SLD.
+0	No
+1	Yes
+		HasHighSpeedDataLink - The ARC2 controllers use a high-speed data link to communicate with the Cypher hardware.
+0	No
+1	Yes
+		HasClickRing - The ARC2 controllers have a click-ring instead of an up/down switch.
+0	No
+1	Yes
+		Has4VSupply - The ARC2 controllers supply 4V to the Cypher hardware.
+0	No
+1	Yes
+		HasDACPulldowns - Adds some protection so outputs don't jump during poweron.
+0	No
+1	Yes
+		HasClockLocking - ARC2 controllers with this will lock their clocks to the Cypher clock. Not every ARC2 has this.
+0	No
+1	Yes	
+		XYZModulationGains - the very latest ARC2 controllers have a 1X XYZ Modulation Gain. This lowers the noise if you use XYZ modulation.
+				15x
+				1x
+
+ XYLVDT
+	Default
+		XPhase and YPhase - Phase of the LVDT drive signal relative to the reference for the lock-in, for each particular axis.  Not generally useful to change this after it has been calibrated at the factory.  Setting this value will turn on the oscillator if it was off.
+		Oscillator - Can turn off the oscillator that drives the LVDT circuitry for the X and Y axes.  Might be useful for an ultra-sensitive measurement if the scanner is run open loop.
+0	Off
+1	On
+		VideoMagnification - For Stand-Alone bases, selects between the two cameras set at different magnifications.
+0	Low
+1	High
+		LEDBlinking - Can disable the blinking light.  Turned off automagically by xop (see ARC.QuietMode).
+0	Off
+1	On
+		HasScanner (RO) - Indicates whether a scanner is plugged in.
+0	No
+1	Yes
+		HasMotors (RO) - Indicates whether the XYLVDT board has the A/D converter chips necessary to read the XY motor-stage position.  Boards with this A/D hopefully will not be installed in bases that are not motor ready.
+0	No
+1	Yes
+	MotorX & MotorY
+		MoveTo - A 16bit count to which the stage should move in this particular axis.
+		Direction (RO) - Indicates the direction in which this axis is traveling.
+0	Off
+1	Right or Up
+2	Left or Down
+		PWM (RO) - An 8bit count proportional to the voltage applied to the motor.  Not valid if motor is off.
+		Position (RO) - A 16bit count indicating the rough position of the stage in this particular axis.
+	InfoBlock
+		DateWritten (RO, $) - Date that this InfoBlock was last written.
+		SerialNumber - Serial number of the XYLVDT.
+		DeviceRevision ($) - Revision code of the XYLVDT as an entire unit.
+		BoardRevision ($) - Revision code of the XYLVDT mainboard.
+		DateBuilt ($) - Build date of the XYLVDT as an entire unit.
+		Note ($) - Random ramblings of the test engineer.
+		HasZoom - Indicates whether or not the system using the XYLVDT takes advantage of the LowMag/HiMag video switching capability.  For example, Stand-Alone bases use it, Inverted-Optical systems do not.
+0	No
+1	Yes
+		CameraType - Indicates the type of video camera if zoom is available.
+0	NTSC
+1	PAL
+		BaseType - Describes the type of base in which the XYLVDT board has been installed.  "SA" means "Stand Alone base" and "IO" means "Inverted Optical microscope".
+0	None (board has been sold to someone working on their own custom-built system)
+1	SA - Bottom View
+2	SA - Top View
+3	SA - Dual View
+4	SA - No View
+5	IO - Unknown Microscope
+6	IO - Nikon TE200/300
+7	IO - Nikon TE2000
+8	IO - Olympus 1x70/71
+9	IO - Zeiss Axiovert 200
+10	IO - Nikon Ti
+11	IO - Olympus IX80/81
+12	IO - Zeiss AxioObvserver
+13	IO - Olympus IX51
+		XMotorSens - Maps the count values of the X motor to meters.
+		YMotorSens - Maps the count values of the Y motor to meters.
+		XCountStart - 16bit count corresponding to the minimum position the X motor can move.
+		LeftInitialPWM - 8bit count corresponding to the PWM first applied when the X motor moves to the left.
+		LeftFinalPWM - 8bit count corresponding to the PWM applied when the X motor approaches its final position during moves to the left.
+		LeftPWMSwitchCount - 16bit count corresponding to the maximum difference between the current position and the destination position when the PWM output is switched between initial and final values while the X motor moves left.
+		LeftPWMOffCount - 8bit count corresponding to the maximum difference between the current position and the destination position when the PWM output is switched off while the X motor moves left.
+		XCountStop - 16bit count corresponding to the maximum position the X motor can move.
+		RightInitialPWM - 8bit count corresponding to the PWM first applied when the X motor moves to the right.
+		RightFinalPWM - 8bit count corresponding to the PWM applied when the X motor approaches its final position during moves to the right.
+		RightPWMSwitchCount - 16bit count corresponding to the maximum difference between the current position and the destination position when the PWM output is switched between initial and final values while the X motor moves right.
+		RightPWMOffCount - 8bit count corresponding to the maximum difference between the current position and the destination position when the PWM output is switched off while the X motor moves right.
+		YCountStart - 16bit count corresponding to the minimum position the Y motor can move.
+		DownInitialPWM - 8bit count corresponding to the PWM first applied when the Y motor moves down.
+		DownFinalPWM - 8bit count corresponding to the PWM applied when the Y motor approaches its final position during down moves.
+		DownPWMSwitchCount - 16bit count corresponding to the maximum difference between the current position and the destination position when the PWM output is switched between initial and final values while the Y motor moves down.
+		DownPWMOffCount - 8bit count corresponding to the maximum difference between the current position and the destination position when the PWM output is switched off while the Y motor moves down.
+		YCountStop - 16bit count corresponding to the maximum position the Y motor can move.
+		UpInitialPWM - 8bit count corresponding to the PWM first applied when the Y motor moves up.
+		UpFinalPWM - 8bit count corresponding to the PWM applied when the Y motor approaches its final position during up moves.
+		UpPWMSwitchCount - 16bit count corresponding to the maximum difference between the current position and the destination position when the PWM output is switched between initial and final values while the Y motor moves up.
+		UpPWMOffCount - 8bit count corresponding to the maximum difference between the current position and the destination position when the PWM output is switched off while the Y motor moves up.
+		BottomViewLowMagImageSize - Size of the image produced by the bottom view low magnification camera, in meters.
+		BottomViewHighMagImageSize - Size of the image produced by the bottom view high magnification camera, in meters.
+		TopViewLowMagImageSize - Size of the image produced by the top view low magnification camera, in meters.
+		TopViewHighMagImageSize - Size of the image produced by the top view high magnification camera, in meters.
+		VideoOrientation - The side of the video that the tip shows up on.
+0	Left
+1	Top
+2	Right
+3	Bottom
+4	Undefined
+		HasLSInterlock - Indicates whether base has laser safety interlock functionality.
+0	No
+1	Yes
+
+Scanner
+	Default
+		Temperature (RO) - Returns the temperature in Celsius degrees as read from inside the Scanner.  Please note that it takes approximately 3/4 of a second to make a temperature reading, so what you get in return is actually the temperature from the last time this call was made.  After returning the last temperature, the sensor takes a new reading for the next time this parameter is read.  Therefore, the very first time you read this parameter, the value returned should be discarded.  The acuracy of the temperature readings will generally increase if you refrain from reading this parameter more than once per second.
+	InfoBlock
+		XPhase - Phase offset in the drive signal to the X-axis LVDT for best sensitivity (degrees).
+		YPhase - Phase offset in the drive signal to the Y-axis LVDT for best sensitivity (degrees).
+		XDiffAmpGain - Not currently used.
+		YDiffAmpGain - Not currently used.
+		DateWritten (RO, $) - Date that this InfoBlock was last written.
+		SerialNumber - Serial number of the Scanner.
+		DeviceRevision ($) - Revision code of the Scanner as an entire unit.
+		BoardRevision ($) - Revision code of the Scanner mainboard.
+		DateBuilt ($) - Build date of the Scanner as an entire unit.
+		Note ($) - Random ramblings of the test engineer.
+		ScanBoardRevision ($) - Revision code of the Scanner voltage distribution board.
+		XLVDTSens - Sensitivity factor for the X-axis LVDT (um/V).
+		YLVDTSens - Sensitivity factor for the Y-axis LVDT (um/V).
+		XPiezoSens - Open-loop sensitivity factor for the X-axis piezo (um/V).
+		YPiezoSens - Open-loop sensitivity factor for the Y-axis piezo (um/V).
+		XIGain - Optimum closed-loop integral gain factor for X-axis feedback.
+		YIGain - Optimum closed-loop integral gain factor for Y-axis feedback.
+		XSGain - Optimum closed-loop double-integral gain factor for X-axis feedback.
+		YSGain - Optimum closed-loop double-integral gain factor for Y-axis feedback.
+		PiezoType - Not currently used.
+		SafeMinimumVoltage - The minimum or most negative voltage that can be safely applied to either the X or Y piezos (V).
+		SafeMaximumVoltage - The maximum or most positive voltage that can be safely applied to either the X or Y piezos (V).
+		MaxScanSize - Approximately the largest non-rotated image scan possible (um).
+		HasDamping - Indicates whether or not the scanner has damping material applied.
+0	No
+1	Yes
+		XLVDTOffset - Offset for the X-axis LVDT in case sensor moves (um).
+		YLVDTOffset - Offset for the Y-axis LVDT in case sensor moves (um).
+		ClearanceMod - Version of clearance modification.  Zero indicates no modification.
+
+Head (from MFP3D system, not Cypher)
+	Default
+		ZPhase - Phase of the LVDT drive signal relative to the reference for the lock-in.  Not generally useful to change this after it has been calibrated at the factory.  Setting this value will turn on the oscillator if it was off.
+		Oscillator - Can turn off the oscillator that drives the LVDT circuitry for the Z axis.  Might be useful for an ultra-sensitive measurement if the head is run open loop.
+0	Off
+1	On
+		Relay - Even when the Z axis drive signal is set to zero using the Z D/A output, there is enough electronic noise in the amplifier stage such that the Z piezo will move around a little bit, thus making thermal cantilever measurements impossible.  This relay will open the path between the drive signal and piezo.  Note that it should be closed for normal operation.
+0	Open
+1	Closed
+		LEDBlinking - Can disable the blinking light.  Turned off automagically by xop (see ARC.QuietMode).
+0	Off
+1	On
+		PogoID (RO) - Used to identify the type of fluid cell module that has been attached.
+0	None (ie, nothing plugged in)
+1	Wire
+2	Clip
+3-255	Unknown
+		Temperature (RO) - Returns the temperature in Celsius degrees as read from inside the Head.  Please see the description of this parameter in the Scanner section for more information about making readings.
+	Laser - This section refers to a laser quadrant detector that looks like this.  I apologize for the crude ASCII graphics.
+							+-+-+
+							|A|B|
+							+-+-+
+							|C|D|
+							+-+-+
+		Sum (RO) - The sum of the laser light hitting all four quadrants of the detector.  Also known as A+B+C+D.  This parameter is a good indicator of crude laser alignment.  Sum could be used to normalize the Deflection and Lateral signals.
+		Deflection (RO) - The vertical component of the laser position.  Also known as (A+B) - (C+D).  This is now the same as Deflection in the Controller, which is no longer normalized by the Sum.
+		Lateral (RO) -  The horizontal component of the laser position.  Also known as (A+C) - (B+D).  In this case, the parameter is poorly named, as Lateral is also used as the name of the Sum normalized version of this signal.
+	InfoBlock
+		ZPhase - Phase offset in the drive signal to the Z-axis LVDT for best sensitivity (degrees).
+		ZDiffAmpGain - Not currently used.
+		DateWritten (RO, $) - Date that this InfoBlock was last written.
+		SerialNumber - Serial number of the Head.
+		DeviceRevision ($) - Revision code of the Head as an entire unit.
+		BoardRevision ($) - Revision code of the Head mainboard.
+		DateBuilt ($) - Build date of the Head as an entire unit.
+		Note ($) - Random ramblings of the test engineer.
+		LaserBoardRevision ($) - Revision code of the laser control board.
+		ZLVDTSens - Sensitivity factor for the Z-axis LVDT (um/V).
+		ZPiezoSens - Open-loop sensitivity factor for the Z-axis piezo (um/V).
+		PiezoType - Not currently used.
+		SafeMinimumVoltage - The minimum or most negative voltage that can be safely applied to the Z piezo (V).
+		SafeMaximumVoltage - The maximum or most positive voltage that can be safely applied to the Z piezo (V).
+		ZMaxScanSize - Approximately the largest force curve scan possible (um).
+		LaserType - Not currently used.
+		ZIGain - Optimum closed-loop integral gain factor for Z-axis feedback.
+		ZSGain - Optimum closed-loop double-integral gain factor for Z-axis feedback.
+		ZLVDTOffset - Offset for the Z-axis LVDT in case sensor moves (um).
+		ExtendedZ - Version of Extended Z Range.  Zero indicates no Extended Z Range.
+		NarrowbandSource - Version of Narrowband Source.  In the string returned, the first number is the center wavelength and the second is the passband width.
+0	None
+1	860:160nm
+2	860:40nm
+3	860:60nm
+
+Cypher	This is mainly the backpack, which is the box with vents on top and BNCs on one side that attaches to the back of the Cypher.
+	Default
+		LEDBlinking - These are little green lights on the backpack that normally cycle up and down. If you look in the vents at the top about 1/3 of the way from the left you can see them. There are no known benefits of turning this off.
+		ShuttleFunction - What the dial on the front of the Cypher does.
+				Disabled
+				Engage Motors (Up only)
+				Engage Motors		default
+		ShuttleValue - Value of shuttle.
+		Temperature0(RO) - This is the temperature in centigrade of the FPGA on the backpack.
+		Temperature1(RO) - This is the temperature in centigrade of the ambient temperature in the backpack. At the moment this is broken and always reads 0.
+		Power15V(RO) - Whether the 15V power connector is on and connected. This is supplied by a power brick that plugs into the backpack.
+	Input
+		FastA, FastB, A, B, C (RO) - Correspond to the bandwidth-limited (filtered) A/D inputs. FastA and FastB are the ADCs used by the lockins, LockinA and LockinB.  
+FastA(RO)	The A/D used by the lockin subsystem A
+FastB(RO)	The A/D used by the lockin subsystem B
+A(RO)	A/D A
+B(RO)	A/D B
+C(RO)	A/D C
+		FastA.Gain, FastB.Gain - Control the Fast ADCs. Hardware gain applied to the Fast ADC input, specified in dB.  Allowed gains are 0dB (1x), 14dB (5x), 20dB (10x), 26dB (20x).  If you change this while collecting data from the Fast A/D, you might notice a slight glitch in the middle of the wave.  Note that the Lockin values for i, q, and r are also affected since they are all ultimately calculated from data collected by the Fast A/D. 
+FastA.Filter.Freq	Lowpass digital filter applied to FastA. 
+FastA.Filter.Selectivity	How steep the digital filter is for FastA. 1 is a one pole filter. The other number that we use is 1000000, which is many poles.
+FastB.Filter.Freq	Lowpass digital filter applied to FastB. 
+FastB.Filter.Selectivity	How steep the digital filter is for FastB. 1 is a one pole filter. The other number that we use is 1000000, which is many poles.
+A & B & C.Filter.Freq	Lowpass digital filter applied to A, B, and C. 
+A & B & C.Filter.Selectivity	How steep the digital filter is for A, B, and C. 1 is a one pole filter. The other number that we use is 1000000, which is many poles.
+	Output
+				Z - Z output on the Cypher. At the moment you can't run this with a wave, just td_WriteValue. To use this you have to make sure that ARC.ZDACSource is set to Cypher.
+				A, B, C, D, E, F, - DAC outputs on the Cypher. At the moment you can't run these with a wave, just td_WriteValue. 
+	Gain
+				These all have 4 values, 0dB (1x), 14dB (5x), 20dB (10x), 26dB (20x). Increasing the gain decreases the range that you can look at. When you increase the gain on FastA or FastB the increased value that is read at the ADC is divided back out digitally when you read the ADC. If you are reading .5 V at 0bB gain then you will read .5 V at 20dB gain. The MathSum and MathDiff are not handled this way. .5 V at 0dB will be 5 V at 20dB gain.
+				FastA - This is the same parameter as Cypher.Input.FastA.Gain.
+				FastB - This is the same parameter as Cypher.Input.FastB.Gain.
+				MathSum - On the crosspoint panel there are some math functions available. You can set inputs into Math0 and Math1 and then add them together. This gain can then be used to boost those signals if they are small.
+				MathDiff - On the crosspoint panel there are some math functions available. You can set inputs into Math2 and Math3 and then subtract 3 from 2. This gain can then be used to boost those signals if they are small.
+				DriveAttenuation - On Cyphers with a V7 backpack you can attenuate the gain of the shake piezo drive by a factor of 100. If your Cypher can do this it will say Yes in Cypher.InfoBlock.HasGainAttenuation.
+	LVDT
+				These are various parameters for running and reading the X, Y, and Z LVDT sensors. 
+				XYDrivePeriod - ???.
+				ZDrivePeriod - ???.
+				XYDriveAmp - This is the amplitude that drives the X and Y LVDTs. They are separate sensors but they are driven with one drive signal. This value is saved in Cypher.Scanner.InfoBlock.Calibration.XYDriveAmp.
+				ZDriveAmp - This is the amplitude that drives the Z LVDTs. This value is saved in Cypher.Scanner.InfoBlock.Calibration.ZDriveAmp.
+				X(RO) -  This is where you read the X sensor.
+				X.Phase - This is the phase of the drive signal that drives the X sensor. It is adjusted so that the sensor is the most sensitive, then the sensitivity is recorded in Cypher.Scanner.InfoBlock.Calibration.XLVDTSens. If this value is changed then that number will no longer be correct.
+		 		X.Filter.Freq - This is a low pass digital filter on the output of the X sensor. 
+		 		X.Filter.Selectivity - This is how sharp the digital filter on the output of the X sensor is.
+				Y(RO) -  This is where you read the Y sensor.
+				Y.Phase - This is the phase of the drive signal that drives the Y sensor. It is adjusted so that the sensor is the most sensitive, then the sensitivity is recorded in Cypher.Scanner.InfoBlock.Calibration.YLVDTSens. If this value is changed then that number will no longer be correct.
+		 		Y.Filter.Freq - This is a low pass digital filter on the output of the Y sensor. 
+		 		Y.Filter.Selectivity - This is how sharp the digital filter on the output of the Y sensor is.
+				Z(RO) -  This is where you read the Z sensor.
+				Z.Phase - This is the phase of the drive signal that drives the Z sensor. It is adjusted so that the sensor is the most sensitive, then the sensitivity is recorded in Cypher.Scanner.InfoBlock.Calibration.ZLVDTSens. If this value is changed then that number will no longer be correct.
+		 		Z.Filter.Freq - This is a low pass digital filter on the output of the Z sensor. 
+		 		Z.Filter.Selectivity - This is how sharp the digital filter on the output of the Z sensor is.
+	LockinA
+	LockinB
+				These are the two lockins available out on the Cypher. They are dual lockins, each has a 0 and 1 lockin. In the parameter names below .n means that there is both a 0 and a 1 parameter. There are also the same parameters for LockinA and LockinB.
+				DCOffset - This is an constant voltage added to drive signal. It is not a separate number for 0 and 1.
+				n.Freq - The frequency that this lockin is being run at.
+				n.FreqOffset - A frequency offset that is added to n.Freq. This is limited to  ±1.2KHz on 0, and ±76.8 KHz on 1. This is mainly used for frequency feedback loops. Since the range is smaller you can read back the FreqOffset with a 16 bit channel and get good resolution.
+				n.PhaseOffset - A This is used to set the phase to 90° at the resonant frequency. We don't know the phase lag of the various paths the between the output of the DDS and reading the cantilever signal, but we do know that physically the phase lag at the cantilever is 90°.
+				n.Amp - The amplitude in volts of the DDS drive signal that is used to drive the piezo stack that drives the cantilever.
+				LockinA.O.QGain - This is the gain on a feedback loop that drives the cantilever. It adjusts the LockinA.0.Amp using LockinA.0.r as an input. If QAngle is set to -90, then increasing the QGain increases the amplitude. A negative number will decrease the amplitude. This is not available for LockinB or LockinA.1.
+				LockinA.0.QAngle - The stock setting for this is -90. If set to 90 the QGain works in the opposite direction. If you set it to any other number you are on your own.
+				n.i(RO) - Down converted in phase component. 
+				n.q(RO) - Down converted quadrature component. 
+				n.r(RO) - Magnitude calculated from filtered i and q. 
+				n.theta(RO) - Phase calculated from filtered i and q. 
+				n.Filter.Freq - Low pass filter frequency on i and q. 
+				n.Filter.Selectivity - Steepness of low pass filter on i and q. 1 is one pole, the default is 1000000, which is many poles.
+				LockinA.0.Notch.Enable - Turns on the notch filter. The upper level software turns this off when 0.Freq is above 150KHz.
+				LockinA.0.Notch.Freq - This is the frequency of the notch filter. On the ARC lockin there is a low pass filter that is used to filter out the 2f component. This mainly matters when the resonant frequency of the cantilever is near a frequency divisible by 25KHz. On the Cypher this low pass filter had its bandwidth increased so that feedback loops would work faster. This has the drawback on the Cypher that if the resonant frequency of the cantilever is less than 150KHz the 2f component can affect the amplitude if the resonant frequency is near a frequency divisible by 25KHz. This notch filter has been added to fix this. Whenever LockinA.0.Freq is set, LockinA.0.Notch.Freq is automatically set to twice the frequency. This parameter does not exist for LockinA.1 or LockinB. This value can be set to a frequency, but it will be overwritten whenever 0.Freq is written.
+				LockinA.0.Notch.BandWidth - Sets the bandwidth of the notch filter. When 0.Freq is set this is set to 20% of 0.Notch.Freq.
+				RelativePhase - This is the Phase difference between the .0 and .1 drive signals. Only means anything when the divisor of the two frequencies is an integer. 
+
+	Crosspoint - Each of these parameters corresponds to one of 32 crosspoint switch outputs.  Each parameter can be set to one of 33 different values, which correspond to the crosspoint switch inputs.  You can set the crosspoint switch one parameter at a time using td_WriteString, but since each individual update forces an update of the entire crosspoint switch, it is recommended that you set up an entire text wave and then use td_WriteGroup to update the entire crosspoint switch once. These are all strings.
+InA	Connected to Cypher.Input.A
+InB	Connected to Cypher.Input.B
+InFastA	Connected to Cypher.Input.FastA
+InFastB	Connected to Cypher.Input.FastB
+ContInX	Connects to the ARC X Sensor ADC
+ContInY	Connects to the ARC Y Sensor ADC
+ContInZ	Connects to the ARC Z Sensor ADC
+ZZHV	???
+PFMHV	???
+BNCOut0	Attached to Cypher BNC Output 0
+BNCOut1	Attached to Cypher BNC Output 1
+BNCOut2	Attached to Cypher BNC Output 2
+BNCOut3	Attached to Cypher BNC Output 3
+BNCOut4	Attached to Cypher BNC Output 4
+ContDefl	Connects to the ARC Deflection input
+ContPogoIn0	Connects to the ARC Pogo In 0 input
+ContPogoIn1	Connects to the ARC Pogo In 1 input
+Unused	Not hooked up to anything
+ExpOut0	There is an expansion port on the backpack between the main connector and the USB port. This is hooked up to a line in that.
+ExpOut1	Same as 0 with a different line
+ExpOut2	Same as 0 with a different line
+Math0	These are inputs to adding, subtracting, or inverting circuits.
+Math1	These are inputs to adding, subtracting, or inverting circuits.
+Math2	These are inputs to adding, subtracting, or inverting circuits.
+Math3	These are inputs to adding, subtracting, or inverting circuits.
+Math4	These are inputs to adding, subtracting, or inverting circuits.
+Headphone	This is hooked up to the headphone jack above the BNCs on the backpack.
+Sample	This is hooked up to a hole in the back of the scanner that you can stick a wire in and then connect that to the sample.
+HolderOut0	This is usually hooked up to the metal finger that holds the cantilever in. This is called Chip on an MFP3D.
+HolderOut1	This is usually hooked up to the piezo that shakes the cantilever. This is called Shake on an MFP3D.
+HolderOut2	This is an extra connection to the cantilever holder that usually isn't used.
+		Each of the above parameters can be set to one of the following values, which correspond to a crosspoint switch input.
+Off	Turns off the crosspoint connection to the outside world.
+OutA	Connected to Cypher.Output.A
+OutB	Connected to Cypher.Output.B
+OutC	Connected to Cypher.Output.C
+OutD	Connected to Cypher.Output.D
+Defl	Deflection signal
+ACDefl	A/C coupled deflection signal
+Lateral	Lateral signal
+BNCIn0	Attached to Cypher BNC Input 0
+BNCIn1	Attached to Cypher BNC Input 1
+BNCIn2	Attached to Cypher BNC Input 2
+BNCIn3	Attached to Cypher BNC Input 3
+BNCIn4	Attached to Cypher BNC Input 4
+Ground	See ARC crosspoint
+ContPogoOut	Output from the ARC crosspoint PogoOut
+ContChip	Output from the ARC crosspoint Chip
+ContShake	Output from the ARC crosspoint Shake
+HolderIn0	This is an input from the cantilever holder. If you have an Orca holder then this is used for Current.
+HolderIn1	The Holder In 0 & 1 don't have to be anything particular from the cantilever holder. On a dual gain Orca holder HolderIn1 is used for the low gain Current.
+ExpIn0	Input line hooked up to expansion port. The Cypher expansion port is between the main connector and the USB port on the backpack.
+ExpIn1	Input line hooked up to expansion port.
+ExpIn2	Input line hooked up to expansion port.
+M0+M1	Sum of what is being input to Math0 and Math1
+M2-M3	Math2 minus Math3
+-M4	Inverted Math4 signal
+OutE	Connected to Cypher.Output.E
+OutF	Connected to Cypher.Output.F
+DDSA	Connected to the Cypher A DDS output
+DDSA	Connected to the Cypher B DDS output
+
+The crosspoint switch is easiest to see and use using the menu Programming:Crosspoint Panel. This is especially true on a Cypher so that you can see the ARC crosspoint at the same time.
+
+	Event - Each of these parameters correspond to a different event.  These events can be used to trigger waves, feedback loops, etc.  They are handy for synchronization of different functions.
+		Always, Never (RO) - Constants.
+Never	Always Clear.
+Always	Always Set.
+		0 - 14 - These events are available to both Cypher and ARC. There is no reason to look at the Cypher version, since it is the same as the ARC.
+Clear	Clear the trigger.  Will stop any wave any wave dependent on it from starting again, but will not stop any waves already in progress.  Use td_StopInWaveBank, td_StopOutWaveBank, or td_Stop to stop waves already in progress.
+Set	Set the trigger.  Will allow any wave dependent on it to start running.
+Once	Sets the trigger, allows one data collection cycle to pass, then clears the trigger.  This should allow any waves dependent on the event to run only once. Once doesn't clear an event that is Set.
+		Local.0 - 14 - These events can only be seen on the Cypher. Unlike all of the rest of the events, these are variables instead of strings.
+
+	Outtwave - This is the only outwave that you can run out on a Cypher.
+		  
+Channel	What you are going to drive. You can sweep the frequency of both banks of both lockins.
+StartValue	The starting frequency. This must be lower than the EndValue. If it isn't there isn't an error, it just won't ramp.
+EndValue	The starting frequency. This must be higher than the StartValue.
+RampRate	The speed of the ramp. Must be positive.
+Event ($)	The event that starts the ramp.
+Status	This is 1 when it is running. It must be set to 0 before the event will start it. Setting it to -1 will keep it from running.
+
+	Capture - You can capture data at up to 80 MHz. See td_ReadCapture.
+		  
+0.Input (RO)	Input.FastA This actually go beyond being read only, in that it never changes either.
+0.Rate	The capture rate. 5, 20, or 80 MHz. The space between the number and the M has to be there when writing. The value is 0 for 80, 1 for 20, and 2 for 5.
+0.Length	The length of the wave that is filled with data. It is set to this size, the previous size of the wave doesn't matter.
+0.Trigger	.The two choices are Off and Now. Capturing the data starts when this is written to Now.
+	PIDSLoop.n - Feedback loops, where n is 0-6. This is mostly just copied from ARC.PIDSLoop.n. The Cypher has a special set of feedback loops that only work on restricted set of inputs and outputs.
+InputChannel (RO, $)	The input to the feedback loop.  On the Cypher these can only be certain values according to which loop it is. This can be set using td_WriteGroup only and is read only for td_WriteValue
+0.InputChannel	LockinA.0.i or LockinA.1.i
+1.InputChannel	LockinA.0.theta or LockinA.1.theta
+2.InputChannel	LockinA.0.r or LockinA.1.r
+3.InputChannel	LockinA.0.FreqOffset or LockinA.1.FreqOffset
+4.InputChannel	LockinA.0.Amp
+5.InputChannel	Input.FastA
+6.InputChannel	LockinA.0.r
+
+OutputChannel (RO, $)	The output driven by the feedback loop.  On a Cypher these can only be certain values according to which loop it is. This can be set using td_WriteGroup only and is read only for td_ReadValue. The rest of the PIDSLoop parameters can be set using both td_WriteGroup and td_WriteValue. Changing either of these channels will stop the PIDSLoop and redefine the parameters using the information provided in td_WriteGroup. 
+0.OutputChannel	LockinA.0.FreqOffset or LockinA.1.FreqOffset
+1.OutputChannel	LockinA.0.FreqOffset or LockinA.1.FreqOffset
+2.OutputChannel	LockinA.0.Amp or LockinA.1.Amp
+3.OutputChannel	Output.Z
+4.OutputChannel	Output.Z
+5.OutputChannel	Output.Z
+6.OutputChannel	Output.Z
+
+n.DynamicSetpoint	 A boolean to let the feedback loop automatically set the setpoint to the current value grabbed from the specified input channel. This setting overrides the value of the Setpoint. If you have a feedback loop using the LVDT to control Z, this feature is useful for locking the the Z position to whatever the value happens to be when the PISLoop is triggered.
+n.Setpoint	The reference value for the input signal, where error = setpoint - input. Since the units of this parameter are derived from the input signal, setting this parameter before the InputChannel is defined will result in an error.
+n.SetpointOffset	Added to the setpoint such that Setpoint + SetpointOffset is the actual reference.  Since the units of this parameter are derived from the input signal, setting this parameter before the InputChannel is defined will result in an error.
+n.DGain	Differential gain. This is not hooked up on the Cypher PIDS loops. You can put anything you want in here and it doesn't do anything.
+n.PGain	Proportional gain. 
+n.IGain	Integral gain.
+n.SGain	Secret gain. Not hooked up on the Cypher PIDS loops.
+n.OutputMin, n.OutputMax	The control signal from the feedback loop is limited to the min and max set by these parameters. Since the units of this parameter are derived from the output, setting this parameter before the OutputChannel is defined will result in an error.
+n.StartEvent, n.StopEvent	The start and stop event triggers for the feedback loop. When the StartEvent is triggered, the feedback loop will begin immediately.  When the StopEvent is triggered and the StartEvent has cleared, the loop will end, after making one more pass. When StartEvent and StopEvent are set to the same event, the loop will toggle between start/stop everytime the event is triggered. Events may be any of those listed in the Event section of Parameter Names.  Note that you do not have to specify the group name, as Event will always be assumed.  "0" refers to "Event.0". To prevent glitches in the output, every time the loop is activated by its start event after being off, the internal accumulators are initialized to the current value of the output.  Plus any dyamic setpoints are grabbed every time the loop is activated via its event.
+n.Status	When read, returns the status of the feedback loop.  
+-1	Loop is not defined.
+0	Loop is defined but not active.
+1	Loop is active.
+	If written, effects the state of the feedback loop.
+-1	Stop and undefine or unset the loop immediately.
+0	Stop the loop immediately.
+1	Start the loop immediately.
+Writing a "-1" is the only way to unset the loop so that it can be redefined later. Even though the loop is unset, the other PIDSLoop parameters will remain, though not usable, so that the user may review the previous loop definition. Redefining the PIDSLoop will update these parameters using the information provided in td_WriteGroup. Beware! when writing 1 to the Status. If the feedback loop was off and this parmater is used to start it, the feedback loop will skip the process of resetting the accumulators to match the current output and setting the setpoint to match the input if a dynamic setpoint was requested.  If the feedback loop is active and this parameter is used to stop, the feedback loop will shut off immediately instead of going through one more pass like the StopEvent.  The start and stop events have a priority over the Status. 
+
+Looking at the feedback loops is much easier using the menu Programming:Xop Tables: PISLoops. This goes double for the cypher loops.
+	InfoBlock - Information about this particular Cypher.
+DateWritten (RO)	The date of the last time that the info block was written.
+SerialNumber	The serial number of this Cypher.
+DeviceRevision	Revision of this Cypher.
+BoardRevision	Revision of this Cypher's circuit board.
+DeviceRevision	When this Cypher was built.
+Note	Random musings of somebody.
+CurrentSensorSens		Sensitivity of the sensor that measures the current drawn by the H-bridge.
+CurrentSensor0Offset	Offset of the 0 sensor.
+CurrentSensor1Offset	Offset of the 1 sensor.
+Has15VDetection	Can detect whether the 15V power supply is on.
+HasGainAttenuation	Whether this Cypher can attenuate the gain by a factor of 100.
+
+
+
+•	MFP-3D Controller Error Code Reference
+The following error constants can be found in xARXOPDefs.ipf
+
+// basic error codes
+Constant ae_None	= 0;		// no error
+Constant ae_NotImplementedYet	= 1;		// whatever was asked for is not implemented yet
+Constant ae_File		= 2;		// some problem with trying to read or write a file
+
+//specific
+// ParmLib error codes
+Constant ae_BadParm	= 3;		// requested parameter is bad or does not exist
+Constant ae_BadParmGroup	= 4;		// requested parameter group is bad or does not exist
+Constant ae_BadValue	= 5;		// value sent to parameter is somehow bad
+Constant ae_BadParmXML	= 6;		// error in file used to recreate parameter lists
+Constant ae_DWARFInfoNotFound	= 7;		// variable missing or misnamed in Smart Start or DSP Director 							//module
+Constant ae_DWARFInfoBad	= 8;		// bad variable information in Smart Start or DSP Director 								//module
+Constant ae_libelfDLL	= 9;		// could not load the libelf.dll file
+Constant ae_BadAlias	= 10;	// requested alias is bad or does not exist
+Constant ae_BadProperty	= 11;	// property used in wrong context, or doesn't exist
+Constant ae_BadFunction	= 12;	// function used in wrong context, or doesn't exist
+
+// more basic error codes
+Constant ae_OutOfRange	= 20;	// one of the parameters exceeds the range for the function
+
+// Igor specific codes
+Constant ae_WaveInUse	= 100;	// can't use the wave given because in use elsewhere
+Constant ae_BadWaveType	= 101;	// type of wave sent was not expected
+Constant ae_BadWaveLength	= 102;	// length of wave sent was not expected
+Constant ae_CannotUseSameWave	= 103;	// same wave cannot do two different things
+Constant ae_MismatchedWaveLength	= 104;	// one wave's length does not match the other
+
+// MFP3DXop error codes
+Constant ae_NotConnectedYet	= 1101;	// not connected to a controller yet
+Constant ae_USB	= 1102;	// problem with the USB, likely that DSP has hung
+Constant ae_SSB	= 1103;	// problem with the SmartStart Bus, maybe device has hung
+Constant ae_OneWire	= 1104;	// problem with OneWire Bus, maybe device has hung
+Constant ae_BadDevice	= 1105;	// requested device is bad or does not exist
+Constant ae_BlankDevice	= 1106;	// device is blank *or* needs programming to latest version
+Constant ae_FirmwareFailure	= 1107;	// problem with device firmware or firmware upload
+Constant ae_VersionMismatch	= 1108;	// device code does not match code found by xop
+Constant ae_JumperSet	= 1109;	// device has programming jumper set
+Constant ae_Verify	= 1110;	// verification during device programming has failed
+Constant ae_FlashNotValid	= 1111;	// device program or infoblock has problems
+//Constant ae_FlashLocked	= 1112;	// cannot program flash because lock flag set
+Constant ae_BadBankNumber	= 1113;	// bank number was not expected
+Constant ae_BadInterpDecimFactor	= 1114;	// interpolation or decimation factor was not expected
+Constant ae_BadEventName	= 1115;	// event name was not expected
+Constant ae_BadEventTriggerName	= 1116;	// event trigger name was not expected
+Constant ae_PIDSLoopNotConfigured	= 1117;	// appropriate PIDSLoop must be configured first
+Constant ae_ThermalMode	= 1118;	// can't do that because we are in thermal mode
+Constant ae_ChannelNotConfigured	= 1119;	// appropriate CTFC channel must be configured first
+Constant ae_ScanChannelNotConfigured	= 1120;	// appropriate scan channel must be configured first
+Constant ae_Cypher	= 1121;	// problem talking to cypher
+Constant ae_ParmNotEditable	= 1122;	// parameter cannot be changed using the current 			//command/operation
+Constant ae_FastScanNotConfigured	= 1123;	// FastScan must be configured first
+
+// ARStatusBar error codes
+Constant ae_BadPosition	= 2001;	// no button or text at this position value
+Constant ae_NotStatusText	= 2002;	// operation only works on status text area
+
+//more general errors
+Constant ae_Generic	= 40000;	// an error for which we have no specific error code
+Constant ae_OS		= 40001;	// an os error happened for which we have no alternate error 				//code
+Constant ae_NeedAdminPrivs	= 40002;	// need administrator priveleges to continue
+Constant ae_AdditionalErrorCodes	= 50000;	// error codes starting with this value or greater are application 	
+
+•	MFP-3D Controller Function Reference
+
+Please read the Device, Group, and Parameter Reference before proceeding.
+
+td_XopVersion()
+Returns a string containing the version number of the MFP3D Xop.
+
+Function Result
+
+Current version string in the form of "YYYYT.VV.UP.RC", where
+	YYYY is the year
+	T is the trimester (1=February, 2=June, 3=October)
+	VV is the version (might be more than two digits)
+	UP is the version update number
+	RC is the release candidate number
+
+
+td_SetStatusText(icon, message, tip)
+Sets text in the status bar.  This shares the same space as the controller connection status.  Calling this function with no icon and no message will result in the last controller status reappearing.
+
+Parameters
+
+icon	Which icon to display next to status text.
+	-1 = no icon
+	0 = green circle white checkmark
+	1 = blue circle white i
+	2 = yellow triangle black exclamation
+	3 = red circle white x
+
+message	String containing the message to show.  Insert \n to break lines.  If first character is an exclamation point, it will be removed and a large font will be used.
+
+tip	String containing the tip to show above the message when user hovers mouse cursor over message. Insert \n to break lines.  Empty string means no tip.
+
+Function Result
+
+Always 0.
+
+Example	print td_SetStatusText(2, "too much text\nhere to fit into\nthis small box", "this is a crackin' good tip!\nand this can multi-line")
+
+td_SetStatusBar(textWave)
+Creates additional buttons and status text areas, as described by the context of the given text wave.  All text may be wrapped onto another line by using \n.  Whatever buttons and status sections that are setup will be completely replaced by this function.  They will also be wiped out on each New Experiment.
+
+Parameters
+
+textWave	Each column describes a button or a status text area.  Must contain each of the five rows, with the following row labels.  Rows can be in any order and additional rows are ignored.
+	text = text to display on button (if no icon) or in status area; if first character is an exclamation point, it will be removed and a large font will be used; can be empty
+	icon = name of icon to display; can be empty (see td_GetStatusBar for list of available icons); a large icon is used on the button and a small icon is used next to the status text
+	width = width of status area; if 0, this is a button
+	tip = tooltip; anything before a semicolon is the title; can be empty
+	callback = Igor script code to execute when button pressed; can be empty
+
+Note
+
+A gap can be created between buttons or status areas by including a completely blank status area and specifying a small width.  If you try to use the table cell editor, you won't be able to use \n to break the lines because Igor's table editor sucks (use the command line to set the value).  You can wipe out all the buttons by specifying a NULL wave like this - $"" - that is dollar sign quote quote.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference
+
+
+td_GetStatusBar(textWave)
+Retrieves the current button and status section setup and places it in the textWave.  This textWave can be passed back into td_SetStatusBar.  This function also returns the available icon names.
+
+Parameters
+
+textWave	Each column describes a button or a status text area, as in td_SetStatusBar.  See that function for a list of data rows.  An additional row is added by this function.
+	iconNames = a semicolon separated list of all the icon names that are available; the meaning of the numbers at the end can be found in td_SetStatusText.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference
+
+
+td_SetStatusObject(position, text, icon, tip, callback)
+Changes an existing button or status area previously set up by td_SetStatusBar.
+
+Parameters
+
+position	Position of item to change.  This corresponds to the column used to create it in td_SetStatusBar.
+
+text	Changes either the button text (if no icon) or the status area text.  Insert \n to break lines.  If first character is an exclamation point, it will be removed and a large font will be used.  Can be empty.
+
+icon	Changes either the large button icon or the small icon next to the status area text.  Can be empty.
+
+tip	Changes the tooltip message that shows above the button or status text when the moust hovers over this item. Insert \n to break lines.  Anything before a semicolon becomes the tooltip title.  Can be empty.
+
+callback	Changes the lgor script code that will be executed if this item is a button and it gets pressed.  Can be empty.
+
+
+Function Result
+
+See MFP-3D Controller Error Code Reference
+
+
+td_SetProgress(position, value)
+Adds or removes a progress bar in the lower right part of an existing status area previously set up by td_SetStatusBar.  If the status text is too long, the progress bar can overwrite it.  Under Windows 7, the last value set by this function will also set a green status across Igor's application icon in the taskbar.
+
+Parameters
+
+position	Position of status text to modify.  This corresponds to the column used to create it in td_SetStatusBar.
+
+value	A value between and including 0 through 1.  Values outside of this range will set the progress bar to maximum or minimum, but an error will be returned.  NaN will remove the status bar.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference
+
+
+td_SetWarning(position, onOff)
+Changes an existing status area previously set up by td_SetStatusBar to orange, and then blinks it five times, one second per blink.  Igor's icon in the Windows Toolbar will also turn orange and blink for a similar amount of time.  If Igor is not the active window, the Igor icon will continue to blink until the user brings Igor to the foreground. 
+
+Parameters
+
+position	Position of status text to set orange and blink.  This corresponds to the column used to create it in td_SetStatusBar.
+
+onOff	A non-zero value will activate the warning.  A value of zero will turn the warning off and return the status text area to its normal color.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference
+
+
+td_ControllerReset()
+Stops all controller activity, resets the controller, and unsets any associated Igor waves.  Note that the Xop will automatically upload software to the controller after reset.  This function should not be used unless communication with the controller appears to be lost.  If this does not work, you will have to power cycle the controller.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference
+
+See Also	td_Stop, td_SoftReset
+
+
+td_ScanForDevices()
+Causes the Controller to scan all of its busses to check for device changes.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference
+
+See Also	td_GetDevices
+
+
+td_GetDevices(textWave)
+Returns a list of all devices currently connected in the MFP-3D system. Please note that this returns the results from the last scan.  If devices have been unplugged since the last scan, the results of this function will be inaccurate.  You probably want to call td_ScanForDevices before using this function.
+
+Parameters
+
+wave	A text wave in which you want to store the devices.  The row label contains the name of the device as it is known on the bus and the string value contains the type of the device.  These two are often the same unless you have multiple devices of the same type on the bus.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference
+
+See Also	td_ScanForDevices
+
+
+td_ReadValue(parameterName)
+Returns the value of the specified parameter, making a trip to the device on which the parameter is located if need be.
+
+Parameters
+
+parameterName	String containing the parameter name.  See Parameter Names for more information.
+
+Function Result
+
+	Value of the parameter in its native units (typically Volts or Hertz).  A value of NaN will be returned if the parameter name is bad or the device on which it resides is disconnected.
+
+See Also	td_WriteValue, td_ReadString
+
+
+td_RV(parameterName)
+Alias for td_ReadValue.
+
+
+td_WriteValue(parameterName, value)
+Sets the value of the specified parameter, making a trip to the device on which the parameter is located if need be.
+
+Parameters
+
+parameterName	String containing the parameter name.  See Parameter Names for more information.
+
+value	Value of the parameter in its native units (typically Volts or Hertz).  The maximum and minimum value possible can be found using td_GetRange.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.  Note that trying to write a single infoblock parameter is not allowed.  You must write them all at once as a group.
+
+See Also	td_ReadValue, td_WriteString
+
+
+td_WV(parameterName, value)
+Alias for td_WriteValue.
+
+
+td_ReadString(parameterName)
+Returns the value of the specified parameter, making a trip to the device on which the parameter is located if need be.  Note that in general, you will want to use td_ReadValue instead of this function whenever it makes the most sense to use values.  String parsing is computationally expensive as well as not as accurate as using values.
+
+Parameters
+
+parameterName	String containing the parameter name.  See Parameter Names for more information.
+
+Function Result
+
+	A string containing the value of the parameter with its native units appended (if any).  A string of "*ERROR*" will be returned if the parameter name is bad or the device on which it resides is disconnected.
+
+See Also	td_WriteString, td_ReadValue
+
+
+td_RS(parameterName)
+Alias for td_ReadString.
+
+
+td_WriteString(parameterName, valueString)
+Sets the value of the specified parameter, making a trip to the device on which the parameter is located if need be.  Note that in general, you will want to use td_WriteValue instead of this function whenever it makes the most sense to use values.  String parsing is computationally expensive as well as not as accurate as using values.
+
+Parameters
+
+parameterName	String containing the parameter name.  See Parameter Names for more information.
+
+valueString	A string containing the value of the parameter.  For now, any units appended to the end of the string are ignored, and the conversion uses the native units of the parameter.  However, you should add native units anyway, as one day, they won't be ignored.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.  Note that trying to write a single infoblock parameter is not allowed.  You must write them all at once as a group.
+
+See Also	td_ReadString, td_WriteValue
+
+
+td_WS(parameterName, valueString)
+Alias for td_WriteString.
+
+td_ReadMany(prefixString, waveString)
+(This function is actually capable of a great many things, but I will document only a small fraction of them here as this functionality is likely to get broken up in the future.)  Reads a wave full of string values from parameters who's name is determined by concatenating the prefixString with the text found in the second column of the wave or in the wave label.  It is like calling td_ReadString for each such parameter.
+
+Parameters
+
+prefixString	String that forms the basis of each item in the wave.  This string can be empty.
+
+waveString	This can be one or two columns depend on whether the name information for each parameter is placed in the row label or the second column.  Using the second column is recommended because row labels are limited in length.
+
+Function Result	This function will try to read all the parameters, even if errors are encountered in the middle of updating.  The last error encountered, if any, will be the one reported.  Values appear in the first column.
+
+See MFP-3D Controller Error Code Reference.
+
+See Also	td_ReadGroup
+
+Example	make /t test
+	edit test.ld
+	redimension/n=2 test
+	test[][1] = { "Input.A", "Input.B"}
+	print td_ReadMany("ARC", test)
+	print td_ReadMany("Cypher", test)
+
+td_RM(prefixString, waveString)
+Alias for td_ReadMany.
+
+td_WriteMany(prefixString, waveString)
+(This function is actually capable of a great many things, but I will document only a small fraction of them here as this functionality is likely to get broken up in the future.)  Writes a wave full of string values from parameters who's name is determined by concatenating the prefixString with the text found in the second column of the wave or in the wave label.  It is like calling td_WriteString for each such parameter.
+
+Parameters
+
+prefixString	String that forms the basis of each item in the wave.  This string can be empty.
+
+waveString	This can be one or two columns depend on whether the name information for each parameter is placed in the row label or the second column.  Using the second column is recommended because row labels are limited in length.  The value that each parameter will be set to should be in the corresponding cell in the first column.  Any parameters which are read-only will be ignored.
+
+Function Result	This function will try to write all the parameters, even if errors are encountered in the middle of updating.  The last error encountered, if any, will be the one reported.
+
+See MFP-3D Controller Error Code Reference.
+
+See Also	td_WriteGroup
+
+Example	make /t test
+	edit test.ld
+	redimension/n=2 test
+	test[][1] = { "Output.A", "Output.B"}
+	test[][0] = { "1 V", "2 V"}
+	print td_WriteMany("ARC", test)
+	print td_WriteMany("Cypher", test)
+
+td_WM(groupName, wave)
+Alias for td_WriteMany.
+
+td_ReadGroup(groupName, wave)
+Reads a wave full of values or strings (depending on supplied wave type) from the device on which the group resides.  It is like calling td_ReadValue or td_ReadString for each parameter in the group.  This function is extremely useful for debugging, especially if the resulting wave is then displayed in a table with its row labels.
+
+Parameters
+
+groupName	String containing the group name.  See Group Names for more information.
+
+wave	A wave of values or strings.  Note that using waves with variable types other than doubles or floats may result in truncated data.  For now, anything in the wave before the call is made is erased.  In the future, this might not be true.  So to "future proof" your code, you should empty the wave before passing it.  After the call is made, the row labels of the wave will contain the parameter name and the value or string section will be filled in with appropriate data.
+
+Function Result	This function will try to read all the parameters, even if errors are encountered in the middle of updating.  The last error encountered, if any, will be the one reported.
+
+See MFP-3D Controller Error Code Reference.
+
+See Also	td_WriteGroup
+
+
+td_RG(groupName, wave)
+Alias for td_ReadGroup.
+
+
+td_WriteGroup(groupName, wave)
+Writes a wave full of values or strings (depending on supplied wave type) to the device on which the group resides.  It is like calling td_WriteValue or td_WriteString for each parameter specified by a row label.  This function is extremely useful for debugging, especially if the wave is displayed in a table with its row labels.  You can easily type in new values for the various parameters, then call this function.
+
+Parameters
+
+groupName	String containing the group name.  See Group Names for more information.
+
+wave	A wave of values or strings.  Note that using waves with variable types other than doubles or floats may result in truncated data.  Before the call is made, the row labels of the wave should contain the parameter names that you want updated and the value or string section should be filled in with appropriate data.  You do not need to specify every parameter in a group.  Any row labels which do not match a parameter in the group will be ignored.  Any parameters which are read-only will also be ignored.
+
+Function Result	This function will try to read all the parameters, even if errors are encountered in the middle of updating.  The last error encountered, if any, will be the one reported.
+
+See MFP-3D Controller Error Code Reference.
+
+See Also	td_ReadGroup
+
+
+td_WG(groupName, wave)
+Alias for td_WriteGroup.
+
+
+td_GetLabel(parameterName)
+Returns the full label of the specified parameter.  The label is often similar to the parameter name, but not always.  The label always includes the spaces, so this function would be handy for dynamically creating dialog boxes for various parameters.
+
+Parameters
+
+parameterName	String containing the parameter name.  See Parameter Names for more information.
+
+Function Result
+
+	A string containing the label of the parameter.  If the parameter doesn't exist, "*ERROR*" will be returned.
+
+See Also	td_GetGroupLabels
+
+
+td_GetGroupLabels(groupName, textWave)
+Returns the full labels for all parameters for which row labels have been specified.  It is like calling td_GetLabel for every specified parameter in the wave.
+
+Parameters
+
+groupName	String containing the group name.  See Group Names for more information.
+
+textWave	A text wave containing row labels for each parameter of interest.  After the call, the string will be filled in with the corresponding labels.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+See Also	td_GetLabel
+
+
+td_GetRange(parameterName)
+Returns the range of the specified parameter.  This function would be handy for dynamically creating dialog boxes for various parameters.
+
+Parameters
+
+parameterName	String containing the parameter name.  See Parameter Names for more information.
+
+Function Result
+
+	A string containing the range of the parameter.  If the parameter doesn't exist, "*ERROR*" will be returned.  The string might look like one of the following examples.  If it is empty, that means the parameter cannot be written.
+
+#I32;min;max	Based on a 32bit integer
+#I16;min;max	Based on a 16bit integer
+#I8;min;max	Based on an 8bit integer
+#F;min;max	Based on a 32bit floating point value
+#V;min;max	Unknown value size
+#Dlen	String of length len that contains a date
+#RAlen	String of length len that contains an alpha revision code (eg, 2.3C)
+#RElen	String of length len that contains an ECO revision code (eg, 2.4.13)
+#Slen	String of length len
+#Xnum;str;str...	Indexed strings, of amount num
+
+See Also	td_GetGroupRanges
+
+
+td_GetGroupRanges(groupName, textWave)
+Returns the ranges for all parameters for which row labels have been specified.  It is like calling td_GetRange for every specified parameter in the wave.
+
+Parameters
+
+groupName	String containing the group name.  See Group Names for more information.
+
+textWave	A text wave containing row labels for each parameter of interest.  After the call, the string will be filled in with the corresponding ranges.  See td_GetRange for information on the format of the text value returned.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+See Also	td_GetRange
+
+td_CacheData(floatWave)
+Keeps up to 12 different values continuously updated (every 100ms).  Hopefully, this will take much less time than polling the controller using td_ReadValue for individual items.  Useful for keeping something like a meter panel updated.
+
+Parameters
+
+floatWave	This must be a single-precision floating point wave.  The row labels contain the items to monitor, which can be parameters that td_xSetInWavePair allows.  The wave will be locked while caching is running.  To halt data collection, send a null wave reference using $""
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+Example	make /o test
+	edit test.ld
+	setdimlabel 0,0,'Input.A',test
+	setdimlabel 0,1,'Input.B',test
+	setdimlabel 0,2,'Input.Fast',test	
+	print td_CacheData(test)
+
+td_xSetInWave(whichBank, eventString, channelString, wave, callback, decimation)
+The exact same function as td_xSetInWavePair, except that only one of the two pairs of the bank are sampled.  Please see that function below for more information.  Only differences will be noted here.
+
+Parameters
+
+whichBank	Same as td_xSetInWavePair.
+
+eventString	Same as td_xSetInWavePair.
+
+channelString	Same as channelStringA in td_xSetInWavePair.
+
+wave	Same as waveA in td_xSetInWavePair.
+
+callback	Same as callbackA in td_xSetInWavePair.
+
+decimation	Same as td_xSetInWavePair.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.  Remember that the wave must be composed of shorts or floats and Bank 2 can only be floats.
+
+See Also	td_xSetOutWavePair
+
+
+td_xSetInWavePair(whichBank, eventString, channelStringA, waveA, channelStringB, waveB, callback, decimation)
+Connects two input waves to two physical inputs (channels).  Both waves must have the same length and that length must be a multiple of 32.  This function will start filling both waves with the specified input channel data reduced by the given decimation factor as soon as the first event given in eventString is triggered.  If a second event is given, the waves will once again begin for each subsequent time that event is triggered after the waves end.
+
+The input waves may be either 16-bit integer or 32-bit floating point.  If 16-bit integer, the user may scale the data to the particular channel's specifications which can be found using td_GetRange.  Please note that the data that travels over the USB bus from the controller is only 16-bit on Banks 0 and 1, so that even if you are supplying 32-bit waves, the granularity of the underlying data is 16-bit.  Floating point waves are allowed mostly as a convenience so that the scaling is taken care of automatically.
+
+Once a wave is used by this function, it is "locked" and its parameters cannot be modified.  Use td_StopInWaveBank in order to "unlock" the waves from the bank.  If this function notices that the wave is not being used in a repeating fashion, it will "unlock" the wave after the wave has completed, but this is mostly for convenience and should not be relied upon.  Please see the section on decimation below.
+
+Parameters
+
+whichBank	There are three banks of input pairs, 0-2.  See td_xSetInWave for more information.
+
+eventString	Can contain one or two events, separated by commas and/or spaces.  The first event will be used to determine whether or not to start collecting data.  After an entire wave has been collected, all subsequent triggers (not just the second one) are based upon the second event.  Events may be any of those listed in the Event section of Parameter Names.  Note that you do not have to specify the group name, as Event will always be assumed.  "0, Always" is an effective substitution for "Event.0, Event.Always".
+
+"Never"	Never trigger.  Not too useful as first event.  If second event not specified, it defaults to "Never".
+"Always"	Always trigger.  When used as first event, input waves start immediately.  When used as second event, input waves collect data repeatedly once they are triggered.
+
+channelStringA	String containing the input channel name for the first wave of the pair on this particular bank.  Channels can be almost any parameter listed in Parameter Names in the Input, Raw, or Output groups.  Since inputs can come from many different groups, the group must be specified for each parameter.
+
+waveA	The actual wave to connect to the first input channel.  Must be the same length as waveB.
+
+channelStringB	String containing the input channel name for the second wave of the pair on this particular bank.  See channelStringA for additional guidance.
+
+waveB	The actual wave to connect to the second output channel.  Must be the same length as waveA.
+
+callback	This function will be called once the wave has completed.
+
+decimation	Amount to decimate the input waves by. A value of 1 will defeat decimation and the data is sampled at the maximum rate of 50 kHz.  Value must be non-zero integer - fractional parts are ignored.  When the decimation is greater than 1, data is filtered by a digital anti-aliasing filter with a 3 dB cutoff at half the Nyquist frequency and attenuation of ~7 dB at Nyquist. For eg., for a decimation of 5, the Nyquist is 0.5(50/5) = 5 kHz, so the anti-alias filter has a 3 dB cutoff at 2.5 kHz with a magnitude of 0.45 at 5 kHz. A negative decimation will disable this anti-aliasing filter. This filter is independent of and in addition to the Pass/Band filters. 
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.  Remember that the wave must be composed of shorts or floats.  Waves must be the same length.
+
+Example
+
+// none yet
+
+See Also	td_xSetInWave
+
+
+td_StopInWaveBank(whichBank)
+Halts any wave output action on the named bank, regardless of event state.  Waves will never restart no matter what the trigger is unless they are completely re-setup.  Waves that are 16bit integers will be zero-filled in areas beyond which data was collected.  Waves that are 32bit floating point will be NaN-filled in areas beyond which data was collected.
+
+Parameters
+
+whichBank	Specifies which bank (0-2) of wave outputs to shut off.  Specifying -1 will stop all banks at once.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+
+td_xSetOutWave(whichBank, eventString, channelString, wave, interpolation)
+The exact same function as td_xSetOutWavePair, except that only one of the two pairs of the bank are driven.  Please see that function below for more information.  Only differences will be noted here.
+
+Parameters
+
+whichBank	Same as td_xSetOutWavePair.
+
+eventString	Same as td_xSetOutWavePair.
+
+channelString	Same as channelStringA in td_xSetOutWavePair.
+
+wave	The actual wave to connect to the first output channel.  See the blurb on interpolation below for some hints on length and repeating waveforms.
+
+interpolation	Same as td_xSetOutWavePair.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.  Remember to call td_xSetPISLoop before setting the setpoint values.
+
+See Also	td_xSetOutWavePair
+
+
+td_xSetOutWavePair(whichBank, eventString, channelStringA, waveA, channelStringB, waveB, interpolation)
+Connects two output waves to two physical outputs (channels). Both waves must have the same length. This function will start driving both outputs with the specified output waves extended by the given interpolation factor as soon as the first event given in eventString is triggered. If a second event is given, the waves will once again begin for each subsequent time that event is triggered after the waves end. The output waves must be scaled  to the particular channel's specifications which can be found using td_GetRange.  Maximum wave length allowed is 87,380 points.
+
+Parameters
+
+whichBank	There are three banks of output pairs, 0-2.
+
+eventString	Can contain one or two events, separated by commas and/or spaces.  The first event will be used to determine whether or not to start outputing data.  After an entire wave has been output, all subsequent triggers (not just the second one) are based upon the second event. Events may be any of those listed in the Event section of Parameter Names.  Note that you do not have to specify the group name, as Event will always be assumed.  "0, Always" is an effective substitution for "Event.0, Event.Always".
+
+"Never"	Never trigger.  Not too useful as first event.  If second event not specified, it defaults to "Never".
+"Always"	Always trigger.  When used as first event, output waves start immediately.  When used as second event, output waves output repeatedly once they are triggered.
+"Repeat"	Same as "Always".
+"Aperiodic"	The first event is also used as the second event for subsequent triggering and the output wave is treated as a non-repeating waveform by the interpolator. See interpolation.
+"Update"	Update the wave values without stopping the wave.  Can produce discontinuities in output if not used carefully.  You can use this by itself, but works best if you add a comma followed by the last events you sent it.  Waves must have same size as last sent, but this is not checked.  Also, all other arguments must be the same as the ones that were used when the output bank was originally set up.  This works strangely on bank 2, so best not to use it there unless you know what you are doing.
+
+channelStringA	String containing the output channel name for the first wave of the pair on this particular bank.  Channels can be almost any parameter listed in Parameter Names in the Output groups or the Setpoint parameter in the PISLoop groups or almost any parameter in the ScanEngine group.  Since outputs can come from different groups, the group must be specified for each parameter.  Please note that there are parameters that can be driven one point at a time using td_WriteValue that cannot be driven by waves.
+
+waveA	The actual wave to connect to the first output channel.  Must be the same length as waveB.  Only 32-bit floating point waves are accepted.  See the blurb on interpolation below for some hints on length and repeating waveforms.
+
+channelStringB	String containing the output channel name for the second wave of the pair on this particular bank.  See channelStringA for enlightenment.
+
+waveB	The actual wave to connect to the second output channel.  Must be the same length as waveA.  Only 32-bit floating point waves are accepted.  See the blurb on interpolation below for some hints on length and repeating waveforms.
+
+interpolation	Amount to interpolate the output waves by.  A value of 1 will defeat interpolation and the wave will be output at the maximum rate of 50 kHz.  Value must be integer and non-zero - fractional parts are ignored. The method used depends on the sign of the interpolation value.  A positive value will use cubic spline interpolation and a negative value results in simple linear interpolation. The time duration to output the wave or alternatively the desired interpolation can be calculated from
+
+	Time duration = (num. of points * abs(interpolation))/50000
+
+	Edge effects are always problematic for an interpolator.  The strategy of this interpolator depends on whether the waveform is repeating or not.  This function guesses at the user's intention by looking for a second eventString argument.  If there is none, then the wave does not repeat.  If there is one, then the wave probably does repeat.
+
+	For a non-repeating waveform, the last point is always a problem because the last of the "interpolation" points are really an extrapolation.  For this case, this function will repeat the last point and extrapolate to that.  This works well for linearly ramping the voltage from one value to another.  Cubic spline is less optimal here because there will tend to be a bit of overshoot at the end as a spline curve and not a straight line will be drawn between these last two repeated points.  The cubic spline will also end "one point short" of the last true value, where the simple linear method will not.
+
+	For a repeating waveform, the first point can be a problem as well.  This function's cubic spline looks at the end of the given waveform to solve this problem.  The last points are extrapolated by interpolating towards the first point of the wave.  This insures smooth transistions between repeated waveform copies.  Use cubic spline interpolation for the best results when driving a repeating waveform that is not a triangle wave.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.  Remember to call td_xSetPISLoop before setting the setpoint values.
+
+Example
+
+// repeating 100 point sine wave on A output
+// repeating 100 point cosine wave on B output
+make/o/n=100 test, test2
+
+// Z & Y both range from -10V to 150V,
+//	 so add in a bit of offset to prevent clipping
+// note that x ranges from 0 to 100 so last point is same as first
+test = 50 + 50*sin(2*PI*p/100)
+test2 = 50 + 50*cos(2*PI*p/100)
+
+// interpolate these waves by 5
+// make sure to examine return value
+print td_xSetOutWavePair(0, "Always, Repeat", "Output.A", test, "Output.B", test2, 5)
+
+See Also	td_xSetOutWave
+
+
+td_StopOutWaveBank(whichBank)
+Halts any wave output action on the named bank, regardless of event state.  Waves will never restart no matter what the trigger is unless they are completely re-setup.
+
+Parameters
+
+whichBank	Specifies which bank (0-2) of wave outputs to shut off.  Specifying -1 will stop all banks at once.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+
+td_Stop()
+Stops almost all controller activity, clears any active events, and unsets any associated Igor waves, and kills any thermal tune that might be running.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+See Also	td_ControllerReset, td_SoftReset
+
+
+td_SoftReset()
+Calls td_Stop and then proceeds to establish conditions similar to those found after a full td_ControllerReset, without actually rebooting the controller.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+See Also	td_ControllerReset, td_Stop
+
+td_StartThermal(wave, callback)
+This function will collect data at 5MHz from the Fast A/D ("Input.Fast").  Once this function is called, no other waves may run or be running.  You must call td_Stop before calling this function the first time.  Once this function is called, you can call it as many times as you want to gather additional data.  Before doing any other wave operation, you must call td_StopThermal., or you will get errors indicating that the thermal tune is still running.
+
+Parameters
+
+wave	Data collected will be stored here.  Number of points must be a multiple of 32, and less than or equal to 2,097,152.  You may use a 16bit integer wave or a 32bit floating point wave.
+
+callback	This function will be called once the wave has completed.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.  Remember that the wave must be composed of shorts or floats and the wave length must be a non-zero multiple of 32 and less than or equal to 2,097,152.
+
+
+td_StopThermal()
+Halts fast data collection started by td_StartThermal.  Please read that function's definition for more information.  This function takes the system out of the special mode needed to collection data at 5MHz and restores it to the normal operating state.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+
+td_ReadCapture(captureString, wave, callback)
+This function currently only works on Cypher.  This function reads back data that get gets collected by the fast capture subsystem.  There are no restrictions on this function's use like there are with td_StartThermal.
+
+Parameters
+
+captureString	Points to the parameter group that controls the data capture you are interested in.  Right now, only "Cypher.Capture.0" is supported.
+
+wave	Data collected will be stored here.  Number of points in the wave will be automagically set to match the number of points specified by the Length parameter of the given capture structure.  You may use a 16bit integer wave or a 32bit floating point wave.
+
+callback	This function will be called once the wave has completed.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+
+td_StopCapture(captureString)
+Halts fast data collection started by td_ReadCapture.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+
+td_DDLoad(moduleString)
+Note!  This is an advanced function.  It is intended for internal development only.
+
+
+td_SetRamp(maxSeconds, channelString0, maxRate0, dest0, channelString1, maxRate1, dest1, channelString2, maxRate2, dest2, callback)
+Ramps up to three outputs from their current position to the given destination.  Once the ramping process begins, there is no real way to stop it.  Therefore, the maximum time spent ramping is limited to 10 seconds.  This function first calculates how long it would take each channel to reach its destination at the given maximum rate, and checks the longest time against the given max time.  If there is time to do the ramping, it then recalculates all the rates using the given time.  In this fashion, each parameter is ramped evenly to its destination.  There are no checks to see if you are trying to ramp a channel which is also being driven by a wave by td_xSetOutWave (the wave will win).
+
+Parameters
+
+maxSeconds	The maximum time the ramp will take to execute, in seconds.  This value must be greater than zero or less than or equal to ten seconds.  If one of the maxRate parameters would prevent execution within this time, an error will be returned.
+
+channelStringn	One of the three possible channels to ramp.  The possible channels are the same as those drivable by td_xSetOutWave.  If the string is empty, no ramping will take place, so if you only want to ramp one channel, fill in the first one and leave the next two empty.
+
+maxRaten	The fastest possible rate you would want that particular channel to be ramped.  Particularly useful for ramping the position of the tip without moving too fast.  If you don't want to bother with having to specify this, the function will use maxSeconds as the time it takes to ramp this channel to its destination.
+
+destn	The destination for the channel ramp, in the natural units of the channel.
+
+callback	This function will be called once the ramp has completed.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+Example
+
+// wave for capturing the ramp
+make/n=64000/o test
+display test
+
+// clear wave, start ramp from zero
+test = 0
+print td_WV("Output.A", 0)
+
+// start capture
+print td_xSetInWave(0, "Always", "Output.A", test, "", 4)
+
+// start one second ramp to 5V, rate auto-calculated
+print td_SetRamp(1, "Output.A", 0, 5, "", 0, 0, "", 0, 0, "")
+
+///////////////////////////////
+// try the code above first, then try the code below
+///////////////////////////////
+
+// try ramping two channels from zero
+print td_WV("Output.A", 0)
+print td_WV("Output.B", 0)
+
+// we are just going to look at A again
+print td_xSetInWave(0, "Always", "Output.A", test, "", 4)
+
+// now we are ramping two channels to same value with different rates -
+// the result is that we get a 2 second ramp of A even though 5V/s should
+//		give a 1 second ramp, because the rate of B is half as fast as A
+// note that the 10 second max plays no role in this particular case
+print td_SetRamp(10, "Output.A", 5, 5, "Output.B", 2.5, 5, "", 0, 0, "")
+
+
+td_SetSwapper(eventString, evenWave, oddWave)
+Will set different parameters for even and odd lines of data collection.  The line number is driven by input wave bank 0.  The waves do not have to have the same number of parameters.
+
+Parameters
+
+eventString	Can contain one event only.  When this event has triggered, the swapping action will begin.  Events may be any of those listed in the Event section of Parameter Names.  Note that you do not have to specify the group name, as Event will always be assumed.  "0" is an effective substitution for "Event.0".
+
+"Never"	Never trigger.  This will also kill any previous swapper action.
+"Always"	Always trigger.  Swapping starts immediately.
+
+evenWave	This must be a double wave where the row labels contain the full parameter names and the corresponding value contains the value you want the parameter set to on even line numbers.  Any row labels which do not match a parameter on the Controller device will result in an error.  There parameter can be one of the parameters that can be driven by td_xSetOutWave, or any PISLoop parameter except for SGain, or any Event, or any Crosspoint parameter.
+
+oddWave	Same as evenWave above, except for odd line numbers.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+
+td_SetDetrend(xChannelString, coeffWave, yChannelString)
+Remove a polynomial trend in a signal (y) with respect to another signal (x).
+	y = y - poly(coeffWave,x)
+This correction is not event driven and runs as soon as the function is set.
+
+Parameters
+
+xChannelString	String containing the name of the channel to be used as x-variable. The parameter can be one of the parameters that can be driven by  td_xSetInWave or td_xSetOutWave.
+
+coeffWave	Wave containing the polynomial coefficients that are be obtained by curvefitting to the signals in "Volts". The size of the wave determines the degree of the polynomial and the size can be 1 to 8. This wave needs to be a single precision wave.
+
+yChannelString	String containing the name of the channel to be used as y-variable. The parameter can be one of the parameters that can be driven by  td_xSetInWave or td_xSetOutWave.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+td_SetDetrendPair(xChannelStringA, coeffWaveA, yChannelStringA, xChannelStringB, coeffWaveB, yChannelStringB)NEW
+The exact same function as td_SetDetrend, except that it detrends two signals simultaneously. When yChannelStringA and yChannelStringB are the same channel then the signal is detrended with respect to two signals (xA and xB) as follows
+y = y - poly(coeffWaveA, xA) - poly(coeffWaveB, xB)
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+See Also	td_SetDetrend
+
+
+td_StopDetrend()
+Stops detrending.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+td_SetLog(inputChannelString, inputOffset)
+Scales a signal logarithmically after removing a given offset.
+
+Parameters
+
+inputChannelString	String containing the name of the channel to be scaled logarithmically. The parameter can be one of the parameters that can be driven by td_xSetInWave or td_xSetOutWave. The name of this channel can be read from "Log.InputChannel" using td_ReadString.
+
+inputOffset	Offset parameter that needs to be removed before log scaling. This parameter comes handy to account of zero-offsets in the signals. It has the same scaling, offset and range as the input signal above. The value of this parameter can be read from "Log.InputOffset" using td_ReadValue.
+
+The result is placed in the parameter "Log.Output" which has the scaling, offset and range as the input channel. The result takes the sign of the adjusted input signal.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+Example
+// set log scaling
+print td_SetLog("Output.A",2)
+
+// arbitrary signal
+print td_WV("Output.A",10)
+
+// read log scaled result for 10 - 2 = 8V
+print td_RV("Log.Output")
+  9.5869
+
+// change input offset
+print td_WV("Log.InputOffset",6)
+
+// new log scaled result for 10 - 6 = 4V
+print td_RV("Log.Output")
+  9.2744
+
+// if the signal changes
+print td_WV("Output.A", 8)
+
+// new log scaled result for 8 - 6 = 2V
+print td_RV("Log.Output")
+  8.9619
+
+// The ratio of the adjusted signal
+(10 - 2)   (10 - 6)
+-------- = -------- = 2
+(10 - 6)   (8 - 6) 
+
+// Difference of log scaled results
+(9.5869 - 9.2744) = (9.2744 - 8.9619) = 0.3125
+
+td_StopLog()
+Stops log scaling.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+td_SetLinearCombo(xChannelString, coeffWave, yChannelString)UPDATED
+Linear combination of two signals x and y
+	z = a0 + ax*x + ay*y
+This calculation is not event driven and runs as soon as the function is set.
+
+Parameters
+
+xChannelString	String containing the name of the x-channel. The parameter can be one of the parameters that can be driven by  td_xSetInWave or td_xSetOutWave. The name of this channel can be read from "LinearCombo.XChannel" using td_ReadString.
+
+coeffWave	A 3 element wave containing the coefficients {a0, ax, ay}. The coefficients refer to a linear combination in "Volts". This wave needs to be a single precision wave. Coeffs ax and ay default to 1.0 when either a 1 or 2 element coeff wave is specified. However, this default behavior is for compatibility with legacy code and will soon be deprecated.
+
+yChannelString	String containing the name of the y-channel. The parameter can be one of the parameters that can be driven by  td_xSetInWave or td_xSetOutWave. The name of this channel can be read from "LinearCombo.YChannel" using td_ReadString.
+
+The result is placed in the parameter "LinearCombo.Output" which has the scaling, offset and range as the YChannel.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+td_StopLinearCombo()
+Stops linear combination.
+
+Function Result
+
+See MFP-3D Controller Error Code Reference.
+
+td_AdvancedFunction(advancedFunction)
+Note!  This is an advanced function.  You should ignore it until you are more experienced with using this xop.
+
+Executes an advanced function.  This description intentionally left vague.
+
+Parameters
+
+advancedFunction	String containing the advanced function to execute.  Warning! This function becomes annoyed when advance functions are guessed at!
+
+Function Result
+
+	Returns a string containing the results of the advanced function.  Do not display unless you have a sense of humor.
+

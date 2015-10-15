@@ -341,7 +341,6 @@ Function SetHandle(SV_Struct):SetVariableControl
 	switch (SV_Struct.eventCode)
 		case EVENT_SETVAR_ENTER:
 			String mVal = SV_Struct.sVal
-			print(mVal)
 			break
 	EndSwitch
 End Function

@@ -2,36 +2,10 @@
 #pragma rtGlobals=3	
 
 #include "::MVC_Common:MvcDefines"
+#include "::Util:UnitUtil"
 
 #pragma ModuleName = ModModelDefines
 
-// // 
-// // 
-// Unit and Types Defines below
-// // 
-// // 
-
-// Make the unit string for the predefined prefixes
-StrConstant PICO_UNITS = "pico"
-StrConstant NANO_UNITS = "nano"
-StrConstant MICRO_UNITS = "mu"
-StrConstant MILLI_UNITS = "milli"
-// Make the lead string for the predefined prefixes
-StrConstant PICO_LEAD = "p"
-StrConstant NANO_LEAD = "n"
-StrConstant MICRO_LEAD =  num2char(0xB5)
-StrConstant MILLI_LEAD = "m"
-// Make the exponents for the predefined prefixes
-Constant PICO_EXP = -12
-Constant NANO_EXP = -9
-Constant MICRO_EXP = -6
-Constant MILLI_EXP = -3
-// Make the names and abbreviations for the predefined units
-StrConstant NEWTON_STR = "Newtons"
-StrConstant METER_STR = "Meters"
-// Abbreviaitions below
-StrConstant NEWTON_ABBR = "N"
-StrConstant METER_ABBR = "m"
 // Paramer types defined below
 Constant PTYPE_XOFFSET = 0
 Constant PTYPE_YOFFSET = 1
@@ -61,7 +35,6 @@ Static Constant MODELFUNC_FIT_IDX = 0
 Static Constant MODELFUNC_PLOT_IDX =1
 // Number of modelfuncs
 Static Constant MODELFUNC_NUM = 2
-
 
 Structure Prefix
 	// The String for the unit (ie: Nano for Nano)

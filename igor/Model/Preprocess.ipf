@@ -3,7 +3,9 @@
 #pragma ModuleName = ModPreprocess
 #include "::Util:IoUtil"
 #include "::MVC_Common:MvcDefines"
+#include ":ModelDefines"
 #include "::Util:CypherUtil"
+#include "::Util:FitUtil"
 
 Static StrConstant XNAMEPRE = "XWave"
 Static StrConstant YNAMEPRE = "YWave"
@@ -20,7 +22,6 @@ Static Constant MAX_PREPROC_PARAMS = 15
 Static Constant PROC_NAME_SUFFIX_MAXLEN = 20
 // Interpolate2 Constant 
 Static Constant INTERPOLATE2_TYPE_LINEAR = 1
-Static Constant POLY_DEF_DEG = 20
 
 
 Structure ProcessStruct
@@ -129,11 +130,6 @@ Static Function OffsetX(WaveToOffset,AmountOffset)
 	SetScale /P x,(t0-AmountOffset),deltaT,mWave
 End Function
 
-Function ProtoOffsetAtIndex(mProc,index,mParamObj)
-	Struct ProcessStruct & mProc
-	Variable index
-	Struct ParamObj & mParamObj	
-End Function
 
 Function ProtoAlignByOffset(mProc,mParamObj,Index)
 	Struct ProcessStruct & mProc
@@ -232,17 +228,6 @@ Function ProtoInterpLowResToHigh(mProc)
 	EndFor
 End Function
 
-Function /Wave CreatePolyCoeffs(mToFit,[Deg])
-	Wave mToFit
-	Variable Deg
-	Deg = ParamIsDefault(Deg) ? POLY_DEF_DEG :Deg
-	// Make an array for the coefficients
-	Make /O/N=(Deg) mPolyCoeffs
-	// /W=2: surpress window, /N: surpress screen updates
-	CurveFit/Q/W=2/N poly (Deg), kwCWave=mPolyCoeffs,mToFit
-	return mPolyCoeffs
-End Function
-
 Function Correct(ForceWaveToFit,ForceWaveToCorrect,touchIdxInitialFit,touchIdxFinalCorrect)
 	// fits the waves from 0 to touchoffinitial (reversed), then subtracts the result from touchofffinal
 	Wave ForceWaveToFit,ForceWaveToCorrect
@@ -253,7 +238,8 @@ Function Correct(ForceWaveToFit,ForceWaveToCorrect,touchIdxInitialFit,touchIdxFi
 	// This is because we assume the approach and retraction 
 	// are symmetric about the y axis, with the exception of the molecule
 	Reverse /P mToFit
-	Wave mCoeff  = CreatePolyCoeffs(mToFit)
+	Make /O/N=0 mCoeff 
+	ModFitUtil#CreatePolyCoeffs(mToFit,mCoeff)
 	Variable fitN = DImSIze(mToFit,0)
 	// Get the maximum 'delta' times, for fitting
 	Variable tfCorrect =  pnt2x(ForceWaveToCorrect,touchIdxFinalCorrect)

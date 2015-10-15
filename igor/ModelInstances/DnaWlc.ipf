@@ -119,7 +119,7 @@ Function FitWLC(xRef,yRef,fitParameters,mStruct)
 		Variable endIdx = fitParameters.params[MODEL_WLC_IDX_OSTR_END].pointIndex
 		Struct WaveStat mStats
 		Wave tmpY = $yRef
-		ModStatUtil#GetWaveStats(tmpY,mStats,startIdx,endIdx)
+		ModStatUtil#GetWaveStats(tmpY,mStats,startIdx=startIdx,endIdx=endIdx)
 		// post: mStats has the standard deviation and mean
 		// Subtract the y offset from the average (stdev unaffected)
 		Variable actualAvg = -1*(mStats.average-yOff)

@@ -14,6 +14,7 @@ Static Constant ERR_WAVEEXIST = -2
 Static Constant ERR_TYPE = -3
 Static Constant ERR_OUT_OF_RANGE = -4
 Static Constant ERR_PROGRAMMING = -5
+Static Constant ERR_IO = -6
 // Bad Wave reference
 // Selector to get the entire stack trace
 Static Constant RTStack_FullTrace = 3
@@ -73,6 +74,7 @@ Static Function InitErrorObj(ToInit,GlobalDef)
 	InitErrorObjAndCodes(ToInit,ToInit.Codes,GlobalDef)
 End
 
+
 Static Function ThrowFatalError(Code,Description,[SpecificDesc])
 	Variable Code
 	String Description,SpecificDesc
@@ -89,10 +91,14 @@ Static Function ThrowFatalError(Code,Description,[SpecificDesc])
 		stackTrNewline += StringFromList(i,rtStack,RT_STACK_LISTSEP) +"\r"
 	EndFor
 	// Format out all the information we have
-	sprintf toPrint,"StackTr:\r%s\rFatal Error, Code [%d].\rDescr: [%s]\r%s",stackTrNewline,Code,Description,ExtraString
+	String abbreviated
+	sprintf abbreviated,"Fatal Error, Code [%d].\rDescr: [%s]\r%s",Code,Description,ExtraString
+	sprintf toPrint,"%s\rStackTr:\r%s",abbreviated,stackTrNewline
+	print(toPrint)
 	// Abort!!!
 	// Change to the root directory, avoid problematic state changes on an error.
 	SetDataFolder root:
+	AlertUser(abbreviated)
 	// Enable the debugger
 	DebuggerOptions enable=(DEBUGGEROPTIONS_ENABLE), debugOnError=(DEBUGGEROPTIONS_ENABLE)
 	// Break into the debugger
@@ -116,6 +122,17 @@ Static Function OutOfRangeError([description])
 	String description
 	String finalDescr = "Out of Range Error"
 	Variable mCode = ERR_OUT_OF_RANGE
+	If(ParamIsDefault(description))
+		ThrowFatalError(mCode,finalDescr,SpecificDesc=description)
+	else
+		ThrowFatalError(mCode,finalDescr)
+	EndIf
+End Function
+
+Static Function IoError([description])
+	String description
+	String finalDescr = "Io Error"
+	Variable mCode = ERR_IO
 	If(ParamIsDefault(description))
 		ThrowFatalError(mCode,finalDescr,SpecificDesc=description)
 	else

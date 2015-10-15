@@ -1,0 +1,8 @@
+Authored by Patrick Heenan, 2015
+
+=Known Limitations
+—- Requires DeflV and Zsnsr as inputs. 
+
+
+=Previous Limitations (Not long apply as of date in paren)
+-- (10/6/15) Requires a dwell of more than 1 point on the surface. This could be fixed by short-circuiting the line-fitting if there isn't a dwell (on the 'after'/'before' touchoff curves in the approach/retract involvs calculating). My guess is that FitFunc will crash if this is attempted now, although I haven't tested this.

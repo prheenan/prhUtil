@@ -197,13 +197,15 @@ Static Function AddCurrentExpAndModelSetIds(mData,mIds)
 	// POST: the model and experiment files are set, the global ID reflects this
 End Function
 
-Static Function AddTraceMetaAndLinkers(mMeta,mIds,traceDataId)
+// Adds the TraceMeta table, uses mIds in a real-only manner. sets 
+// 'metaIdToSet' to whatever the id of the meta table is. 
+Static Function AddTraceMetaAndLinkers(mMeta,mIds,metaIdToSet)
 	Struct forceMeta & mMeta
 	Struct SqlIdTable & mIds
-	Variable traceDataId
+	Variable &metaIdToSet
 	// get the TraceMeta struct
 	Struct TraceMeta sqlMeta
-	mMeta.ApproachVel = mMeta.ApproachVel 
+	sqlMeta.ApproachVel = mMeta.ApproachVel 
 	sqlMeta.RetractVel =  mMeta.RetractVel
 	sqlMeta.TimeStarted=  ModSqlUtil#ToSqlDate(mMeta.TimeStart)
 	sqlMeta.TimeEnded =  ModSqlUtil#ToSqlDate(mMeta.TimeEnd)
@@ -219,6 +221,8 @@ Static Function AddTraceMetaAndLinkers(mMeta,mIds,traceDataId)
 	sqlMeta.LocationX =  mMeta.PosX
 	sqlMeta.LocationY =  mMeta.PosY
 	sqlMeta.LocationZ = mMeta.PosZ
+	sqlMeta.ForceDist = mMeta.ForceDist
+	sqlMeta.StartDist = mMeta.StartDist
 	sqlMeta.OffsetX =  mMeta.OffsetX
 	sqlMeta.OffsetY =  mMeta.OffsetY
 	sqlMeta.Spot =  mMeta.Spot
@@ -249,20 +253,15 @@ Static Function AddTraceMetaAndLinkers(mMeta,mIds,traceDataId)
 	mExpLink.idTraceMeta = traceID
 	mExpLink.idExpMeta = mIds.idExpMeta
 	ModSqlCypherAutoFuncs#InsertFmtTraceExpLink(mExpLink)
-	// Make a linker between the data and the tracemeta
-	Struct LinkDataMeta mDataMetaLink
-	mDataMetaLink.idTraceMeta = traceID
-	mDataMetaLink.idTraceData = traceDataID
-	ModSqlCypherAutoFuncs#InsertFmtLinkDataMeta(mDataMetaLink)	
 	// Make the TraceModel table
 	Struct Tracemodel mTraceModel
 	mTraceModel.idTraceMeta = traceID
-	mTraceModel.idTraceData = traceDataID
 	mTraceModel.idModel = mIds.idModel
 	ModSqlCypherAutoFuncs#InsertFmtTraceModel(mTraceModel)	
 	// Get the id of the tracemodel we just sent off.
 	Variable traceModelId = ModSqlUtil#GetLastInsertedID(TAB_TraceModel,FIELD_idTraceModel)
 	// return the trace model ID
+	metaIdToSet = traceId
 	return traceModelId
 End function
 
@@ -289,15 +288,19 @@ Static Function AddNewTrace(mInf)
 	// Trace is new if it is *not* in the table already
 	Variable traceIsNew = !ModSqlUtil#GetUniqueIdWhereColIsVal(TAB_TraceData,FIELD_FileTimSepFor,mFileName,traceDataID)
 	if (traceIsNew)
-	// This data isn't already in the repository; Add in the trace data
+		// This data isn't already in the repository; 
+		// Add in the trace meta information, get the traceMetaId (same as traceDataId, see schema comments)
+		Variable traceMetaId
+		traceModelId = AddTraceMetaAndLinkers(mMeta,mIds,traceMetaId)
+		// Add in the tracedata table
 		Struct TraceData mTraceData
 		mTraceData.FIleTimSepFor = mFileName
+		mTraceData.idTraceMeta = traceMetaId
 		mTraceData.idExpMeta = mIds.idExpMeta
 		ModSqlCypherAutoFuncs#InsertFmtTraceData(mTraceData)		
 		traceDataID= ModSqlUtil#GetLastInsertedID(TAB_TraceDATA,FIELD_idTraceData)
 		// XXX for now, assume we *just* update the parameters values
 		// returns the tace model ID
-		traceModelId = AddTraceMetaAndLinkers(mMeta,mIds,traceDataId)
 	else
 		// This model *does* exists
 		// traceDataId was set by 'getUniqueId'

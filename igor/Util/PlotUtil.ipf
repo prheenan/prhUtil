@@ -4,6 +4,7 @@
 #pragma ModuleName = ModPlotUtil
 #include ":IoUtil"
 #include ":ErrorUtil"
+#include ":FitUtil"
 
 Constant  ColorMax = 65535
 Constant PredefinedColors = 7
@@ -12,6 +13,8 @@ Constant DEF_DISP_H_HIDE = 1 // Don't show the window by default; assume we are 
 Constant DEF_DISP_DPI = 400 // Dots per Inch
 Constant DEF_DISP_HEIGHT_IN = 12 // Inches
 Constant DEF_DISP_WIDTH_IN = 10 // Inches
+// Based on 10-8-2015, ModfiyGraph --> Width(Left) --> 1, looks like command is based on 1 -> 72
+Constant DEF_MODGRAPH_WIDTH=72
 StrConstant DEF_FONT_NAME = "Helvetica"
 // Constants for saving the figure
 // See: SavePICT, pp 558 of igor manual
@@ -25,7 +28,7 @@ StrConstant DEF_DISP_NAME = "UtilDisp"
 //  pp 729 of igor pro, UniqueName object type for graph
 Constant DEF_UNINAME_GRAPH = 6 
 // Constants for graph font defaults
-Constant DEF_FONT_TITLE = 40
+Constant DEF_FONT_TITLE = 24
 Constant DEF_FONT_AXIS = 24
 Constant DEF_FONT_LEGEND = 26
 // TextBox, p 710 of igor manual
@@ -51,6 +54,8 @@ Static StrConstant COLOR_ABBR_BLUE = "b"
 Static StrConstant COLOR_ABBR_BLACK = "k"
 Static StrConstant COLOR_ABBR_PURPLE = "m"
 Static StrConstant COLOR_ABBR_ORANGE = "o"
+Static StrConstant COLOR_ABBR_GREY = "grey"
+
 // See: ModifyGraph, V-415:
 Static StrConstant  MARKER_DOTTED_LINE = "--"
 Static StrConstant MARKER_NO_LINE = ""
@@ -79,6 +84,28 @@ Static Constant DEF_LINE_WIDTH = 2
 Static Constant DEF_MARKER_SIZE = 4
 // Color mapping.
 Static StrConstant DEF_CMAP = "Greys"
+// Window separator
+Static StrConstant WINDOW_SEP = "#"
+// Default Alpha 
+Static Constant DEF_ALPHA = 0.8
+// For setDrawEnv, we have dash and solid patterns 
+// V-567,  ' SetDashPattern'
+Static Constant DEF_LINE_PATTERN_DASHED = 8 // Pattern looks like "- - - -"
+Static Constant DEF_LINE_PATTERN_SOLID = 0      // Pattern looks like "_____"
+Static StrConstant DEF_AX_V_OR_H_LINE = "--" // default to dotted for dashed line 
+// The default decimation factor to filter data with, relative to the bandwith of the data. 
+// If "N" is the number of datapoints, then we use "N*factor" for smoothing (ceiling to the minimum size)
+Static Constant DEF_SMOOTH_FACTOR =0.01
+// Locations for text box anchor points
+StrConstant ANCHOR_TOP_RIGHT = "RT"
+StrConstant ANCHOR_BOTTOM_RIGHT = "RB"
+StrConstant ANCHOR_BOTTOM_MIDDLE = "MB"
+StrConstant ANCHOR_TOP_MIDDLE = "MT"
+// Constant for separating legend labels
+StrConstant PLOT_UTIL_DEF_LABEL_SEP = ","
+
+Constant DEF_LABEL_MARGIN = 17
+Constant DEF_LABEL_MODE = 2 // This is margin sclaled
 
 Structure PlotObj
 	Wave X
@@ -92,11 +119,66 @@ Structure PlotObj
 	String mYLabel
 	String mTitle
 	String mGraphName
-	// If we want, we can color on a per-point basis
-	Variable useColorWave
-	Wave colorWave
-	String colorMap
+	Variable alpha
+	Variable hasX
+	Variable hasY
 EndStructure
+
+Static Function InitPlotObj(toInit,[X,Y,mColor,marker,linewidth,markersize,mLabel,mXLabel,mYLabel,mTitle,mGraphName,alpha])
+	Struct PlotObj & ToInit
+	// all the arguments for the plotting object
+	Wave X
+	Wave Y
+	String mColor
+	String marker 
+	Variable linewidth 
+	Variable markersize
+	String mLabel
+	String mXLabel
+	String mYLabel
+	String mTitle
+	String mGraphName
+	Variable alpha
+	// Initialize the structure
+	if (ParamIsDefault(X))
+		ToInit.hasX = ModDefine#False()
+	else
+		ToInit.hasX = ModDefine#True()
+		ToInit.X = X
+	EndIf
+	if (ParamIsDefault(Y))
+		ToInit.hasY = ModDefine#False()
+	else
+		ToInit.hasY = ModDefine#True()
+		ToInit.Y = Y
+	EndIf
+	ToInit.mColor = mColor
+	ToInit.linewidth  = linewidth
+	ToInit.markersize = markersize
+	ToInit.alpha = alpha
+	if (!ParamIsDefault(mColor))
+		ToInit.mColor  = mColor
+	EndIf
+	if (!ParamIsDefault(marker))
+		ToInit.formatMarker  = marker
+	EndIf
+	if (!ParamIsDefault(mLabel))
+		ToInit.mLabel = mLabel
+	EndIf
+	if (!ParamIsDefault(mXLabel))
+		ToInit.mXLabel = mXLabel
+	EndIf
+	if (!ParamIsDefault(mYLabel))
+		ToInit.mYLabel = mYLabel
+	EndIf
+	if (!ParamIsDefault(mTitle))
+		ToInit.mTitle = mTitle
+	EndIf
+	if (!ParamIsDefault(mGraphName))
+		ToInit.mGraphName = mGraphName
+	EndIf	
+	// XXX add in structure noting if things are default?
+End Function
 
 Static Function GetRGBFromString(mStr,r,g,b)
 	String mStr
@@ -120,6 +202,9 @@ Static Function GetRGBFromString(mStr,r,g,b)
 			break
 		case COLOR_ABBR_ORANGE:
 			initOrange(mRgb)
+			break
+		case COLOR_ABBR_GREY:
+			initGrey(mRgb)
 			break
 		default:
 			String mErr
@@ -229,7 +314,11 @@ Static Function PlotGen(mObj)
 	Variable r,g,b
 	GetRGBFromString(mColor,r,g,b)
 	String mWinName = mObj.mGraphName
-	AppendToGraph /W=$(mWinName) /C=(r,g,b) mObj.Y vs mObj.X 
+	if (mObj.hasX)
+		AppendToGraph /W=$(mWinName) /C=(r,g,b) mObj.Y vs mObj.X 
+	Else
+		AppendToGraph /W=$(mWinName) /C=(r,g,b) mObj.Y	
+	EndIf
 	// POST: plotted correctly. Now need to modify the traces accordingly
 	// Get the marker we will use (if any)
 	Variable mMarker = GetMarker(mObj.formatMarker)
@@ -248,10 +337,12 @@ Static Function PlotGen(mObj)
 	ModifyGraph /W=$(mWinName) lSize($mTraceName)=(mObj.linewidth)	
 	// Set the marker size
 	ModifyGraph /W=$(mWInNAme) msize($mTraceName)=(mObj.markersize)
-	if (mObj.useColorWave)
-		// Two stars: autoscale wave to colormap.
-		ModifyGraph /W=$(mWinName) zColor($mTraceName)={mObj.colorwave,*,*,$(mObj.colormap)}
-	EndIf
+	Variable rawAlpha = mObj.alpha
+	// Get alpha in the appropriate bounds
+	Variable safeAlpha = max(rawAlpha,0)
+	safeAlpha = min(safeAlpha,1)
+	ModifyGraph /W=$(mWInNAme) opaque($mTraceName)=(safeAlpha)
+	// Make the plot easier to look at; igor's default formatting sucks.
 	PlotBeautify()
 End Function
 
@@ -262,52 +353,63 @@ Static Function ColorTableIsValid(mColor)
 	return (strsearch(mList,mColor,0) >=0)
 End Function
 
-Static Function Plot(X,Y,[graphName,color,marker,linestyle,linewidth,markersize,colormap,colorWave])
-	Wave X,Y,colorWave
-	String graphName,color,marker,linestyle,colormap
-	Variable  linewidth,markersize
-	Variable nPoints = DimSize(X,0)
+Static StrConstant NANO = "n"
+Static StrConstant PICO = "p"
+Static StrConstant MICRO = "u"
+
+Static Function SwapAxis([graphName])
+	String graphNAme
+	if (ParamIsDefault(graphName))
+		graphName = gcf()
+	EndIf
+	ModifyGraph /W=$(graphName) swapXY=(ModDefine#True())
+End Function
+// Y: y to plot
+// Everything else is optional
+// mX: what to plot against; defaults to X of Y
+// graphName: which graph
+// ...
+// alpha: transparency. 0 --> transparent, 1 --> opaque
+Static Function Plot(Y,[mX,alpha,graphName,color,marker,linestyle,linewidth,markersize])
+	Wave mX,Y
+	String graphName,color,marker,linestyle
+	Variable  linewidth,markersize,alpha
+	Variable nPoints = DimSize(Y,0)
 	if (ParamIsDefault(color))
 		color = COLOR_ABBR_BLUE
 	EndIf
 	if (ParamIsDefault(graphName))
 		graphName = gcf()
 	EndIf
+	if (ParamIsDefault(alpha))
+		alpha = DEF_ALPHA
+	EndIF
 	if (ParamIsDefault(marker))
-		marker = MARKER_SCATTER_CIRCLE
+		marker = MARKER_LINE
 	EndIF
 	if (PAramIsDefault(linestyle))
-		linestyle =MARKER_NO_LINE
-	EndIf
-	Variable useColor = !ParamIsDefault(colorMap) || !ParamIsDefault(colorWave)
-	if (ParamIsDefault(colormap))
-		colormap = DEF_CMAP
-	EndIf
-	Variable killColor = ModDefine#False()
-	if (ParamIsDefault(colorWave))
-		Make /O/N=(nPoints) colorWave
-		colorWave[] = nPoints/p // goes from 0 to 1
-		killColor = ModDefine#True()
+		linestyle =MARKER_LINE
 	EndIf
 	markersize = ParamIsDefault(markersize) ? DEF_MARKER_SIZE  : markersize
 	linewidth = ParamIsDefault(linewidth) ? DEF_LINE_WIDTH : linewidth	
+	Struct PlotObj mObj
+	// If no x was given, note it. Otherwise, save the X..
+	if (!ParamIsDefault(mX))
+		Wave mObj.X = mX
+		mObj.hasX = MOdDefine#True()
+	Else
+		mObj.hasX = MOdDefine#False()
+	EndIf
 	// POST: all parameters are set
 	// Wrap up everything in the object that plotGen expects
-	Struct PlotObj mObj
-	Wave mObj.X = X
 	Wave mObj.Y = Y
 	mObj.mColor = color
 	mObj.mGraphName = graphName
 	mObj.formatMarker = marker + linestyle
 	mObj.linewidth = linewidth
 	mObj.markersize = markersize
-	mObj.colorwave = colorWave
-	mObj.colormap = colormap
-	//mObj.useColorWave = useColorWave
+	mObj.alpha = alpha
 	PlotGen(mObj)
-	if (killColor)
-		KillWaves /Z colorWave
-	EndIF
 End Function
 
 
@@ -368,7 +470,7 @@ End function
 
 Static Function InitGreen(mColor)
 	Struct RGBColor & mColor
-	InitRGB_Dec(mColor,0,1.0,0)
+	InitRGB_Dec(mColor,0.05,0.95,0.05)
 End Function
 
 Static Function InitBlack(mColor)
@@ -391,6 +493,12 @@ Static Function InitOrange(mColor)
 	Struct RGBColor & mColor
 	InitRGB_Dec(mColor,0.97,0.46,0.19)
 End Function 
+
+Static Function InitGrey(mColor)
+	Struct RGBColor & mColor
+	InitRGB_Dec(mColor,0.8,0.8,0.8)
+End Function 
+
 
 Static Function InitDefColors(colors)
 	Struct ColorDefaults & colors
@@ -490,9 +598,11 @@ Static Function /S Figure([name,heightIn,widthIn,hide])
 	return name
 End Function
 
-Static Function Title(TitleStr,[graphName,Location,fontSize,frameOpt])
+Static Function Title(TitleStr,[xOffset,yOffset,graphName,Location,fontSize,frameOpt])
 	String TitleStr,graphName,Location
-	Variable fontSize,frameOpt
+	Variable fontSize,frameOpt,xOffset,yOffset
+	xOffset= ParamIsDefault(xOffset) ? 0 : xOffset
+	yOffset= ParamIsDefault(yOffset) ? 0 : yOffset
 	fontSize = ParamIsDefault(fontSize) ? DEF_FONT_TITLE : fontSize
 	//frameOpt = ParamIsDefault(frameOpt) ? DEF_TBOX_FRAME : frameOpt
 	//if (ParamIsDefault(graphName))
@@ -502,13 +612,24 @@ Static Function Title(TitleStr,[graphName,Location,fontSize,frameOpt])
 	sprintf titleStr,"\\Z%d%s",fontSize,TitleStr
 	// Textbox: V-711, pp 711 of igormanual
 	// F=0: no frame
+	// /B: background is transparent
 	// C: Overwrite existing
 	// N: name
 	// A: location (MT: middle top)
-	//TextBox /C/N=text0/A=MT/W=$graphName titleString
-	TextBox /F=1/C/N=text0/A=MT titleString
-	//TextBox/C/N=text/A=MT  titleString
+	TextBox /Y=(yoffset)/E=2/B=1/C/N=text1/F=0/A=MT(titleStr)
 End Function
+
+Static Function BeautifyAxisLabels(WindowName,WhichAxis,[FontSize])
+	String WindowName,WhichAxis
+	Variable FontSize
+	FontSize = ParamIsDefault(FontSize)? DEF_FONT_AXIS : FontSize
+	ModifyGraph /W=$(WindowName) fSize($WhichAxis)=fontSize
+	// Sets the axes 
+	// XXX TODO: I don't think I need this line anymore (previously, axis labels on y were colliding).
+	// Leaving it here in case I needto come back to it. 
+	//ModifyGraph /W=$(WindowName) margin($X_AXIS_DEFLOC)=(1.7*DEF_MODGRAPH_WIDTH)
+End Function
+
 
 Static Function GenLabel(LabelStr,WindowName,FontName,WhichAxis,FontSize)
 	String LabelStr,WindowName,FontName,WhichAxis
@@ -519,23 +640,71 @@ Static Function GenLabel(LabelStr,WindowName,FontName,WhichAxis,FontSize)
 	// everything ekse. otherwise, greek letters / Unicode stuff can look weird
 	sprintf LabelStr, "\\Z%d%s\F'%s'",fontSize,LabelStr,fontName
 	Label /W=$(WindowName) $(WhichAxis), (LabelStr) 
-	ModifyGraph /W=$(WindowName) fSize($WhichAxis)=fontSize
+	BeautifyAxisLabels(WindowName,WhichAxis,FontSize=FontSize)
 End Function
 
-// XXX make these less copy/paste
-Static Function pLegend([graphName])
-	String graphName
+
+// Puts labels for the traces (assumed in same order as plotted) onto graphname
+// at location (anchor code). 'labels' is a wave, or labelStr is a string.
+Static Function pLegend([graphName,labels,location,labelStr,labelStrSep])
+	String graphName,location
+	String labelStr,labelStrSep
+	Wave /T Labels
+	if (paramIsDefault(labelStrSep))
+		labelStrSep = PLOT_UTIL_DEF_LABEL_SEP
+	EndIf
+	If (!ParamIsDefault(labelStr))
+		Make /O/N=(0)/T labels
+		ModDataStruct#ListToTextWave(labels,labelStr,Sep=labelStrSep)
+	EndIf
+	if (ParamIsDefault(location))
+		location = ANCHOR_BOTTOM_MIDDLE
+	EndIf
 	if (ParamIsDefault(graphName))
 		graphName = gcf()
 	EndIf
-	Legend /W=$(graphName)
+	// Create a default legend (empty legendStr), or add all the labels, if we need them
+	// Note that if either labels or labelStr isn't empty, then we should have a viable labels
+	String mLegendStr = ""
+	if (!ParamIsDefault(labels) || !ParamIsDefault(labelStr) )
+		// Get all the waves
+		Make /O/N=0/T mTraces
+		GetTracesAsWave(graphName,mTraces)
+		// Get all the trace identifiers (see V-341, Legend)
+		// "
+		// You can put a legend in a page layout with a command such as:
+		//Legend "\s(Graph0.wave0) this is wave0"
+		// "
+		Duplicate /O/T mTraces,mTraceLabels
+		Variable n = min(DimSize(mTraces,0),DimSize(labels,0))
+		mTraceLabels[0,n-1] = "\s(" + graphName + "." + (mTraces[p]) + ")" + labels[p]
+		Variable i 
+		for (i=0; i<n; i += 1)
+			mLegendStr += mTraceLabels[i]
+			if (i < n-1)
+				// add a newline
+				mLegendStr += "\r"
+			endIf
+		EndFor
+	EndIf
+	// "If legendStr is missing or is an empty string (""), the text needed for a default legend is automatically generated. "
+	// Textbox (711)
+	// /C:  changes existing (XXX need name?)
+	// /A: anchor code
+	Legend /W=$(graphName) /A=$(location) (mLegendStr)
 End Function
 
-Static Function XLabel(LabelStr,[graphName,fontSize,topOrBottom])
+// adds units to labelStr (assuming units isn't empty)
+Static Function /S AddUnitsToLabel(LabelStr,Units)
+	String LabelStr,Units
+	return LabelStr + " [" + units + "]" 
+End Function
+
+Static Function XLabel(LabelStr,[graphName,fontSize,topOrBottom,units])
 	// graph name is the window
 	// fontsize is the font size
 	// topOrBottom is where to put this x axis.
-	String labelStr, graphName,topOrBottom
+	String labelStr, graphName,topOrBottom,units
 	Variable fontsize
 	fontsize = ParamIsDefault(fontSize) ? DEF_FONT_AXIS : fontSize
 	if (ParamIsDefault(graphName))
@@ -545,12 +714,15 @@ Static Function XLabel(LabelStr,[graphName,fontSize,topOrBottom])
 	if (ParamISDefault(topOrBottom))
 		topOrBottom = X_AXIS_DEFLOC
 	EndIf
+	if (!ParamIsDefault(units))
+		labelStr = AddUnitsToLabel(labelStr,units)
+	EndIf
 	GenLabel(LabelStr,graphName,DEF_FONT_NAME,topOrBottom,FontSize)
 End Function
 
-Static Function YLabel(LabelStr,[graphName,fontSize,leftOrRight])
+Static Function YLabel(LabelStr,[graphName,fontSize,leftOrRight,units])
 	// See xLabel, same thing except leftOrRight
-	String labelStr, graphName,leftOrRight
+	String labelStr, graphName,leftOrRight,units
 	Variable fontsize
 	fontsize = ParamIsDefault(fontSize) ? DEF_FONT_AXIS : fontSize
 	if (ParamIsDefault(graphName))
@@ -559,6 +731,9 @@ Static Function YLabel(LabelStr,[graphName,fontSize,leftOrRight])
 	EndIf
 	if (ParamIsDefault(leftOrRight))
 		leftOrRight = Y_AXIS_DEFLOC
+	EndIf
+	if (!ParamIsDefault(units))
+		labelStr = AddUnitsToLabel(labelStr,units)
 	EndIf
 	// Add the font size and font type to the label string
 	GenLabel(LabelStr,graphName,DEF_FONT_NAME,leftOrRight,FontSize)
@@ -632,6 +807,10 @@ Static Function PlotBeautify([GraphName])
 	// turn off units on the ticks.
 	//  for some reason you set this high to turn it off
 	ModifyGraph /W=$(graphName) tickunit=1, tickexp=0
+	// beautify the axis ticks
+	BeautifyAxisLabels(graphName,X_AXIS_DEFLOC,FontSize=(DEF_FONT_AXIS))
+	BeautifyAxisLabels(graphName,Y_AXIS_DEFLOC,FontSize=(DEF_FONT_AXIS))
+
 End
 
 Static Function DefColorIter(i,RGB,PlotDef,[MaxColors])
@@ -655,6 +834,20 @@ Static Function AxisLim(lower,upper,name,windowName)
 	String name,Windowname
 	// XXX check for error? does window exist, etc
 	SetAxis /W=$windowName $name,lower,upper
+	// autoscale the other axis
+	String axisToScale
+	strswitch (name)
+		case X_AXIS_DEFLOC:
+			// also adjust y to be in the range
+			axisToScale = Y_AXIS_DEFLOC
+			break
+		case Y_AXIS_DEFLOC:
+			// also adjust x to be in the range
+			axisToScale = X_AXIS_DEFLOC
+			break
+	EndSwitch
+	// '/A' flag autoscales
+	SetAxis /A/W=$windowName $Y_AXIS_DEFLOC
 End Function
 
 Static Function XLim(lower,upper,[graphName])
@@ -683,24 +876,32 @@ Static Function Normed(val,minV,maxV)
 	return (val-minV)/(maxV-minV)
 End Function	
 
-Static Function AxGenLine(mWin,axisName,value,fmt,mDoUpdate)	
+// Gets the axis limits for the axis 'mwindow'
+Static Function GetAxisLimits(mWindow,lowerX,upperX,lowerY,upperY)
+	String mWindow
+	Variable & lowerX, &upperX, &lowerY, & upperY
+	// Get the X limits
+	GetAxis /W=$mWindow/Q $X_AXIS_DEFLOC
+	lowerX = V_Min
+	upperX = V_Max
+	// Get the Y Limes
+	GetAxis /W=$mWindow/Q $Y_AXIS_DEFLOC
+	lowerY = V_Min
+	upperY = V_Max
+End Function
+
+Static Function AxGenLine(mWin,axisName,value,mPlotObj,mDoUpdate)	
 	// Get the axis for this graph (mWin is the name)
 	// Q: don't print anything
 	String mWin,axisName
 	Variable value,mDoUpdate
-	Struct PlotFormat & fmt
+	Struct PlotObj & mPlotObj
 	// Make a 'DoUpdate', so that getAxis is working with updated information
 	if (mDoUpdate)
 		DoUpdate
 	EndIf
-	// Get the X limits
-	GetAxis /W=$mWin/Q $X_AXIS_DEFLOC
-	Variable lowerX = V_Min
-	Variable upperX = V_Max
-	// Get the Y Limes
-	GetAxis /W=$mWin/Q $Y_AXIS_DEFLOC
-	Variable lowerY = V_Min
-	Variable upperY = V_Max
+	Variable lowerX,upperx,lowerY,upperY
+	GetAxisLimits(mWin,lowerX,upperX,lowerY,upperY)
 	// figure out what we will plot
 	Variable x0,y0,x1,y1
 	strswitch (axisName)
@@ -709,6 +910,8 @@ Static Function AxGenLine(mWin,axisName,value,fmt,mDoUpdate)
 			// constant y at value
 			x0 = lowerX
 			x1 = upperX
+			// Note that we do MAXy-y to get the coordinates, since
+			// y=0 is at the top, y=1 is the bottom (in normalized)
 			y0 = value
 			y1 = value
 			break
@@ -722,36 +925,89 @@ Static Function AxGenLine(mWin,axisName,value,fmt,mDoUpdate)
 			break
 	EndSwitch
 	// POST: x0,x1,y0,y1 are the values we want
-	Variable r = fmt.rgb.red, g = fmt.rgb.green, b = fmt.rgb.blue
-	Variable thick = fmt.Thickness
-	Variable dash = fmt.DashPattern
+	// Get the RGB type stuff we want
+	Variable r,g,b
+	GetRGBFromString(mPlotObj.mColor,r,g,b)
+	Variable thick = mPlotObj.linewidth
+	// get the dash patterning
+	Variable dash
+	// solid or dashed? Default to dashed. 
+	if (IsDottedFormat(mPlotObj.formatMarker))
+		dash = DEF_LINE_PATTERN_DASHED 
+	else
+		dash = DEF_LINE_PATTERN_SOLID
+	endIf
+	// POST: 
 	// Set the coordinate system to relativ, thickness, line color, and dask style.
+	// The 'setDrawEnv' call *must* all be done in one line, include 'save'... 
 	SetDrawEnv /W=$mWin xcoord=$X_AXIS_DEFLOC,ycoord=$Y_AXIS_DEFLOC, linefgc=(r,g,b), dash=(dash),linethick=(thick), save
-	DrawLine /W=$mWin x0,y0,x1,y1
+	// Get the ranged x and y. note that we *dont* use prel, since that adjusts
+	// the axes inappropriately when we rescale. 
+	Variable x0Norm = x0
+	Variable x1Norm = x1
+	Variable y0Norm = y0
+	Variable y1Norm = y1
+	DrawLine /W=$mWin x0Norm,y0Norm,x1Norm,y1Norm
 End Function
 
-Static Function AxVLine(xValue,[GraphName,PlotFormat,mDoUpdate])
+Static Function AxVLine(xValue,[GraphName,color,mDoUpdate])
 	// 'xValue' is the x location we want the vertical line to pass through
 	Variable xValue
 	Variable mDoUpdate 
 	String GraphName
-	Struct PlotFormat & PlotFormat
+	String color
 	Struct PlotFormat toUse
+	if (ParamIsDefault(color))
+		color = COLOR_ABBR_RED
+	EndIf
+	// POST: color is not default
 	mDoUpdate = ParamIsDefault(mDoUpdate) ? ModDefine#True() : mDoUpdate
 	// Get the current, if the graph wasn't given
 	if (ParamIsDefault(GraphName))
 		GraphName = gcf()
 	EndIF
-	if (ParamIsDefault(PlotFormat))
-		Struct RGBColor mRGB
-		InitRGB_Dec(mRGB,0.0,0,1.0)
-		toUse.rgb = mRGB
-		toUse.DashPattern = 3
-		toUse.Thickness = 2.5
-	Else 
-		toUse = PlotFormat
+	Struct PlotObj mPlotObj
+	// XXX add these as default parameters
+	Variable linewidth = 2.5
+	String mMarker = DEF_AX_V_OR_H_LINE
+	InitPlotObj(mPlotObj,mColor=color,linewidth=linewidth,marker=mMarker)
+	 AxGenLine(GraphName,Y_AXIS_DEFLOC,xValue,mPlotObj,mDoUpdate)	
+End Function
+
+Static Function AxHLine(yValue,[GraphName,color,mDoUpdate])
+	// 'yValue' is the y location we want the vertical line to pass through
+	Variable yValue
+	Variable mDoUpdate 
+	String GraphName
+	String color
+	Struct PlotFormat toUse
+	if (ParamIsDefault(color))
+		color = COLOR_ABBR_RED
 	EndIf
-	 AxGenLine(GraphName,Y_AXIS_DEFLOC,xValue,toUse,mDoUpdate)	
+	// POST: color is not default
+	mDoUpdate = ParamIsDefault(mDoUpdate) ? ModDefine#True() : mDoUpdate
+	// Get the current, if the graph wasn't given
+	if (ParamIsDefault(GraphName))
+		GraphName = gcf()
+	EndIF
+	Struct PlotObj mPlotObj
+	// XXX add these as default parameters
+	Variable linewidth = 2.5
+	String mMarker = DEF_AX_V_OR_H_LINE
+	InitPlotObj(mPlotObj,mColor=color,linewidth=linewidth,marker=mMarker)
+	 AxGenLine(GraphName,X_AXIS_DEFLOC,yValue,mPlotObj,mDoUpdate)	
+End Function
+
+Static Function GetTracesAsWave(GraphName,mWave)
+	Wave /T mWave
+	String GraphName
+	String Sep = ModDefine#DefListSep()
+	String Traces = TraceNameList(GraphName,Sep,TRACENAME_INCLUDE_ALL)
+	Variable nItems = ItemsInList(Traces,Sep)
+	// Resize the wave to the appropriate number of items
+	Redimension /N=(nItems) mWave
+	// Add all the items
+	mWave[] =  StringFromList(p,Traces,Sep)
 End Function
 
 Static Function ClearFig([GraphName])
@@ -761,20 +1017,21 @@ Static Function ClearFig([GraphName])
 		GraphName = gcf()
 	EndIf
 	// Get all the traces
-	String Sep = ModDefine#DefListSep()
-	String Traces = TraceNameList(GraphName,Sep,TRACENAME_INCLUDE_ALL)
+	Make /O/N=0/T mTracesClearFig
+	GetTracesAsWave(GraphName,mTracesClearFig)
 	// Kill Each of th trace in this window
-	Variable nItems = ItemsInList(Traces,Sep)
+	Variable nItems = DimSize(mTracesClearFig,0)
 	Variable i
 	String tmp
 	for (i=0; i< nItems;  i+= 1)
-		tmp = StringFromList(i,Traces,Sep)
+		tmp = mTracesClearFig[i]
 		// remove this trace
 		// /Z : silence, in the case of NANs
 		RemoveFromGraph /Z/W=$(GraphName) $tmp
 	EndFor
 	// kill anything drawn
 	SetDrawLayer /K/W=$GraphName $DRAW_LAYER_GRAPH
+	KillWaves /Z mTracesClearFig
 End Function
 
 // Functions for getting strings of Greek letters
@@ -806,10 +1063,14 @@ Static Function SubplotLoc(nRows,nCols,number,leftWin,topWin,rightWin,bottomWin,
 	ModErrorUtil#AssertGt(number,0)
 	ModErrorUtil#AssertGt(nRows,0)
 	ModErrorUtil#AssertGt(nCols,0)
-	Variable mCol = mod(number,nCols)
-	Variable mRow = floor(number/nCols)
+	Variable mCol = mod(number-1,nCols)
+	Variable mRow = floor((number-1)/nCols)
+	// Check and make sure we are in range
+	if (number > nRows*nCols)
+		ModErrorUtil#OutOfRangeError(description="Subplot number out of range")
+	EndIf
 	if (mRow > nRows || mCol > nCols)
-		ModErrorUtil#DevelopmentError()
+		ModErrorUtil#OutOfRangeError(description="Subplot number out of range")
 	EndIf
 	// POST: we are in bounds, get where this plot should actually start and end
 	// Note: these are *relative* coordinates, to the host
@@ -818,7 +1079,7 @@ Static Function SubplotLoc(nRows,nCols,number,leftWin,topWin,rightWin,bottomWin,
 	Variable height = 1/(nRows)
 	// mCol has range [1,nCols], so it has a max of one
 	left = (mCol) * width
-	top  = (mRow-1) * height
+	top  = (mRow) * height
 	right = left + width
 	bottom = top + height
 End Function
@@ -840,11 +1101,15 @@ End Function
 // which should be displayname, if passed
 // Should only call this *once* per number, otherwise subplot will get confused
 // XXX could just reference the window or kill, if it already exists
+// XXX TODO: known bug: doesn't work quite right with non-column plots
 Static Function /S Subplot(nRows,nCols,Current,[windowName,displayName])
 	Variable nRows,nCols,Current
 	String windowName,displayName
 	if (ParamIsDefault(windowName))
+		// Get the name of the current figure or graph
 		windowName = gcf()
+		// Remove everything after the last "#" (window separator)
+		windowName = ModIoUtil#RemoveAfterLast(windowName,WINDOW_SEP)
 	EndIf
 	if (ParamIsDefault(displayName))
 		displayName = DefDisplayName(windowName,current)
@@ -916,3 +1181,34 @@ Static Function DisplayRel(hostName, GraphName,mWindow,xRel,yRel,widthRel,height
 	// Make the display as usual
 	DisplayGen(xAbsI,yAbsI,xAbsF,yAbsF,hostname=hostname,graphname=graphName)
 End Function
+
+// Plot rawdata as grey, then filter it and plot the filtiered using 'color'
+Static Function PlotWithFiltered(RawData,[X,color,nFilterPoints])
+	// Plot the raw data as a grey line
+	Wave RawData,X
+	Variable nFilterPoints
+	String color
+	Variable nDataPoints = DimSize(RawData,0)
+	// Get some reasonable number for the filtering factor if we dont have one (
+	nFilterPoints = ParamIsDefault(nFilterPoints) ? ceil(nDataPoints*DEF_SMOOTH_FACTOR) :  nFIlterPoints
+	String rawColor = "grey"
+	String rawMarker = ""
+	if (!ParamIsDefault(X))
+		ModPlotUtil#Plot(RawData,marker=rawMarker,color=rawColor,mX=X)
+	Else
+		ModPlotUtil#Plot(RawData,marker=rawMarker,color=rawColor)		
+	EndIf
+	// Get a filtered version of the raw data
+	String filterName = NameOfWave(RawData) + "filtered"
+	Duplicate /O RawData, $filterName
+	Wave Smoothed = $filterName
+	ModFitUtil#SavitskySmooth(Smoothed,nPoints=nFIlterPoints)
+	// Plot the filtered version of the data
+	// Use the same marker (just a line) 
+	if (!ParamIsDefault(X))
+		ModPlotUtil#Plot(Smoothed,marker=rawMarker,color=color,mX=X)
+	Else
+		ModPlotUtil#Plot(Smoothed,marker=rawMarker,color=color)		
+	EndIf
+End Function
+

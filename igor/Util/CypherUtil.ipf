@@ -10,13 +10,16 @@
 //// Constants related to approach and positioning
 Static StrConstant NOTE_APPROACH_VEL = "Velocity"
 Static StrConstant NOTE_RETRACT_VEL = "RetractVelocity"
-Static StrConstant NOTE_X_LVDT = "XLVDT"
-Static StrConstant NOTE_Y_LVDT = "YLVDT"
+Static StrConstant NOTE_X_LVDT = "XLVDTSens"
+Static StrConstant NOTE_Y_LVDT = "YLVDTSens"
 Static StrConstant NOTE_Z_LVDT = "ZLVDTSens"
 Static StrConstant NOTE_SPOT_POS = "ForceSpotNumber"
+// Dwell setting: 0 if we aren't using either dwells, 
+Static StrConstant NOTE_DWELL_SETTING = "DwellSetting"
 Static StrConstant NOTE_DWELL_SURFACE = "DwellTime"
 Static StrConstant NOTE_DWELL_ABOVE = "DwellTime1"
 Static StrConstant NOTE_FORCE_DIST = "ForceDist"
+Static StrConstant NOTE_START_DIST  = "StartDist"
 //// Constants related to calibration
 Static StrConstant NOTE_INVOLS = "InvOLS"
 Static StrConstant NOTE_SPRING_CONSTANT = "SpringConstant"
@@ -49,6 +52,13 @@ StrConstant DEFAULT_ASYLUM_PATH = "ForceCurves:SubFolders:"
 // get all of the last digits
 StrConstant DEFAULT_ASYLUM_FILENUM_REGEX = "(\d+)$"
 
+// settings for the dwell parameters. could use bitwise, but this is simpler
+// found experimentally (tried different parameter sets) on 10/1/2015
+Static Constant DWELL_SETTING_NONE = 0 
+Static Constant DWELL_SETTING_SURF_ONLY= 1 // only surface dwelling
+Static Constant DWELL_SETTING_ABOVE_ONLY= 2 //  only above 
+Static Constant DWELL_BOTH = 3  // both surface dwell and above dwell 
+
 // Adapted from R. Walder, 6-30-2015, "ForceRampUtilities.ipf"
   Structure ForceMeta
  	// Related to triggering
@@ -62,6 +72,7 @@ StrConstant DEFAULT_ASYLUM_FILENUM_REGEX = "(\d+)$"
  	Variable DwellSurface
  	Variable DwellAway
  	Variable ForceDist
+ 	Variable StartDist
  	Variable PosX
  	Variable PosY
  	Variable PosZ
@@ -123,7 +134,31 @@ Static Function GetForceRampSetting(ForceWave,ParmString)
 	return str2num(Parm)
 End 
 
+//
 // funcitons to get the individual parameters
+//
+
+Static Function HasStartDwell(DwellSetting)
+	Variable DwellSetting
+	return DwellSetting  ==  DWELL_SETTING_SURF_ONLY || DwellSetting == DWELL_BOTH
+End Function
+
+Static Function HasEndDwell(DwellSetting)
+	Variable DwellSetting
+	return DwellSetting  ==  DWELL_SETTING_ABOVE_ONLY || DwellSetting == DWELL_BOTH
+End Function
+
+// returns if the wave has a surface dwell (syntactic sugar)
+Static Function HasSurfaceDwell(ForceWave)
+	Wave ForceWave
+	return HasStartDwell(GetDwellSetting(ForceWave))
+End Function
+
+Static Function GetDwellSetting(ForceWave)
+	Wave ForceWave 
+	return GetForceRampSetting(ForceWave,NOTE_DWELL_SETTING)
+End Function
+
 Static Function GetSampleRate(ForceWave)
 	Wave ForceWave 
 	return GetForceRampSetting(ForceWave,NOTE_SAMPLE_HERTZ)
@@ -143,6 +178,12 @@ Static Function GetForceDist(ForceWave)
 	Wave ForceWave
 	String mStr
 	return GetForceRampSetting(ForceWave,NOTE_FORCE_DIST)
+End Function
+
+Static Function GetStartDist(ForceWave)
+	Wave ForceWave
+	String mStr
+	return GetForceRampSetting(ForceWave,NOTE_START_DIST)
 End Function
 
 Static Function GetApproachVel(ForceWave)
@@ -252,6 +293,7 @@ Static Function GetForceMeta(meta,ForceWave)
  	meta.DwellSurface = GetDwellSurface(ForceWave)
  	meta.DwellAway = GetDwellAbove(ForceWave)
  	meta.ForceDist = GetForceDist(ForceWave)
+ 	meta.StartDist = GetStartDist(ForceWave)
  	meta.PosX = GetLVDT_X(ForceWave)
  	meta.PosY = GetLVDT_Y(ForceWave)
  	meta.PosZ = GetLVDT_Z(ForceWave)
@@ -380,20 +422,13 @@ Static Function GetForceSep(InWaveX,InWaveY,InTypeX,InTypeY,Force,Sep)
 	// POST: sep is also populated.
 End Function
 
-// A function to convert a Y data type to another Y data type
-// Note: If Present, DeflMeters is set with the deflection in meters
-// This is useful, since any X conversion needs the deflection in meters
-Static Function ConvertY(InWave,InType,OutWave,OutType,[DeflMeters])
-	Wave InWave,OutWave,DeflMeters
-	Variable InType,OutType
+// Get the constant to change inwave to deflMeters
+Static Function ConstToDeflMeters(InWave,InType,[SpringConstant,Invols])
+	Wave InWave
+	Variable InType, SpringConstant,Invols
+	Invols = ParamIsDefault(Invols)? GetInvols(InWave) :Invols
+	SpringConstant = ParamIsDefault(SpringConstant)? GetSpringConstant(InWave) :SpringConstant
 	Variable ToDeflMeters
-	// Switched based on the input type,  to get the conversion
-	// We will always convert to DeflMeters, then back to Volts
-	// Note: We assume invols and springconstant are in V/nm and N/m respectively
-	Variable InVols = GetInvols(InWave) 
-	Variable SpringConstant = GetSpringConstant(InWave)
-	ModErrorUtil#AssertNeq(InType,outType,errorDescr="Programming error, Y Conversions were the same")
-	// POST: we have a real conversion to make
 	switch (InType)
 		case MOD_Y_TYPE_DEFL_VOLTS:
 			// To convert from Volts to meters, multiply by invols
@@ -412,6 +447,24 @@ Static Function ConvertY(InWave,InType,OutWave,OutType,[DeflMeters])
 			ModErrorUtil#TypeError(description="Don't recognize Y Input Type")
 			break
 	endswitch
+	// POST: have the conversion
+	return ToDeflMeters
+End Function
+
+// A function to convert a Y data type to another Y data type
+// Note: If Present, DeflMeters is set with the deflection in meters
+// This is useful, since any X conversion needs the deflection in meters
+Static Function ConvertY(InWave,InType,OutWave,OutType,[DeflMeters])
+	Wave InWave,OutWave,DeflMeters
+	Variable InType,OutType
+	// Switched based on the input type,  to get the conversion
+	// We will always convert to DeflMeters, then back to Volts
+	// Note: We assume invols and springconstant are in V/nm and N/m respectively
+	Variable SpringConstant = GetSpringConstant(InWave)
+	Variable InVols = GetInvols(InWave) 
+	ModErrorUtil#AssertNeq(InType,outType,errorDescr="Programming error, Y Conversions were the same")
+	// POST: we have a real conversion to make
+	Variable ToDeflMeters = ConstToDeflMeters(InWave,InType,SpringConstant=SpringConstant,Invols=Invols)
 	// POST: we know how to convert the y type into deflection meters
 	// Detrermine how to convert the y type into the desired output type.
 	Variable fromDeflMeters 
@@ -460,47 +513,24 @@ Static Function ConvertX(InWave,InType,OutWave,OutType,DeflMeters)
 	Variable coeffDeflToZ  = 0
 	Variable coeffInputToZ = 0
 	Variable coeffZSnsr = 0
-	// First, we convert from the input and Defl to ZSnsr
-	// According to asylum, http://mmrc.caltech.edu/Asylum/Asylum%20MRP-3D%20manual.pdf
-	// MFP-3D Manual, Version 04_08 (assumed similar to cypher), pp 222
-	// "Tip-Sample Separation" -- 
-	// "[the] distance between the tip and the surface ... [is calculated by]  ... subtract[ing]"
-	// the tip deflection from the Piezo position. "
-	Switch (InType)
-		case MOD_X_TYPE_SEP:
-			// Sep = Z - Defl
-			// It follows that ZSnsr = Sep + Deflection
-			// Input: Sep (-1)
-			// Deflection +1
-			coeffInputToZ = 1
-			coeffDeflToZ = 1
-			break
-		case MOD_X_TYPE_Z_SENSOR:
-			// ZSnsr = ZSnsr
-			coeffInputToZ = 1
-			coeffDeflToZ = 0
-			break
-	EndSwitch
-	// POST: we know how to convert to ZSnsr
-	// Determine the conversion From ZSnsr to the output Type
-	Switch (OutType)
-		case MOD_X_TYPE_SEP:
-			// Sep =  (ZSnsr - Deflection)
-			coeffDefl = -1
-			coeffZSnsr = 1
-			break
-		case MOD_X_TYPE_Z_SENSOR:
-			// Nothing to change
-			// ZSnsr = ZSnsr
-			coeffZSnsr  =1
-			break
-	EndSwitch
-	// Make the conversions. Essentially, we just add up the factors above.
+	// Zsnsr = Defl-Sep by Cypher Convention
 	Duplicate /O InWave,OutWave
-	// Note that we are precluded form having OutWave=0 for non-zero inwave.
-	// Since the types cannot be equal
-	// For our purposes, we multiply by -1, since it is more convenient  to have the approach increase
-	 OutWave =  (-1) * (DeflMeters *coeffDefl + (CoeffZSnsr) * ( (coeffInputToZ) * InWave + (coeffDeflToZ)*DeflMeters ))
+	// XXX check output type  parity...
+	Switch (InType)
+		// Zsnsr = Defl-Sep
+		case MOD_X_TYPE_SEP:
+			// Converting to Zsnsr
+			OutWave[] = DeflMeters[p]-InWave[p]
+			break
+		// Sep = Defl-Zsnsr
+		case MOD_X_TYPE_Z_SENSOR:
+			// Converting to Sep
+			OutWave[] = DeflMeters[p]-InWave[p]
+			break
+		Default:
+			ModErrorUtil#TypeError(description="Don't recognize X Input Type")
+			break
+	EndSwitch
 End Function
 
 Static Function /S ForceSuffix()

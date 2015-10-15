@@ -12,9 +12,9 @@
 #include "::Model:Model"
 #include "::Util:IoUtil"
 #include "::Util:CypherUtil"
+#include "::Converters:DevinHighResConvert"
 
 StrConstant X_HIGH_RES_SUFFIX = ""// no X required; all taken care of by (1) extension of a proper length after the file.
-StrConstant DEFLV_HIGH_RES_SUFFIX =  "DeflV_Towd"
 // See: Inteperpolate Help.ihf
 // you can find this by clicking interpolate --> Help --> Done, then searching
 // for interpolate2 in the help menu (on a MAC, Igor 6.37, 7/23/2015, size 12 shoe)
@@ -31,138 +31,29 @@ Constant RUPTURE_IDX_3 = 11
 Constant RUPTURE_IDX_FINAL = 13
 
 // Generalize: Method to ask for recquired waves (for full extension), method to get full extension, assuming they exist
-// Low Resolution Extensions
-StrConstant ZSNSR_APPROACH = "ZSnsr_Ext"
-StrConstant ZSNSR_DWELL = "ZSnsr_Towd"
-StrConstant ZSNSR_RET = "ZSnsr_Ret"
-StrConstant ZSNSR_FULL_LOWRES = "Full_ZSnsr"
-StrConstant ZSNSR_FULL_HIGHRES = "Hi_ZSnsr"
-StrConstant DEFL_LOW_RES_SUFFIX_APPROACH = "Defl_Ext"
-StrConstant DEFL_LOW_RES_SUFFIX_DWELL = "Defl_Towd"
-StrConstant DEFL_LOW_RES_SUFFIX_RET = "Defl_Ret"
-// Full *deflection in volts*
-StrConstant DEFLV_LOW_RES_SUFFIX_FULL = "Full_DeflV"
 // High resolution extension (version)
 StrConstant ZSNSR_INTERP = "ZSnsr_Interp"
-// Struct used to keep track of the low and high resolution versions of the 
-//  X and Y values during pre-processing
-// Indices for the 5 ruptures
-
-
-// A function which returns the recquired extensions for making the higher-resolution wave
-Static Function /Wave CreateRecquiredExtensions()
-	Make /O/T toRet = {ZSNSR_APPROACH,ZSNSR_DWELL,ZSNSR_RET,DEFL_LOW_RES_SUFFIX_APPROACH, DEFL_LOW_RES_SUFFIX_DWELL, DEFL_LOW_RES_SUFFIX_RET  }
-	return toRet
-End Function
-
-Static Function CreateGen(stemName,outName,approach,dwell,ext)
-	String outName
-	String stemName,approach,dwell,ext
-	Concatenate /O/NP {$(stemName+approach),$(stemName+dwell),$(stemName+ext)},$outName
-End Function
-
-Static Function CreateLowResDeflVFromDefl(stemName,outName)
-	String stemName,outName
-	String tmpName = outName + "tmp"
-	CreateGen(stemName,tmpNAme,DEFL_LOW_RES_SUFFIX_APPROACH,DEFL_LOW_RES_SUFFIX_DWELL,DEFL_LOW_RES_SUFFIX_RET)	
-	// Convert to deflV
-	Wave mInWave = $tmpName
-	Variable n=DImSize(mInWave,0)
-	MAke /O/N=(n) $outName
-	Wave mOut = $outName
-	Variable InType = MOD_Y_TYPE_DEFL_METERS
-	Variable OutType = MOD_Y_TYPE_DEFL_VOLTS
-	ModCypherUtil#ConvertY(mInWave,InType,mOut,OutType)
-	KillWaves mInWave
-End Function
-
-// A function which created the low resolution wave from an input stem
-Static Function CreateLowResZSnsr(stemName,outName)
-	// PRE: all the waves recquired exist
-	// Check that the lower resolution files we need exist
-	String outName, stemName
-	CreateGen(stemName,outName,ZSNSR_APPROACH,ZSNSR_DWELL,ZSNSR_RET)
-End Function
 
 // InWave is the wave of paths to the wave stems we are interested in
-// OutWave is the wave we will populated with the new, processed waves,
-// possibly created here
 Function GetInputNamesNUG2(InWave,mProc)
-	Wave /T InWave
 	Struct ProcessStruct & mProc
+	Wave /T InWave
 	Variable n = DimSize(InWave,0)
 	Variable i=0
-	// XXX need to figure out how many leading zeros
 	for (i=0; i<n; i+=1)
 		String mWaveStem = InWave[i]
-		String mFile = ModIoUtil#GetFileName(mWaveStem)
-		String mNum
-		// XXX check that this matches (*really* need a generic method to do this for us)
-		// Find the number of this wave
-		SplitString /E=(DEFAULT_ASYLUM_FILENUM_REGEX) mWaveStem,mNum
-		// Find where the number happens, since we assume it does
-		Variable numLoc = ModIoUtil#GetLastIndex(mWaveStem,mNum)
-		// Get the 'template': anything before the number. E.g. 
-		//   root:Packages:View_NUG2:Data:Data_AzideB1:Image2452 -- >  root:Packages:View_NUG2:Data:Data_AzideB1:Image
-		String mTemplate = mWaveStem[0,numLoc-1]
-		Variable numberID = str2num(mNum)
-		// POST: have the template and the number for this ID
-		// In order to get a high time resolution version of the wave, we need
-		// to find the slow version. For file "foo:bar:ImageX", the slow version is
-		// "foo:bar:Image(X-1)". For example :
-		// if     root:Packages:View_NUG2:Data:Data_AzideB1:Image2401DeflV is the fast version
-		// then root:Packages:View_NUG2:Data:Data_AzideB1:Image2400Defl is the slow version
-		// Check if the files with the necessary suffixes exist
-		// Put together the low resolution file stem. E.g.: foo:bar:Image(X-1)
-		String mLowResStem = mTemplate + ModCypherUtil#ReturnAsylumID(numberID-1)
-		Wave /T mExt = CreateRecquiredExtensions()
-		Variable j,nExt=DimSize(mExt,0)
-		Variable allExist = ModDefine#True()
-		Variable MinSize = 5e5 // we need at least half a million points for the high-resolution data (total: 11 million, but in separate pieces)
-		// ensure all the needed waves exist
-		String mWave
-		for (j=0; j<nExt; j+=1)
-			mWave = mLowResStem + mExt[j]
-			if (!WaveExists($mWave))
-				allExist=ModDefine#False()
-				break
-			EndIf
-		EndFor
-		// POST: all the low resolution waves exists is allExist is true.
-		// How about the high resolution
-		if (!allExist)
+		// Check if all the necessary waves exist...
+		if (!ModDevinHighResConvert#AllWavesExistForStem(mWaveStem))
 			continue
-		else
-			// Check that the high-resolution time wave also exists, and is above the minimum size.
-			Wave mHighY = $(mWaveStem+ DEFLV_HIGH_RES_SUFFIX)
-			// For the NUG2 model, we have 5MHZ data, so the high bandwidth files
-			// (what we are looking for) should be very large.
-			if (!WaveExists(mHighY))
-				allExist=ModDefine#False()
-				break
-			endIf
-			// POST: high wave exists. 
-			// ... but is it the right size?
-			if (DimSize(mHighY,0) < MinSize)
-				allExist=ModDefine#False()
-				break
-			EndIf
-			// POST: both low and high resolution waves (seem to) exist
-			// XXX check for ZSNSR?
-			// /D: double
-			// Low resolution 
-			// Note: we are saving these all as  the high-resolution stem, to avoid confusion later on
-			String fullZsnsrLow = mWaveStem + ZSNSR_FULL_LOWRES
-			String fullDeflLow = mWaveStem + DEFLV_LOW_RES_SUFFIX_FULL
-			// Create the 'full' low resolution waves we need (including approach)
-			CreateLowResDeflVFromDefl(mLowResStem,fullDeflLow)
-			CreateLowResZSnsr(mLowResStem,fullZsnsrLow)
-			// High deflection and Zsnsr are in the normal  folder (mWaveStem)
-			String fullDeflHigh = mWaveStem + DEFLV_HIGH_RES_SUFFIX			
-			String fullZsnsrHigh = mWaveStem + ZSNSR_FULL_HIGHRES
-			Duplicate /O $fullDeflHigh,$fullZsnsrHigh
-			ModPreprocess#AddStringToWaves(mProc,fullZsnsrLow,fullZsnsrHigh,fullDeflLow,fullDeflHigh)
-		Endif
+		EndIf
+		// POST: both low and high resolution waves (seem to) exist
+		//Create all the waves we want
+		String fullZsnsrLow,fullZsnsrHigh,fullDeflLow,fullDeflHigh
+		// True: Create the waves we want in the same folder.
+		ModDevinHighResConvert#GetRelevantStems(mWaveStem,ModDefine#True(),fullZsnsrLow,fullZsnsrHigh,fullDeflLow,fullDeflHigh)
+		// for now, just put the DeflV high resolution into the Zsnsr (interpolated later)
+		Duplicate /O $fullDeflHigh,$fullZsnsrHigh
+		ModPreprocess#AddStringToWaves(mProc,fullZsnsrLow,fullZsnsrHigh,fullDeflLow,fullDeflHigh)
 	EndFor
 	// Set the suffixes we used
 	mProc.xLowResSuffix = ZSNSR_FULL_LOWRES

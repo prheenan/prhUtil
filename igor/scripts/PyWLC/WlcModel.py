@@ -17,8 +17,8 @@ import PlotUtilities as pPlotUtil
 import CheckpointUtilities as pCheckUtil
 sys.path.append('../PyUtil')
 sys.path.append('../PyWlc')
-
-from SqlUtil import GetTraceParams
+import datetime # for epoch seconds
+from SqlUtil import GetTraceParams,GetMeta
 
 class ModelParams:
     # has parameters: 
@@ -31,7 +31,8 @@ class ModelParams:
     #self._wlc2Final : index for the end of the *second* linear WLC region
     #self._rupture   : index for thefinal rupture
     # Note: only guarenteed to have the first three be non-null
-    def __init__(self,xyOff,wlc1Init,wlc1Final,oStretch1=None,oStretch2=None,
+    def __init__(self,mSqlObj,fileObj,
+                 xyOff,wlc1Init,wlc1Final,oStretch1=None,oStretch2=None,
                  wlc2Init=None,wlc2Final=None,rupture=None):
         self._xyOff = xyOff
         self._wlc1Init = wlc1Init
@@ -41,8 +42,16 @@ class ModelParams:
         self._wlc2Init = wlc2Init
         self._wlc2Final = wlc2Final
         self._rupture = rupture
+        self._mMeta = GetMeta(mSqlObj,fileObj)
+    # returns the start time of the force extension curve 
+    def getStartTimeOfFEC(self,convertToEpochSeconds=True):
+        mTime = self._mMeta.TimeStarted
+        # if we want to, convert to seconds since 1970
+        if (convertToEpochSeconds):
+            mTime = (mTime-datetime.datetime(1970,1,1)).total_seconds()
+        return mTime
 
 def GetWlcParams(sqlObj,fileObj):
     mVals,mMeta = GetTraceParams(sqlObj,fileObj)
     mIndices = [int(val.DataIndex) for val in mVals]
-    return ModelParams(*mIndices)
+    return ModelParams(sqlObj,fileObj,*mIndices)
