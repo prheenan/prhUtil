@@ -6,8 +6,6 @@
 #include "::Util:Defines"
 #include "::Util:FitUtil"
 #include "::Util:PlotUtil"
-// For reading in test files (offline)
-#include "::Util:IoUtilHDF5"
 #include "::Util:CypherUtil"
 
 // By  default, smooth to Xs ((1/X)Hz) for surface detection (calculating derivatives)

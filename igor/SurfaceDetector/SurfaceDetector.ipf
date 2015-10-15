@@ -5,6 +5,7 @@
 #include ":SurfaceDetectorUtil"
 #include ":SurfacePreProc"
 #include ":SurfaceDefines"
+#include ":SurfaceView"
 
 Static Function Main()
 	// Initialize the folders and global view obect
