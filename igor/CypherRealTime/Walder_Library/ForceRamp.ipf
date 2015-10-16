@@ -1,6 +1,7 @@
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 #pragma version=1.0
 #include ":SaveAsAsylumForceRamp"
+#pragma ModuleName = ModForceRamp
 
 // Here's my hack to do the CTFC force ramp, but have the CTFC trigger off a filtered deflection channel.
 Function DoForceRampFiltered(RampSettings,WaveNameCallbackSettings,FilterFrequency)
@@ -209,14 +210,13 @@ Function SetupForceRamp(RampSettings[,CallBack,TriggerWaveName])
 
 End //SetupForceRamp
 
-Function MakeForceRampWave([OutputWaveName])
+Static Function MakeForceRampWave([OutputWaveName])
 
 	String OutputWaveName
 	
 	If(ParamIsDefault(OutputWaveName))
 		OutputWaveName="ForceRampSettings"
-	EndIf
-
+	EndIf	
 	Make/O/N=14 $OutputWaveName
 	Wave ForceRampSettings=$OutputWaveName
 	
@@ -236,9 +236,10 @@ Function MakeForceRampWave([OutputWaveName])
  	SetDimLabel 0,13, $"DefVOffset", ForceRampSettings
 
 	ForceRampSettings={100e-12,30e-12,1e-6,1e-6,0,0,50e-9,0,1e-6,5,3,2,1000,0}
+
 End
 
-Function MakeFRWaveNamesCallback([OutputWaveName])
+Static Function MakeFRWaveNamesCallback([OutputWaveName])
 	String OutputWaveName
 	
 	If(ParamIsDefault(OutputWaveName))
