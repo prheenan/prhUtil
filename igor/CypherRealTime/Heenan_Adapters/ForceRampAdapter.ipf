@@ -40,6 +40,7 @@ Static Function InitRampWaves(ToInit,Callback,[DeflName,ZName,CFTC])
 	if (ParamIsDefault(CFTC))
 		CFTC = DefCFTC
 	Endif
+	ToInit.Callback = CallBack
 	ToInit.Deflection = DeflName
 	ToInit.Zsensor = ZName
 	ToInit.CftcSettings = CFTC
