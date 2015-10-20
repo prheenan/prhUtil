@@ -5,11 +5,13 @@
 Static Constant InterpolationMax = 50e3
 
 // Function to intialize eveyrthing to a safe state
-Static Function ResetController()
+Static Function StopControllerActivity()
 	// See "ARRealTimeProgrammingHelp"
 	// stops 'fast collection' thermal data capture (out of 5MHz)
 	td_StopThermal()
 	// stop controller activity (must call after td_stopThermal)
+	// ' Stops almost all controller activity, clears any active events, 
+	// and unsets any associated Igor waves, and kills any thermal tune that might be running.'
 	td_stop()
 	// Call the main tab stop 
 	DoScanFunc("StopScan_0")
