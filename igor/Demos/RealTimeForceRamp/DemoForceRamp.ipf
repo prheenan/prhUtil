@@ -3,6 +3,7 @@
 
 #include ":::Util:IoUtil"
 #include ":::CypherRealTime:Heenan_Adapters:ForceRampAdapter"
+#include ":::View:ViewUtil"
 
 Variable CurrentIter 
 Static StrConstant workingDir = "Root:ForceRampDemo"
