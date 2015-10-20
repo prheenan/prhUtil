@@ -21,7 +21,7 @@ Static Function Main()
 	Wave rampSettings = $settingsWave
 	ModForceRampAdapter#InitRampSettings(rampSettings)
 	// Make a window to control all the wave bits...
-	String mWin = ModViewUtil#CreateNewWindow(0.4,0.4)
+	String mWin = ModViewUtil#CreateNewWindow(0.4,0.4,windowName="ForceRampDemo")
 	// Get the elements we will play with
 	Make /T/O/N=(0) elements 
 	ModForceRampAdapter#GetRampSettingsNames(elements)

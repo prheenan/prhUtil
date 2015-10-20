@@ -13,7 +13,7 @@ Static Constant DefApprVel    = 500e-9
 Static Constant DefRetrVel     = 500e-9
 Static Constant DefDwellTime = 2
 Static Constant DefNoTrigDist = 150e-9
-Static Constant DefExtDist =1.4e6
+Static Constant DefExtDist =1.4e-6
 Static Constant DefSampleFreq = 5000
 Static Constant MAX_WAVENAME = 32
 
