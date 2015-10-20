@@ -64,6 +64,7 @@ Constant nMeta =  4
 Constant SETVAR_TYPE_NUMERIC = 1
 Constant SETVAR_TYPE_STRING = 2
 Constant SETVAR_TYPE_NONE_GIVEN = 3
+Constant SETVAR_BY_WAVE = 4
 // LISTBOX_SEP 
 StrConstant VIEW_PARAM_FMT = "Param%d"
 StrConstant VIEW_SETVAR_STR = "_STR:tmp"
@@ -120,6 +121,20 @@ Static Function SetVariableStrOrNum(panelName,isStr,[sVal,dVal])
 	EndIf
 End Function
 
+Static Function SetVariableStrOrNumWave(panelName,mWave,[index,mLabel])
+	String panelName,mLabel
+	Wave mWave
+	Variable index
+	if (!ParamIsDefault(mLabel))
+		index = FindDimLabel(mWave,0,mLabel)
+	EndIf
+	if (ParamIsDefault(mLabel) && paramIsDefault(index) || (index < 0))
+		ModErrorUtil#DevelopmentError(description="Bad Set variable index...")
+	EndIf
+	// POST: know the index
+	SetVariable $panelName value=mWave[index]
+End Function
+
 Static Function /S SetVariableValue(param,panelName)
 	Struct Parameter &param
 	String panelName
@@ -163,7 +178,7 @@ Static Function MakeButton(ctrlName,titleStr,helpStr,posx,posy,width,height,mPro
 	endif
 	String mFuncName = ModIoUtil#GetFuncName(FuncRefInfo(mProc))
 	Button $ctrlName,pos={posx,posy},size={width,height},proc=$(mFuncName)
-	Button $ctrlName,font="Helvetica",fsize=(fontsize)
+	Button $ctrlName,font="Monaco",fsize=(fontsize)
 	Button $ctrlName title=titleStr,help={(helpStr)}
 End Function
 
@@ -210,7 +225,7 @@ Static Function MakeListBox(name,helpText,mWave,posx,posy,width,height,mProc,[se
 	String mFuncName = ModIoUtil#GetFuncName(FuncRefInfo(mProc))
 	ListBox $name,pos={posx,posy},size={width,height},proc=$mFuncName,listWave=mWave
 	ListBox $name,userColumnResize=AllowResize,mode=SelectionMode
-	ListBox $name,font="Helvetica",fsize=fontToUse.FontSize
+	ListBox $name,font="Monaco",fsize=fontToUse.FontSize
 	// record the selection wave, if we need to.
 	if (!ParamIsDefault(selWave))
 		ListBox $name, selWave=selWave
@@ -307,7 +322,7 @@ Static Function MakeSetVariable(panelName,mTitle,helpStr,x,y,width,height,mProc,
 			 ConvertRelativeToAbs(x,y,width,height,wAbs,hAbs)
 		endif
 		SetVariable $(panelName) format=format
-		SetVariable $(panelName) font="Helvetica"
+		SetVariable $(panelName) font="Monaco"
 		SetVariable $(panelName) fsize=toUse.FontSize
 		SetVariable $(panelName) pos={x,y},size={width,height}
 		// Set the userdata to the parameter number, if it exists
@@ -347,7 +362,7 @@ Static Function MakeCheckBox(panelName,mTitle,helpStr,x,y,width,height,mProc,[wA
 		// then multiply all the positions to get absolute weights
 			 ConvertRelativeToAbs(x,y,width,height,wAbs,hAbs)
 		endif
-		String mFontName = "Helvetica"
+		String mFontName = "Monaco"
 		CheckBox $(panelName) side=(DEF_SIDE_CHECK)
 		CheckBox $(panelName) pos={x,y}
 		CheckBox $(panelName) size={width,height}		
@@ -357,7 +372,7 @@ Static Function MakeCheckBox(panelName,mTitle,helpStr,x,y,width,height,mProc,[wA
 		endIf
 		// Set the title and help
 		CheckBox $(panelName) title=mTitle, help={helpStr}
-		CheckBox $(panelName) font="Helvetica"
+		CheckBox $(panelName) font="Monaco"
 		CheckBox $(panelName) fsize=(DEF_FONTSIZE)
 		// Set the handler function. For the parameters, this is 
 		// All the same
@@ -390,11 +405,11 @@ Static Function MakePopupMenu(panelName,mTitle,helpStr,x,y,width,height,mProc,mS
 		// then multiply all the positions to get absolute weights
 			 ConvertRelativeToAbs(x,y,width,height,wAbs,hAbs)
 		endif
-		String mFontName = "Helvetica"
+		String mFontName = "Monaco"
 		Variable bodyWidth = width-FontSizeStringWidth(mFontName,toUse.fontSize,toUse.fontStyle,mTitle)
 		PopupMenu $(panelName) format=format
 		PopupMenu $(panelName) bodyWidth=(bodyWidth)
-		PopupMenu $(panelName) font="Helvetica"
+		PopupMenu $(panelName) font="Monaco"
 		PopupMenu $(panelName) fsize=toUse.FontSize
 		PopupMenu $(panelName) pos={x,y},size={width,height}
 		// XXX sanitize string?
@@ -567,13 +582,34 @@ Constant VIEW_CHECK= 1
 Constant VIEW_POPUP= 2
 Constant VIEW_BUTTON = 3
 
-Static Function AddViewEle(viewTitle,widthRel,heightRel,viewType,mProc,[mOptStr,mOptNum,setVarType,startXRel,startYRel,yUpdated,xUpdated,panelName,helpStr,windowName,userData])
+// viewTitle: the title for this view
+//widthRel,heightRel : width and height, relative to the host window
+// viewType: one of supported types (see above)
+// (optional belpw)
+//mProc,: callbak on actions
+// mOptStr: What string to initially set a setvar to
+// mOptNum: What num to intiially set a setvar tro 
+// setVarType: string, number
+//startXRel,startYRel: where to start this view. defaults to 0,0 (relative to host
+//yUpdated,xUpdated: the ending coordinates, given the start and height. useful for looping
+//panelName: name of the control panel that will be madde
+//helpStr: text user sees on hover
+//windowName: where to put the panel. defaults to current / top window
+//userData: userdata gets passed along on callbacks
+//waveSetVar,labelSetVar: for a setvariable, rather than using a number or string, sets a wave value directly, using the given label
+// padbyList: a list of titles; this title is padded with spaces at the end so things are right aligned
+Static Function AddViewEle(viewTitle,widthRel,heightRel,viewType,[mProc,mOptStr,mOptNum,setVarType,startXRel,startYRel,yUpdated,xUpdated,panelName,helpStr,windowName,userData,waveSetVar,labelSetVar,padByList])
 	String viewTitle,panelName,helpStr,windowName,userData
 	Variable widthRel,heightRel,startXRel,startYRel
 	Variable &yUpdated,&xUpdated
 	Variable viewType,setVarType,mOptNum
-	String mOptStr,mProc
+	Wave WaveSetVar
+	Wave /T PadByList
+	String mOptStr,mProc,labelSetVar
 	// Determine the optional values for everything given
+	if (ParamIsDefault(mProc))
+		mProc = ""
+	EndIf
 	if (ParamIsDefault(startYRel))
 		startYRel = 0 
 	EndIf
@@ -592,6 +628,21 @@ Static Function AddViewEle(viewTitle,widthRel,heightRel,viewType,mProc,[mOptStr,
 	if (ParamIsDefault(userData))
 		userData = panelName
 	EndIf
+	if(!ParamIsDefault(PadByList))
+		Make /O/N=(DimSize(PadByList,0)) ViewUtilPadLengths
+		ViewUtilPadLengths[] = strlen(PadByList[p])
+		Variable maxLen = WaveMax(ViewUtilPadLengths)
+		Variable thisLen = strlen(viewTitle)
+		Variable nToAdd = max(maxLen-thisLen,0)
+		Variable i =0
+		// add spaces to match everything 
+		// XXX assume monospaced font
+		for (i=0; i< nToAdd; i+=1)
+			viewTitle += " "
+		Endfor
+		// Kill the wave
+		KillWaves /Z ViewUtilPadLengths
+	EndIf
 	Variable left,top,right,bottom
 	ModIoUtil#GetWindowLeftTopRightBottom(windowName,left,top,right,bottom)
 	Variable wAbs = abs(right-left)
@@ -600,10 +651,15 @@ Static Function AddViewEle(viewTitle,widthRel,heightRel,viewType,mProc,[mOptStr,
 	Variable yRel = startYRel
 	Variable type
 	// XXX check if string and num are both set?
+	Variable setByWave = ModDefine#False()
 	if (!ParamIsDefault(mOptStr))
 		type = SETVAR_TYPE_STRING
 	elseif (!ParamIsDefault(mOptNum))
 		type = SETVAR_TYPE_NUMERIC
+	elseif (!ParamIsDefault(WaveSetVar) && !ParamIsDefault(labelSetVar))
+		// XXX assume wave is numeric for now
+		type = SETVAR_TYPE_NUMERIC
+		setByWave = ModDefine#True()
 	else
 		// both are default
 		type = SETVAR_TYPE_NONE_GIVEN
@@ -614,6 +670,11 @@ Static Function AddViewEle(viewTitle,widthRel,heightRel,viewType,mProc,[mOptStr,
 			MakeSetVariable(panelName,viewTitle,helpStr,xRel,yRel,widthRel,heightRel,mProcRef,wAbs=wAbs,hAbs=hAbs,userdata=userData,type=type)
 			// put the optional value in the set variable
 			if (type != SETVAR_TYPE_NONE_GIVEN)
+				if (setByWave)
+					// then set by wave!
+					SetVariableStrOrNumWave(panelName,WaveSetVar,mLabel=labelSetVar)
+					break
+				EndIf
 				Variable isStr = type == SETVAR_TYPE_STRING
 				if (isStr)
 					SetVariableStrOrNum(panelName,isStr,sVal=mOptStr)

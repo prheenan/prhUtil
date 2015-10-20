@@ -210,16 +210,9 @@ Function SetupForceRamp(RampSettings[,CallBack,TriggerWaveName])
 
 End //SetupForceRamp
 
-Static Function MakeForceRampWave([OutputWaveName])
-
-	String OutputWaveName
-	
-	If(ParamIsDefault(OutputWaveName))
-		OutputWaveName="ForceRampSettings"
-	EndIf	
-	Make/O/N=14 $OutputWaveName
-	Wave ForceRampSettings=$OutputWaveName
-	
+Static Function SetDimLabelsRampSettings(ForceRampSettings)
+	Wave ForceRampSettings
+	Redimension /N=(14) ForceRampSettings
 	SetDimLabel 0,0, $"Surface Trigger", ForceRampSettings
  	SetDimLabel 0,1, $"Molecule Trigger", ForceRampSettings
  	SetDimLabel 0,2, $"Approach Velocity", ForceRampSettings
@@ -234,10 +227,30 @@ Static Function MakeForceRampWave([OutputWaveName])
  	SetDimLabel 0,11, $"Event Enable", ForceRampSettings
  	SetDimLabel 0,12, $"Sampling Rate", ForceRampSettings
  	SetDimLabel 0,13, $"DefVOffset", ForceRampSettings
+End Function
 
+Static Function MakeForceRampWave([OutputWaveName])
+
+	String OutputWaveName
+	
+	If(ParamIsDefault(OutputWaveName))
+		OutputWaveName="ForceRampSettings"
+	EndIf	
+	Make/O/N=14 $OutputWaveName
+	Wave ForceRampSettings=$OutputWaveName
+	SetDimLabelsRampSettings(ForceRampSettings)
 	ForceRampSettings={100e-12,30e-12,1e-6,1e-6,0,0,50e-9,0,1e-6,5,3,2,1000,0}
 
 End
+
+Static Function SetDimLabelForceRampCallback(ForceRampSettings)
+	Wave ForceRampSettings
+	Redimension /N=4 ForceRampSettings
+	SetDimLabel 0,0, $"Deflection", ForceRampSettings
+ 	SetDimLabel 0,1, $"ZSensor", ForceRampSettings
+ 	SetDimLabel 0,2, $"CTFC Settings", ForceRampSettings
+ 	SetDimLabel 0,3, $"Callback", ForceRampSettings
+End Function
 
 Static Function MakeFRWaveNamesCallback([OutputWaveName])
 	String OutputWaveName
@@ -248,12 +261,7 @@ Static Function MakeFRWaveNamesCallback([OutputWaveName])
 
 	Make/O/T/N=4 $OutputWaveName
 	Wave/T ForceRampSettings=$OutputWaveName
-	
-	SetDimLabel 0,0, $"Deflection", ForceRampSettings
- 	SetDimLabel 0,1, $"ZSensor", ForceRampSettings
- 	SetDimLabel 0,2, $"CTFC Settings", ForceRampSettings
- 	SetDimLabel 0,3, $"Callback", ForceRampSettings
-
+	SetDimLabelForceRampCallback(ForceRampSettings)
 	ForceRampSettings={"DefV","ZSensor","TriggerInfo",""}
 End
 

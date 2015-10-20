@@ -17,37 +17,35 @@ Static Constant DefExtDist =1.4e6
 Static Constant DefSampleFreq = 5000
 Static Constant MAX_WAVENAME = 32
 
-Structure RampSettings
- 	double SurfTrigForce,MolTrigForce,ApprVel,RetrVel,DwellTime,NoTrigDist,ExtDist,SampleFreq
-EndStructure
 
-Structure RampWaves
-	char Deflection[MAX_WAVENAME]
-	char Zsensor[MAX_WAVENAME]
-	char CftcSettings[MAX_WAVENAME]
-	char Callback[MAX_WAVENAME]
-EndStructure
-
-Static Function InitRampWaves(ToInit,Callback,[DeflName,ZName,CFTC])
-	Struct RampWaves & ToInit
-	String Callback,DeflName,ZName,CFTC
+Static Function InitRampWaves(ToInit,Callback,[DeflName,ZName,CTFC])
+	Wave /T ToInit
+	String Callback,DeflName,ZName,CTFC
 	if (ParamIsDefault(DeflName))
 		DeflName = DefDeflName
 	Endif
 	if (ParamIsDefault(ZName))
 		ZName = DefZname
 	Endif
-	if (ParamIsDefault(CFTC))
-		CFTC = DefCFTC
+	if (ParamIsDefault(CTFC))
+		CTFC = DefCFTC
 	Endif
-	ToInit.Callback = CallBack
-	ToInit.Deflection = DeflName
-	ToInit.Zsensor = ZName
-	ToInit.CftcSettings = CFTC
+	ModForceRamp#SetDimLabelForceRampCallback(ToInit)
+	// Copy the output waves
+	ToInit[%Deflection]		=DeflName
+	ToInit[%ZSensor]			=ZName
+	ToInit[%$"CTFC Settings"]	=CTFC
+	ToInit[%Callback]			=Callback
+End Function
+
+Static Function GetRampSettingsNames(toInit)
+	Wave /T toInit
+	Redimension /N=8 ToInit
+	ToInit = {"Surface Trigger","Molecule Trigger","Approach Velocity","Retract Velocity","Surface Dwell Time","No Trigger Distance","Extension Distance","Sampling Rate"}
 End Function
 
 Static Function InitRampSettings(ToInit,[SurfTrigForce,MolTrigForce,ApprVel,RetrVel,DwellTime,NoTrigDist,ExtDist,SampleFreq])
-	Struct RampSettings & ToInit
+	Wave toInit
 	Variable SurfTrigForce,MolTrigForce,ApprVel,RetrVel,DwellTime,NoTrigDist,ExtDist,SampleFreq
 	SurfTrigForce=  ParamIsDefault(SurfTrigForce) ? DefSurfTrigForce : SurfTrigForce
 	MolTrigForce =  ParamIsDefault(MolTrigForce) ? DefMolTrigForce : MolTrigForce
@@ -57,19 +55,21 @@ Static Function InitRampSettings(ToInit,[SurfTrigForce,MolTrigForce,ApprVel,Retr
 	NoTrigDist 	=  ParamIsDefault(NoTrigDist)     ? DefNoTrigDist    : NoTrigDist
 	ExtDist		=  ParamIsDefault(ExtDist) 	   ? DefExtDist        : ExtDist
 	SampleFreq	=  ParamIsDefault(SampleFreq)   ? DefSampleFreq : SampleFreq
-	ToInit.SurfTrigForce = SurfTrigForce
-	ToInit.MolTrigForce  = MolTrigForce
-	ToInit.ApprVel	   = ApprVel
-	ToInit.RetrVel         = RetrVel
-	ToInit.DwellTime  	   = DwellTime
-	ToInit.NoTrigDist     = NoTrigDist
-	ToInit.ExtDist         = ExtDist
-	ToInit.SampleFreq  = SampleFreq
+	ModForceRamp#SetDimLabelsRampSettings(ToInit)
+	// Set the value we want.
+	toInit[%$"Surface Trigger"] 		= SurfTrigForce
+	toInit[%$"Molecule Trigger"]		= MolTrigForce 
+	toInit[%$"Approach Velocity"]		= ApprVel
+	toInit[%$"Retract Velocity"]		= RetrVel
+	toInit[%$"Surface Dwell Time"]		= DwellTime
+	toInit[%$"No Trigger Distance"]		= NoTrigDist
+	toInit[%$"Extension Distance"]		= ExtDist
+	toInit[%$"Sampling Rate"]			= SampleFreq
 End Function
 
 Static Function DoRamp(mRampSettings,mRampWaves)
-	Struct RampSettings & mRampSettings
-	Struct RampWaves & mRampWaves
+	Wave mRampSettings
+	Wave mRampWaves
 	// create the lower level waves to hold everything
 	String SettingsWave = "ForceRampSettings"
 	String OutputWave = "ForceRampWaves"
@@ -78,19 +78,7 @@ Static Function DoRamp(mRampSettings,mRampWaves)
 	Wave Ramp_Settings = $SettingsWave
 	Wave/T Ramp_WaveName  = $OutputWave
 	// copy the settings
-	Ramp_Settings[%$"Surface Trigger"] 		= mRampSettings.SurfTrigForce
-	Ramp_Settings[%$"Molecule Trigger"]		=mRampSettings.MolTrigForce 
-	Ramp_Settings[%$"Approach Velocity"]		=mRampSettings.ApprVel
-	Ramp_Settings[%$"Retract Velocity"]		=mRampSettings.RetrVel
-	Ramp_Settings[%$"Surface Dwell Time"]	=mRampSettings.DwellTime
-	Ramp_Settings[%$"No Trigger Distance"]	=mRampSettings.NoTrigDist
-	Ramp_Settings[%$"Extension Distance"]	=mRampSettings.ExtDist
-	Ramp_Settings[%$"Sampling Rate"]		=mRampSettings.SampleFreq
-	// Copy the output waves
-	Ramp_WaveName[%Deflection]		=mRampWaves.Deflection
-	Ramp_WaveName[%ZSensor]			=mRampWaves.Zsensor
-	Ramp_WaveName[%$"CTFC Settings"]	=mRampWaves.CFTCSettings
-	Ramp_WaveName[%Callback]			=mRampWaves.Callback
+
 	// Do the ramp
 	ModForceRamp#DoForceRamp(Ramp_Settings,Ramp_WaveName)
 End Function

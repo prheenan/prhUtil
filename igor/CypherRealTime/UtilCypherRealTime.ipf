@@ -42,23 +42,30 @@ Static Function GetInvols()
 	return GV("InvOLS")
 End Function
 
-// Last known ramp trigger
-Static Function LastSurfaceLocation()
-	return td_rv("CTFC.RampTrigger")
-End Function
-
 // Get the current Z piezo sensitivity (m/V)
 Static Function GetZSensorSensitivity()
 	return GV("ZPiezoSens")
 End Function
 
-Static Function GetCurrentZ()
-	return td_rv("Output.Z")
+// Last known ramp trigger
+Static Function LastSurfaceLocation()
+       return td_rv("CTFC.RampTrigger")
 End Function
 
-// Get the currnet zLVDT (positional) sensor
-Static Function GetLVDT_Z()
-	return GV("ZLVDTSens")
+Static Function GetCurrentXVolts()
+	return td_rv("Cypher.LVDT.X")
+End Function
+
+Static Function GetCurrentYVolts()
+	return td_rv("Cypher.LVDT.Y")
+End Function
+
+Static Function GetCurrentZVolts()
+	return td_rv("Cypher.LVDT.Z")
+End Function
+
+Static Function GetCurrentZPiezo()
+	return td_rv("Output.Z")
 End Function
 
 Static Function /S EventString(number)

@@ -27,10 +27,10 @@ Function InitializeCFP([ShowUserInterface])
 	SetDataFolder root:CFP
 		
 	// Make Waves for Force Ramp Settings in real units
-	MakeForceRampWave(OutputWaveName="FirstRamp_Settings")
-	MakeForceRampWave(OutputWaveName="CenteredRamp_Settings")
-	MakeFRWaveNamesCallback(OutputWaveName="FirstRamp_WaveNames")
-	MakeFRWaveNamesCallback(OutputWaveName="CenteredRamp_WaveNames")
+	ModForceRamp#MakeForceRampWave(OutputWaveName="FirstRamp_Settings")
+	ModForceRamp#MakeForceRampWave(OutputWaveName="CenteredRamp_Settings")
+	ModForceRamp#MakeFRWaveNamesCallback(OutputWaveName="FirstRamp_WaveNames")
+	ModForceRamp#MakeFRWaveNamesCallback(OutputWaveName="CenteredRamp_WaveNames")
 	Wave/T FirstRamp_WaveNames
 	Wave/T CenteredRamp_WaveNames
 	FirstRamp_WaveNames[%Deflection]="DefV_Ramp1"
