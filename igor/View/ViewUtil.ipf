@@ -643,6 +643,7 @@ Static Function AddViewEle(viewTitle,widthRel,heightRel,viewType,[mProc,mOptStr,
 		// Kill the wave
 		KillWaves /Z ViewUtilPadLengths
 	EndIf
+	// get the window (absolute) dimensions
 	Variable left,top,right,bottom
 	ModIoUtil#GetWindowLeftTopRightBottom(windowName,left,top,right,bottom)
 	Variable wAbs = abs(right-left)
@@ -664,8 +665,10 @@ Static Function AddViewEle(viewTitle,widthRel,heightRel,viewType,[mProc,mOptStr,
 		// both are default
 		type = SETVAR_TYPE_NONE_GIVEN
 	endIf
+	// Make the actual view element, depending on what type it is
 	switch (viewType)
 		case VIEW_SETVAR:
+			// Set variable!  For this, we also may need to put something in the box.
 			FuncRef SetVarProto mProcRef = $mProc
 			MakeSetVariable(panelName,viewTitle,helpStr,xRel,yRel,widthRel,heightRel,mProcRef,wAbs=wAbs,hAbs=hAbs,userdata=userData,type=type)
 			// put the optional value in the set variable
@@ -675,7 +678,8 @@ Static Function AddViewEle(viewTitle,widthRel,heightRel,viewType,[mProc,mOptStr,
 					SetVariableStrOrNumWave(panelName,WaveSetVar,mLabel=labelSetVar)
 					break
 				EndIf
-				Variable isStr = type == SETVAR_TYPE_STRING
+				// POST: setting either a string or a number (not to a wave)
+				Variable isStr = (type == SETVAR_TYPE_STRING)
 				if (isStr)
 					SetVariableStrOrNum(panelName,isStr,sVal=mOptStr)
 				else 
@@ -684,11 +688,12 @@ Static Function AddViewEle(viewTitle,widthRel,heightRel,viewType,[mProc,mOptStr,
 			endIf
 			break
 		case VIEW_CHECK:
+			// Checkbox. Pretty simple...
 			FuncRef CheckboxProto mProcCheck = $mProc
 			MakeCheckBox(panelName,viewTitle,helpStr,xRel,yRel,widthRel,heightRel,mProcCheck,wAbs=wAbs,hAbs=hAbs,userdata=userdata)
 			break
 		case VIEW_POPUP:
-			// *must* be given mOptStr
+			// *must* be given mOptStr, otherwise popup can't go!
 			if (ParamIsDefault(mOptStr))
 				ModErrorUtil#DevelopmentError(description="Popup recquires mOptStr to be function giving semi-colon delimited list")
 			EndIF
@@ -697,13 +702,15 @@ Static Function AddViewEle(viewTitle,widthRel,heightRel,viewType,[mProc,mOptStr,
 			MakePopupMenu(panelName,viewTitle,helpStr,xRel,yRel,widthRel,heightRel,funcRefPop,mStr,wAbs=wAbs,hAbs=hAbs,userdata=str2num(userData))
 			break
 		case VIEW_BUTTON:
+			// Button element. also pretty straightforward
 			FuncRef ButtonProto mProcButton = $mProc
 			MakeButton(panelName,viewTitle,helpStr,xRel,yRel,widthRel,heightRel,mProcButton,hAbs=hAbs,wAbs=wAbs)
 			break
 		default:
-			ModErrorUtil#OutOfRangeError(description="Unkown View Type.")
+			ModErrorUtil#OutOfRangeError(description="Unknown View Type.")
 			break
 	endSwitch
+	// POST: view element was made
 	// update the ending x and y, if the user wanted to 
 	if (!ParamIsDefault(yUpdated))
 		yUpdated = startyRel + heightRel
@@ -711,4 +718,5 @@ Static Function AddViewEle(viewTitle,widthRel,heightRel,viewType,[mProc,mOptStr,
 	if (!ParamIsDefault(xUpdated))
 		xUpdated =  startXRel + widthRel
 	EndIf
+	// That's all!
 End Function
