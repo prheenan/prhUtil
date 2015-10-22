@@ -8,8 +8,6 @@
 #include "::Util:DataStructures"
 #include"::Model:PreProcess"
 #include "::Util:IoUtil"
-// include the IO utils for HF5, for saving FECs
-#include "::Util:IoUtilHDF5"
 #pragma ModuleName = ModViewGlobal
 //Data folder under base to import all of the experiments
 StrConstant VIEW_IMPORT_DATA = "Data"

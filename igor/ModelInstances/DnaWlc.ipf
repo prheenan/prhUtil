@@ -24,7 +24,7 @@ Function InitDNAModel(ToInit)
 	Struct ModelFunctions mFuncs
 	ModModelDefines#InitModelFunctions(mFuncs,FitWLC)
 	// Actually add the functions, parameters, and description to the model object
-	InitModelGen(ToInit,"DNAWLC",mFuncs,"DNA WLC And Overstretching Fitter","Sep","Force")
+	ModModel#InitModelGen(ToInit,"DNAWLC",mFuncs,"DNA WLC And Overstretching Fitter","Sep","Force")
 	// Load the predefined model stuff
 	Struct ModelDefines modDef 
 	modDef = GlobalDef.modV

@@ -3,6 +3,7 @@
 ----(see http://www.igorexchange.com/node/6588#comment-11690)
 -SQL XOP is activated (See: File->Example Experiments->Feature Demos->SQL Demo)
 -SQL ODBC connection is established. See: TODO
+-HDF5 XOP is activated (See: Data->Load Data->Load Waves->Packages->Install HDF5 Package), or https://www.wavemetrics.com/products/igorpro/dataaccess/hdf5.htm
 ==== Requirements model
 —Model parameter names must be OK by rigors standards for waves
 -preprocessing suffixes should follow proper/Asylum suffix ending (i.e.: Z sensor ends in Zsnsr, or has ZSnsr in it)

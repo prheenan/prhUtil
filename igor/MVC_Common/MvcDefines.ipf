@@ -40,12 +40,14 @@ Static Function /S GetRelToBase(extra)
 End Function
 
 // Defined model types, for switching between views.
+// note: 1 offset.
 Constant MVC_MODEL_NONE = 1
 Constant MVC_MODEL_DNA = 2
 Constant MVC_MODEL_NUG2 = 3
+Constant MVC_MOODEL_SURF_DETECT = 4
 
 // Function to get the names of the models. *must* match constants given above.
 Static Function /S GetModelOptions()
-	String toRet= "None Selected;Worm-Like DNA;NUG Rupture Times"
+	String toRet= "None Selected;Worm-Like DNA;NUG Rupture Times;Surface Detector"
 	return toRet
 End Function

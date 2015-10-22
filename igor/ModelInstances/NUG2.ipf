@@ -13,6 +13,8 @@
 #include "::Util:IoUtil"
 #include "::Util:CypherUtil"
 #include "::Converters:DevinHighResConvert"
+#include "::MVC_Common:MvcDefines"
+
 
 StrConstant X_HIGH_RES_SUFFIX = ""// no X required; all taken care of by (1) extension of a proper length after the file.
 // See: Inteperpolate Help.ihf
@@ -130,7 +132,7 @@ Function NUG2Fit(xRef,yRef,fitParameters,mStruct)
 	KillWaves /Z mRupt,srcWave
 End Function
 
-Function InitNUG2Model(ToInit)
+Static Function InitNUG2Model(ToInit)
 	Struct ModelObject & ToInit
 	Struct Global GlobalDef
 	ModGlobal#InitGlobalObj(GlobalDef)
@@ -138,11 +140,14 @@ Function InitNUG2Model(ToInit)
 	Struct ModelFunctions mFuncs
 	ModModelDefines#InitModelFunctions(mFuncs,NUG2Fit)
 	FuncRef ProtoGetInputNames mGetWaves = GetInputNamesNUG2
+	FuncRef ProtoInterpLowResToHigh mInterp = ModPreProcessWigglesInterp
+	FuncRef ProtoAlignByOffset AlignByOffset = ModPreProcessWigglesOffsetX
+	FuncRef ProtoCorrect Correct = ModPreProcessWiggleCorrect
 	Struct ProcessStruct mProc
 	// make a path, just for this file.
 	String mName = "NUG2"
 	// Get the directory for the view
-	ModPreprocess#InitProcStruct(mProc,mName,mGetWaves)	
+	ModPreprocess#InitProcStruct(mProc,mName,mGetWaves,mInterp=mInterp,AlignByOffset=AlignByOffset,Correct=Correct)	
 	// Actually add the functions, parameters, and description to the model object
 	// initialize our model-specific pre-processing
 	// Note: this model cares about plotting versus *time*, to get the rupture force (after pre-processing)
