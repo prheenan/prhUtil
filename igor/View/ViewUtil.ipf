@@ -48,7 +48,7 @@ Constant EVENT_POPUP_MOUSEUP = 2
 Constant POPUP_MENU_TITLE_MODE = 1 
 Constant CONTROL_ENABLE = 0 // Editability Normal.
 Constant CONTROL_DISABLE = 2 // Draw in gray state; disable control action
-Constant LISTBOX_HEIGHT_REL = 0.35, LISTBOX_WIDTH_REL =0.4, graphWidth = 0.4, graphHeight = 0.4
+Constant LISTBOX_HEIGHT_REL = 0.35, LISTBOX_WIDTH_REL =0.4, graphWidth = 0.6, graphHeight = 0.6
 // Relative meta params height and width
 Constant META_WIDTH_REL = 0.3
 Constant BUTTON_HEIGHT_REL = 0.05

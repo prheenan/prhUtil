@@ -6,6 +6,7 @@
 #include "::Util:ErrorUtil"
 #include "::Model:ModelDefines"
 #include "::Model:PreProcess"
+#include "::Model:PreProcessWiggles"
 #include "::Util:GlobalObject"
 #include "::Util:Defines"
 #include "::Util:StatUtil"

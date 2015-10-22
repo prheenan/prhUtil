@@ -4,6 +4,7 @@
 #include "::Sql:SqlCypherAutoDefines"
 #include "::Sql:SqlCypherAutoFuncs"
 #include "::Util:IoUtil"
+#include "::Util:IoUtilHdf5"
 #pragma ModuleName = ModViewSqlInterface
 
 Static Function CopySqlIds(mStruct,WhereToCopy)
@@ -304,17 +305,27 @@ Static Function AddNewTrace(mInf)
 	else
 		// This model *does* exists
 		// traceDataId was set by 'getUniqueId'
+		// Find "TraceMeta" by selecting the column in traceData
+		Struct TraceDataWaveStr mTraceDataWave
+		String AppendStmtTraceData = " WHERE %s=%d"
+		sprintf AppendStmtTraceData,AppendStmtTraceData,FIELD_idTraceData,traceDataId
+		// Get the meta information
+		ModSqlCypherAutoFuncs#SimpleSelectTraceData(mTraceDataWave,saveGlobal=ModDefine#True(),appendStmt=AppendStmtTraceData,initWaveStr=ModDefine#True())		
+		Wave TraceMetaIdWave = $mTraceDataWave.idTraceMeta
+		Variable n = Dimsize(TraceMetaIdWave,0)
+		ModErrorUtil#AssertEq(n,1)
+		// Get the trace meta id
+		traceMetaId= TraceMetaIdWave[0]
 		// We need to get the id of the tracemodel, then update each parameter...
 		String AppendStmtRegex = " WHERE %s=%d"
 		String AppendStmtTraceModel
 		// Pick out the trace model where we have the tracedata (ie source file) correct, *and* the model
 		// correct. XXX could also get tracemeta?
-		sprintf AppendStmtTraceModel,(AppendStmtRegex + " AND %s=%d") ,FIELD_idTraceData,traceDataId,FIELD_idModel,mIds.idModel
+		sprintf AppendStmtTraceModel,(AppendStmtRegex + " AND %s=%d") ,FIELD_idTraceMeta,traceMetaId,FIELD_idModel,mIds.idModel
 		Struct TraceModelWaveStr mTraceModelWave
 		ModSqlCypherAutoFuncs#SimpleSelectTraceModel(mTraceModelWave,saveGlobal=ModDefine#True(),appendStmt=AppendStmtTraceModel,initWaveStr=ModDefine#True())
-		// XXX check that dimsize == 1?
 		Wave TraceModelIdWave = $mTraceModelWave.idTraceModel
-		Variable n = Dimsize(TraceModelIdWave,0)
+		n = Dimsize(TraceModelIdWave,0)
 		ModErrorUtil#AssertEq(n,1)
 		// POST: exactly one trace model matches, as we would expect.
 		 TraceModelId = TraceModelIdWave[0]

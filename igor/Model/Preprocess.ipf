@@ -21,8 +21,6 @@ Static Constant PROC_NAMEMAX = 200
 Static Constant MAX_PREPROC_PARAMS = 15
 Static Constant PROC_NAME_SUFFIX_MAXLEN = 20
 
-
-
 Structure ProcessStruct
 	// BAse directory
 	char baseDir[PROC_NAMEMAX]
@@ -72,6 +70,8 @@ Structure ProcessStruct
 	char NPreProcParams
 	// True if pre-processing should happen
 	char PreProcessingRecquired
+	// True if conversion should happen immediately
+	char convertImmediately
 EndStructure
 
 Function  ProtoGetInputNames(InWave,mProc)
@@ -107,8 +107,11 @@ Static Function GetProcessedSepForce(mProc,mParamObj,index,mSepNAme,mForceName)
 	mOffset(mProc,mParamObj,index) 
 	// Go ahead and convert to force and separation
 	// This will make the force and separation curves we actually care about
-	FuncRef ProtoConvertSingle mConvert = $(mProc.FuncConvert)
-	mConvert(mProc,index)
+	if (!mProc.convertImmediately)
+		// Then things havent already been converted; go ahead
+		FuncRef ProtoConvertSingle mConvert = $(mProc.FuncConvert)
+		mConvert(mProc,index)
+	EndIf
 	// Then, correct the (force) curve
 	FuncRef ProtoCorrect mCorrect = $(mProc.FuncCorrect)
 	mCorrect(mPRoc,mParamObj,index)
@@ -166,9 +169,31 @@ Static Function PopulatePreProc(InWaves,mProc)
 	// POST: we have the known curves (high and low resolution X)
 	// Make space for the (eventual) force and separation curves
 	// These are made *after* pre-processing, to avoid stale curves.
-	Variable nWaves = DimSize($(mProc.YLowRes),0)
+	Variable nWaves = DimSize(inWaves,0)
 	Make /O/N=(nWaves)/T $(mProc.Force)
 	Make /O/N=(nWaves)/T $(mProc.Sep) 
+	Wave /T mForce = $(mProc.Force)
+	Wave /T mSep = $(mProc.Sep)
+	// By default, copy the low res name array into the high res name array	Wave yHighRes = $(mProc.YHighRes)	
+	Duplicate /O inwaves, $(mProc.YHighRes),$(mProc.YLowRes),$(mProc.XHighRes),$(mProc.XLowRes)
+	Wave /T yLowRes = $(mProc.YLowRes)
+	Wave /T xLowRes = $(mProc.XLowRes)
+	Wave /T yHiRes = $(mProc.YHighRes)
+	Wave /T xHiRes = $(mProc.XHighRes)
+	yHiRes[] = yHiRes[p] + mProc.yHighResSuffix
+	xHiRes[] = xHiRes[p] + mProc.xHIghResSuffix
+	yLowRes[] = yLowRes[p] + mProc.yLowResSuffix
+	xLowRes[] = xLowRes[p] + mProc.xLowResSuffix
+	if (mProc.convertImmediately)
+		// Go ahead and convert everything
+		// Then things havent already been converted; go ahead
+		Variable i
+		FuncRef ProtoConvertSingle mConvert = $(mProc.FuncConvert)
+		for (i=0;  i < nWaves ; i+=1)
+			mConvert(mProc,i)
+		EndFor
+	EndIF
+	// Populate them according to the suffixes
 	// Go ahead and interpolate the curves, so that we can operate only on the high resolution ones
 	mInterp(mProc)
 	// POST: mProc has all of the X and Y names stored  that it needs.
@@ -196,7 +221,7 @@ Static Function LoadPreProc(mProc,mName)
 	StructGet /B=(ModDefine#StructFmt()) mProc, $(mName)
 End Function
 
-Static Function InitProcStruct(mProc,ModelName,GetInputNames,[mInterp,AlignByOffset,Correct,Convert])
+Static Function InitProcStruct(mProc,ModelName,GetInputNames,[mInterp,AlignByOffset,Correct,Convert,ConvertImmediately])
 	Struct ProcessStruct & mProc
 	String ModelName
 	FuncRef ProtoGetInputNames GetInputNames
@@ -204,6 +229,7 @@ Static Function InitProcStruct(mProc,ModelName,GetInputNames,[mInterp,AlignByOff
 	FuncRef ProtoAlignByOffset AlignByOffset
 	FuncRef ProtoCorrect Correct
 	FuncRef ProtoConvertSingle Convert
+	Variable ConvertImmediately
 	// Make a subfoler for the pre-processor, ensure it exists
 	String mDir = ModIoUtil#AppendedPath(ModMvcDefines#GetViewBase(ModelName),PREPROC_SUBFOLDER)
 	ModIoUtil#EnsurePathExists(mDir)
@@ -221,12 +247,14 @@ Static Function InitProcStruct(mProc,ModelName,GetInputNames,[mInterp,AlignByOff
 	Make /O/T/N=(0) $(mProc.XHighRes)
 	Make /O/T/N=(0) $(mProc.YLowRes)
 	Make /O/T/N=(0) $(mProc.YHighRes)
+	ConvertImmediately = ParamIsDefault(ConvertImmediately) ? ModDefine#False() : ConvertImmediately
+	mProc.ConvertImmediately =  ConvertImmediately		
 	// POST: all function strings defined, set them up
 	// XXX check that they exist?
 	mProc.FuncGetWaves = ModIoUtil#GetFuncName(FuncRefInfo(GetInputNames))
 	mProc.FuncInterp = ModIoUtil#GetFuncName(FuncRefInfo(mInterp))
 	mProc.FuncOffset = ModIoUtil#GetFuncName(FuncRefInfo(AlignByOffset))
-	mProc.FuncCorrect= ModIoUtil#GetFuncName(FuncRefInfo(AlignByOffset))
+	mProc.FuncCorrect= ModIoUtil#GetFuncName(FuncRefInfo(Correct))
 	mProc.FuncConvert= ModIoUtil#GetFuncName(FuncRefInfo(Convert))
 	// Add the final suffixes for the force and separation
 	// Note: these come from CypherUtil.

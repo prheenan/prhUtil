@@ -1183,12 +1183,18 @@ Static Function DisplayRel(hostName, GraphName,mWindow,xRel,yRel,widthRel,height
 End Function
 
 // Plot rawdata as grey, then filter it and plot the filtiered using 'color'
-Static Function PlotWithFiltered(RawData,[X,color,nFilterPoints])
+Static Function PlotWithFiltered(RawData,[graphName,X,color,nFilterPoints])
 	// Plot the raw data as a grey line
 	Wave RawData,X
 	Variable nFilterPoints
-	String color
+	String color,graphName
 	Variable nDataPoints = DimSize(RawData,0)
+	if (ParamIsDefault(graphName))
+		graphName = gcf()
+	EndIf
+	if (ParamIsDefault(color))
+		color = "b"
+	EndIf
 	// Get some reasonable number for the filtering factor if we dont have one (
 	nFilterPoints = ParamIsDefault(nFilterPoints) ? ceil(nDataPoints*DEF_SMOOTH_FACTOR) :  nFIlterPoints
 	String rawColor = "grey"
@@ -1206,9 +1212,9 @@ Static Function PlotWithFiltered(RawData,[X,color,nFilterPoints])
 	// Plot the filtered version of the data
 	// Use the same marker (just a line) 
 	if (!ParamIsDefault(X))
-		ModPlotUtil#Plot(Smoothed,marker=rawMarker,color=color,mX=X)
+		ModPlotUtil#Plot(Smoothed,marker=rawMarker,color=color,graphName=graphName,mX=X)
 	Else
-		ModPlotUtil#Plot(Smoothed,marker=rawMarker,color=color)		
+		ModPlotUtil#Plot(Smoothed,marker=rawMarker,color=color,graphName=graphName)		
 	EndIf
 End Function
 

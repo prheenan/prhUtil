@@ -6,10 +6,10 @@
 #include "::Util:IoUtil"
 #include "::Util:PlotUtil"
 #include  "::Util:CypherUtil"
-#include "::Model:ModelDefines"
 #include "::ModelInstances:DnaWlc"
 #include "::ModelInstances:NUG2"
-#include "::ModelInstances:SurfaceDetector"
+#include "::ModelInstances:SurfaceDetectorModel"
+#include "::Model:ModelDefines"
 #include "::MVC_Common:MvcDefines"
 #include ":ViewTraverse"
 #include "::Model:Model"		
@@ -130,20 +130,6 @@ Static Function GetCursorPoint()
 	return curPoint
 End Function
 
-// Append Y vs X to the current window, unless we want to plot against time
-// in which case we just plot Y (assuming that it has the time as its scale)
-Static Function mAppend(mData,X,Y,[red,green,blue])
-	Struct ViewGlobalDat &mData
-	Wave X,Y
-	Variable red,green,blue // default colors to black?
-	 	String GraphID = ModViewGlobal#GetGraphID(mData)
-	if (mData.PlotXType == PLOT_TYPE_X_VS_TIME)
-		 AppendToGraph /W=$(GraphID) /C = (red,green,blue) Y
-	else
-		 AppendToGraph /W=$(GraphID) /C = (red,green,blue) Y vs X
-	EndIf
-End Function
-
 Static Function DisplayNewTrace(mData,mWaveStub,[MedianSize])
 	// Displays the new traces, removes the old, and modifies globalview accordingly
 	// *must* write out globaldat (mData) after this, since we modify the current plot
@@ -151,71 +137,61 @@ Static Function DisplayNewTrace(mData,mWaveStub,[MedianSize])
 	String mWaveStub // The stub to the wave we are interested in
 	Variable MedianSize // If this exists, we display a median size appropriate
 	String PathToDisplayX,PathToDisplayY
-	// The separation should be OK for all the 
-	PathToDisplayX = mWaveStub + mData.SuffixSepPlot
-	PathToDisplayY = mWaveStub + mData.SuffixForcePlot
-	// Remove the previous string, if it exists
- 	 String GraphID = ModViewGlobal#GetGraphID(mData)
+	// The separation should be 
+	Variable allPreProcDone = ModViewGlobal#AllPreProcMade(mData)
+	// XXX add in model options for the view
+	// e.g.: keep limits when changing plot
+	 String GraphID = ModViewGlobal#GetGraphID(mData)
+	Variable lowerX,upperX,lowerY,upperY
+	ModPlotUtil#GetAxisLimits(GraphID,lowerX,upperX,lowerY,upperY)
+	// XXX add in switch if preproc is done...
+	// Get the pre-processing object
+	Struct ProcessStruct mProc
+	ModviewGlobal#LoadPreProcWave(mData,mProc)
+	// if preprocessing isn't done, and there isnt a force/sep already converted..
+	if (!ModViewGlobal#AllPreProcMade(mData) && !(mProc.convertImmediately))
+		PathToDisplayX = mWaveStub + mData.SuffixXPlot
+		PathToDisplayY = mWaveStub + mData.SuffixYPlot
+	else
+		// we can use force/sep
+		PathToDisplayX = mWaveStub + mData.SuffixSepPlot
+		PathToDisplayY = mWaveStub + mData.SuffixForcePlot
+	 EndIf
+	// Get the traces, to determine if we should keep the axes the same.
+	Make /O/N=0/T mTraces 
+	ModPlotUtil#GetTracesAsWave(GraphID,mTraces)
 	// Remove *all* the traces from this plot, if there are any.
 	ModPlotUtil#ClearFig(GraphNAme=GraphID)
 	// POST: graph is cleared
-	 Struct RGBColor red
-	ModPlotUtil#Red(red)
-	Struct RGBColor grey
-	 ModPlotUtil#Grey(grey)
-	if (!ModViewGlobal#AllPreProcMade(mData))
-		// Instead, we display the low and high resolution Deflections
-		// Display the low resolution one here, in red.
-	 	String lowResRef, highResRef
-	 	ModViewGlobal#GetYRefsForPreProc(mData,mWaveStub,lowResRef,highResRef)
-	 	AppendToGraph /W=$(GraphID) /C=(red.red,red.green,red.blue) $highResRef
-	 	AppendToGraph /W=$(GraphID) /C=(grey.red,grey.green,grey.blue) $lowResRef
-	 	Duplicate /O $highResRef, $PLOT_Y_TMPWAVE
-	 	SetCursor(highResRef)
-	 else
-		// Plot 'normally'
-		// XXX make getters and setters for this?
-		DUplicate /O $(PathToDisplayX), $(PLOT_X_TMPWAVE)
-	 	Duplicate /O $(PathToDisplayY), $(PLOT_Y_TMPWAVE)
-		// Smooth the data (XXX add in variable for smoothing and filter type)
-		// Smoth [flags] size,wave
-		// M: median filtering (threshold is zer, everything is median filtered)
-	 	Wave Ytr = $PLOT_Y_TMPWAVE
-	 	Wave Xtr = $PLOT_X_TMPWAVE
-		// XXX if the user wants, based on global view...
-		// Probably can just allow user to do all of the processing. 
-		// Need to add this into the global view (ie: all the funcitons?)
-		//ModModel#YFlipAndRemoveApproach(Xtr,Ytr)
-		 // Get a filtered version of the wave
-	 	String filterName = "tmpFilter"
-	 	Duplicate /O Ytr, $filterName
-		Wave filteredWave = $filterName
-		// XXX make this better...
-		if (!ParamIsDefault(MedianSize))
-			Variable boxSize = MedianSize // 10 point median filtering
-			Smooth /M=0 boxSize, filteredWave
-		EndIf
-	 	// XXX set graph axis (probably need a whole option)
-	 	// I imagine: auto, manual, based on all, based on selected.
-	 	// Color the normal curve grey
-	 	mAppend(mData,Xtr,YTr,red=grey.red,green=grey.green,blue=grey.blue)
-	 	if (!ParamIsDefault(MedianSize))
-	 		 mAppend(mData,Xtr,filteredWave)
-		 EndIf
-		 SetCursor(PLOT_Y_TMPWAVE)
-	EndIf
+	// Plot 'normally'
+	DUplicate /O $(PathToDisplayX), $(PLOT_X_TMPWAVE)
+ 	Duplicate /O $(PathToDisplayY), $(PLOT_Y_TMPWAVE)
+	// Smooth the data (XXX add in variable for smoothing and filter type)
+	// Smoth [flags] size,wave
+	// M: median filtering (threshold is zer, everything is median filtered)
+ 	Wave Ytr = $PLOT_Y_TMPWAVE
+ 	Wave Xtr = $PLOT_X_TMPWAVE
+ 	if (ModViewGlobal#PlotVersusTime(mData))
+ 		ModPlotUTil#PlotWithFiltered(Ytr,graphName=graphId)
+ 	else
+ 		// use provided X
+ 		ModPlotUTil#PlotWithFiltered(Ytr,graphName=graphId,x=Xtr)
+ 	EndIf
+	 SetCursor(PLOT_Y_TMPWAVE)
  	// Make the graph a little prettier
  	ModPlotUtil#PlotBeautify(GraphName=GraphID) 
  	// XXX make this more general, based on axis units...
- 	// get the axes in the right units (geez, lots to do)
-	ModifyGraph /W=$GraphID prescaleExp(left)=12 // to pN
-	ModifyGraph /W=$GraphID prescaleExp(bottom)=6 // to um 
 	// XXX make this dependent?
  	ModPlotUtil#XLabel("Extension [" + ModPlotUtil#Mu() + "m]",graphName=GraphID)
  	ModPlotUtil#YLabel("Force [pN]",graphName=GraphID)	
  	// Write out the global object after
 	mData.PlotTraceName = PLOT_Y_TMPWAVE
 	mData.CurrentXPath = PathToDisplayX
+	if (DimSize(mTraces,0) > 0)
+		ModPlotUtil#XLim(lowerX,upperX)
+		ModPlotUtil#YLim(lowerY,upperY)	
+	EndIf
+	KillWaves /Z mTraces
 	DoUpdate
 End Function
 
@@ -441,8 +417,6 @@ Static Function UpdateParam(mPoint,paramID)
 		ModViewGlobal#RunPreProcAndGetSepForce(mData,mSepname,mForceName)
 		 // Write the meta save info, *and* save mForce and mSep as a copy
 		 ModViewGlobal#FileInfoPreProcessed(mData,mMeta,mMetaDataPath,mSepName,mForceName)
-		 // Go ahead and display the new Force-Sep curve
-		 DisplayNewTrace(mData,mData.CurrentTracePathStub)
 	EndIf
  	// Write out the parameter data
  	ModViewGlobal#SetGlobalData(mData)
@@ -504,7 +478,7 @@ Static Function SetModel(modelObj)
 	ModViewUtil#InitViewOpt(mOpt)
 	Struct Global g
 	ModGlobal#InitGlobalObj(g)
-	ModViewGlobal#MakeAllParams(modelObj,mData,g,mOpt,META_WIDTH_REL+graphWidth,0,HandleModelParam)
+	ModViewGlobal#MakeAllParams(modelObj,mData,g,mOpt,META_WIDTH_REL+LISTBOX_WIDTH_REL,0,HandleModelParam)
 	ModelSpecificMetaOpts(mData,modelObj,mOpt)
 	// Write out everything
 	// Update the struct containing the global data. This *must* happen at the end of a
@@ -696,6 +670,9 @@ Static Function GetModelByNum(mNum,mObj)
 			break
 		case MVC_MODEL_NUG2:	
 			ModNUG2#InitNUG2Model(mObj)
+			break
+		case MVC_MOODEL_SURF_DETECT:
+			ModSurfaceDetectorModel#InitSurfaceModel(mObj)
 			break
 		case MVC_MODEL_NONE:
 			// return false; nothing loaded
@@ -1078,7 +1055,7 @@ Function HandleWaveSelect(LB_Struct) : ListboxControl
 		 	// A=MX: Middle (T=Top,C=Center,B=Bottom) (title) 
 		 	String GraphID =  ModViewGlobal#GetGraphID(mData)
 		 	String mFileName = ModIoUtil#GetFileName(mWaveStub)
-		 	TextBox/W=$(GraphID)/C/N=text0/A=MB "FEC For " + mFileName
+		 	TextBox/W=$(GraphID)/C/N=text0/A=MT "FEC For " + mFileName
 		 	// Reset the parameter ID to the beginning
 		 	mData.SelectedParamID = 0
 		 	ModViewGlobal#SetGlobalData(mData)

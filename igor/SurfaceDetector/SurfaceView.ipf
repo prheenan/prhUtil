@@ -1,7 +1,6 @@
 // Use modern global access method, strict compilation
 #pragma rtGlobals=3	
 #include ":SurfaceDefines"
-//#include "::Util:IoUtil"
 #include "::View:ViewUtil"
 
 #pragma ModuleName = ModSurfaceView
@@ -17,9 +16,9 @@ Static Function InitView()
 	Variable eleWidth = 0.8
 	Variable eleHeight = 0.1
 	String mPopFunc = "ModSurfaceDefines#GetFitters"
-	ModViewUtil#AddViewEle("FilterTimeConstant  ",eleWidth,eleHeight,VIEW_SETVAR,"surfaceSetVar",startYRel=currentY,yUpdated=currentY,mOptNum=0.01,panelName=FILTER_CTRL);
-	ModViewUtil#AddViewEle("Correct Interference",eleWidth,eleHeight,VIEW_CHECK ,"surfaceCheck"   ,startYRel=currentY,yUpdated=currentY,panelName=CORRECT_INTER);
-	ModViewUtil#AddViewEle("Detect Surface       ",eleWidth,eleHeight,VIEW_BUTTON ,"surfaceButton",startYRel=currentY,yUpdated=currentY);
+	ModViewUtil#AddViewEle("FilterTimeConstant  ",eleWidth,eleHeight,VIEW_SETVAR,mProc="surfaceSetVar",startYRel=currentY,yUpdated=currentY,mOptNum=0.01,panelName=FILTER_CTRL);
+	ModViewUtil#AddViewEle("Correct Interference",eleWidth,eleHeight,VIEW_CHECK ,mProc="surfaceCheck"   ,startYRel=currentY,yUpdated=currentY,panelName=CORRECT_INTER);
+	ModViewUtil#AddViewEle("Detect Surface       ",eleWidth,eleHeight,VIEW_BUTTON ,mProc="surfaceButton",startYRel=currentY,yUpdated=currentY);
 End Function
 
 // Function which, given a control name and a value, updates the state

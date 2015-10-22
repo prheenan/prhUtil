@@ -80,43 +80,46 @@ End Function
 
 // Checks that all the appropriate pieces of the wave (high and low res) exist for a given stem.
 // The stem is assumed to be the *high res* stem (ie: if N and N+1 are low and high res, it is N+1)
-Static Function AllWavesExistForStem(mWaveStem)
-		String mWaveStem
-		String mFile = ModIoUtil#GetFileName(mWaveStem)
-		String mNum
-		// XXX check that this matches (*really* need a generic method to do this for us)
-		// Find the number of this wave
+Static Function AllWavesExistForStem(mWaveStem,[mExt])
+	Wave /T mExt
+	String mWaveStem
+	if (ParamIsDefault(mExt))
 		Wave /T mExt = CreateRecquiredExtensions()
-		Variable j,nExt=DimSize(mExt,0)
-		Variable allExist = ModDefine#True()
-		String mLowResStem = ModDevinHighResConvert#GetLowResStem(mWaveStem)
-		Variable MinSize = 5e5 // we need at least half a million points for the high-resolution data (total: 11 million, but in separate pieces)
-		// ensure all the needed waves exist
-		String mWave
-		for (j=0; j<nExt; j+=1)
-			mWave = mLowResStem + mExt[j]
-			if (!WaveExists($mWave))
-				allExist=ModDefine#False()
-				break
-			EndIf
-		EndFor
-		// POST: all the low resolution waves exists is allExist is true.
-		// How about the high resolution
-		if (allExist)
-			// Check that the high-resolution time wave also exists, and is above the minimum size.
-			Wave mHighY = $(mWaveStem+ DEFLV_HIGH_RES_SUFFIX)
-			// For the NUG2 model, we have 5MHZ data, so the high bandwidth files
-			// (what we are looking for) should be very large.
-			if (!WaveExists(mHighY))
-				allExist=ModDefine#False()
-			endIf
-			// POST: high wave exists. 
-			// ... but is it the right size?
-			if (DimSize(mHighY,0) < MinSize)
-				allExist=ModDefine#False()
-			EndIf
+	EndIf
+	String mFile = ModIoUtil#GetFileName(mWaveStem)
+	String mNum
+	// XXX check that this matches (*really* need a generic method to do this for us)
+	// Find the number of this wave
+	Variable j,nExt=DimSize(mExt,0)
+	Variable allExist = ModDefine#True()
+	String mLowResStem = ModDevinHighResConvert#GetLowResStem(mWaveStem)
+	Variable MinSize = 5e5 // we need at least half a million points for the high-resolution data (total: 11 million, but in separate pieces)
+	// ensure all the needed waves exist
+	String mWave
+	for (j=0; j<nExt; j+=1)
+		mWave = mLowResStem + mExt[j]
+		if (!WaveExists($mWave))
+			allExist=ModDefine#False()
+			break
 		EndIf
-		return allExist
+	EndFor
+	// POST: all the low resolution waves exists is allExist is true.
+	// How about the high resolution
+	if (allExist)
+		// Check that the high-resolution time wave also exists, and is above the minimum size.
+		Wave mHighY = $(mWaveStem+ DEFLV_HIGH_RES_SUFFIX)
+		// For the NUG2 model, we have 5MHZ data, so the high bandwidth files
+		// (what we are looking for) should be very large.
+		if (!WaveExists(mHighY))
+			allExist=ModDefine#False()
+		endIf
+		// POST: high wave exists. 
+		// ... but is it the right size?
+		if (DimSize(mHighY,0) < MinSize)
+			allExist=ModDefine#False()
+		EndIf
+	EndIf
+	return allExist
 End Function
 
 // Given a stem, gets the relevant stems for the low and high resolution X and Y 

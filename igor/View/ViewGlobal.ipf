@@ -8,6 +8,8 @@
 #include "::Util:DataStructures"
 #include"::Model:PreProcess"
 #include "::Util:IoUtil"
+#include "::Util:PlotUtil"
+
 #pragma ModuleName = ModViewGlobal
 //Data folder under base to import all of the experiments
 StrConstant VIEW_IMPORT_DATA = "Data"
@@ -982,7 +984,7 @@ Static Function GetUserAndPathWaves(mData,UserWave,PathWave,baseDir,[listSep,Dat
 			SuffixNeeded = mData.suffixYPlot + listSep
 		EndIf
 	EndIf
-	Make /O/N=(0) tmpUnique
+	Make /T/O/N=(0) tmpUnique
 	Variable toRet = ModIoUtil#GetUniqueStems(tmpUnique,baseDir,SuffixNeeded,fullPathStemPattern=fullPathStemPattern,listSep=listSep,DirSep=DataSep)
 	// didnt find any 
 	if (toRet == 0)
@@ -1034,10 +1036,16 @@ Static Function GetParameters(paramFolder,mObj,[onlyPreProc])
 	Variable onlyPreProc
 	onlyPreProc = ParamIsDefault(onlyPreProc) ? ModDefine#False() : ModDefine#True()
 	Variable nObjects
+	// Get the global object
+	Struct ViewGlobalDat mData
+	GetGlobalData(mData)
+	// Get the preprocessor
+	Struct ProcessStruct mProc
+	ModViewGlobal#LoadPreProcWave(mData,mProc)
 	if (onlyPreProc)
 		// XXX: use the global objects to determine how
 		// many parmeters
-		nObjects= 4
+		nObjects= mProc.NPreProcParams
 	else
 		nObjects = ModIoUtil#CountWaves(paramFolder)
 	EndIf
