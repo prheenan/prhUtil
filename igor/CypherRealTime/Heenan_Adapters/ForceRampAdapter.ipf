@@ -9,12 +9,12 @@ Static StrConstant DefCFTC = "TriggerInfo"
 // Default settings (for 650nm DNA)
 Static Constant DefSurfTrigForce = 75e-12
 Static Constant DefMolTrigForce = 40e-12
-Static Constant DefApprVel    = 500e-9
-Static Constant DefRetrVel     = 500e-9
+Static Constant DefApprVel    = 1e-6
+Static Constant DefRetrVel     = 1e-6
 Static Constant DefDwellTime = 2
 Static Constant DefNoTrigDist = 150e-9
-Static Constant DefExtDist =1.4e-6
-Static Constant DefSampleFreq = 5000
+Static Constant DefExtDist =1.0e-6
+Static Constant DefSampleFreq = 7143
 Static Constant MAX_WAVENAME = 32
 
 
@@ -70,15 +70,6 @@ End Function
 Static Function DoRamp(mRampSettings,mRampWaves)
 	Wave mRampSettings
 	Wave mRampWaves
-	// create the lower level waves to hold everything
-	String SettingsWave = "ForceRampSettings"
-	String OutputWave = "ForceRampWaves"
-	ModForceRamp#MakeForceRampWave(OutputWaveName=SettingsWave)
-	ModForceRamp#MakeFRWaveNamesCallback(OutputWavename=OutputWave)
-	Wave Ramp_Settings = $SettingsWave
-	Wave/T Ramp_WaveName  = $OutputWave
-	// copy the settings
-
 	// Do the ramp
-	ModForceRamp#DoForceRamp(Ramp_Settings,Ramp_WaveName)
+	ModForceRamp#DoForceRamp(mRampSettings,mRampWaves)
 End Function

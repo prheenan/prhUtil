@@ -5,12 +5,20 @@
 #include ":::CypherRealTime:Heenan_Adapters:ForceRampAdapter"
 #include ":::View:ViewUtil"
 
-Variable CurrentIter 
 Static StrConstant workingDir = "Root:ForceRampDemo"
 Static StrConstant settingsWave = "rampSettings"
 
 Function DemoForceRampCB()
-	print("Hello world!")
+	print("Hello world!")	
+End Function
+
+Static Function GetCurrentWaveNames(Zsnsr,DeflV,index)
+	String & Zsnsr, &DeflV
+	Variable index
+	String DeflPrefix = "DeflDemo"
+	String ZPrefix = "ZDemo"
+	DeflV = DeflPrefix + num2str(index)
+	Zsnsr = ZPrefix + num2str(index)
 End Function
 
 Static Function Main()
@@ -36,24 +44,26 @@ Static Function Main()
 		ModViewUtil#AddViewEle(mName,widthEach,heightEach,VIEW_SETVAR,startXRel=startX,startYRel=startY,yUpdated=startY,waveSetVar=rampSettings,labelSetVar=mName,PadByList=elements)
 	Endfor
 	ModViewUtil#AddViewEle("Do CTFC",widthEach,heightEach,VIEW_BUTTON,startXRel=startX,startYRel=startY,yUpdated=startY,mProc="DemoForceRampExeButton")
-	// Create a view for  the settings
+	// Make a wave for the state machine (current iteration, etc... ) 
+End Function
+
+Static Function CTFCRepeat()
 
 End Function
 
 Static Function DoCTFC()
 	Variable nTrials = 1
-	String DeflPrefix = "DeflDemo"
-	String ZPrefix = "ZDemo"
 	Variable i
 	Wave rampSettings = $(ModIoUtil#AppendedPath(workingDir,settingsWave))
 	for (i=0; i<nTrials; i+=1)
 		// Initialize a wave for output
 		Make /O /T RampWaves
-		String DeflName = DeflPrefix + num2str(i)
-		String ZName = ZPrefix + num2str(i)
-		ModForceRampAdapter#InitRampWaves(RampWaves,"DemoForceRampCB",DeflName=DeflName,ZName=ZName)
+		String DeflName,ZName
+		 GetCurrentWaveNames(ZName,DeflName,i)
+		ModForceRampAdapter#InitRampWaves(RampWaves,"DemoForceRampCB()",DeflName=DeflName,ZName=ZName)
 		// Do the ramp
 		ModForceRampAdapter#DoRamp(rampSettings,rampWaves)
+		Print("Post do ramp!")
 	EndFor		
 End Function
 
@@ -63,6 +73,7 @@ Function DemoForceRampExeButton(LB_Struct) :ButtonControl
 		case EVENT_BUTTON_MUP_OVER:
 		print("The belly button!")
 		DoCTFC()
+		print("The belly button! --- end!")
 		break
 	EndSwitch
 End Function
