@@ -2,6 +2,8 @@
 #pragma ModuleName=ModDemoForceRamp
 
 #include ":::Util:IoUtil"
+#include ":::Util:Defines"
+#include ":::Util:ErrorUtil"
 #include ":::CypherRealTime:Heenan_Adapters:ForceRampAdapter"
 #include ":::View:ViewUtil"
 #include ":::SurfaceDetector:SurfaceDetector"
