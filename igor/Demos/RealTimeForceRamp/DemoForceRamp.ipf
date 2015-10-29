@@ -7,12 +7,13 @@
 #include ":::CypherRealTime:Heenan_Adapters:ForceRampAdapter"
 #include ":::View:ViewUtil"
 #include ":::SurfaceDetector:SurfaceDetector"
+#include ":::Util:TimerUtil"
 
 Static StrConstant workingDir = "Root:ForceRampDemo"
 Static StrConstant settingsWave = "rampSettings"
 
 // Save a buffer of the last 'N' surface detections...
-Static Constant N_SURF_DETECT = 30
+Static Constant N_SURF_DETECT = 50
 Static Constant IterPerClick = 15
 
 Structure StateMachine
@@ -21,7 +22,8 @@ Structure StateMachine
 	uint32 CurrentNIters
 	// CurrentTrial is between 0 and Infinity, capturing every trial we did
 	uint32 CurrentTrial
-	double pastN[N_SURF_DETECT]
+	double pastNSurfaceLoc[N_SURF_DETECT]
+	double pastNRuntimes[N_SURF_DETECT]
 EndStructure
 
 Static Constant STATE_FEC_IDLE = 0 
@@ -60,6 +62,8 @@ Static Function Main()
 		ModViewUtil#AddViewEle(mName,widthEach,heightEach,VIEW_SETVAR,startXRel=startX,startYRel=startY,yUpdated=startY,waveSetVar=rampSettings,labelSetVar=mName,PadByList=elements)
 	Endfor
 	ModViewUtil#AddViewEle("Do CTFC",widthEach,heightEach,VIEW_BUTTON,startXRel=startX,startYRel=startY,yUpdated=startY,mProc="DemoForceRampExeButton")
+	// Set up all the timers
+	ModTImerUtil#ResetTimers()
 	// Make a wave for the state machine (current iteration, etc... ) 
 	Struct StateMachine mState
 	mState.CurrentTrial = 0
@@ -110,11 +114,20 @@ Function ForceRampStateMachine()
 			GetCurrentWaveNames(ZName,DeflName,iterNum)
 			Wave Zsnsr = $ZName
 			Wave DeflV = $DeflName
+			// Set up a timer, for our performance
 			Variable Invols,surfaceZsnsr
+			Variable timerRef 
+			if (!ModTimerUtil#GetNewTimer(timerRef))
+				ModErrorUtil#DevelopmentError(description="Problem getting timer...")
+			EndIf
 			ModSurfaceDetector#SurfaceDetect(Zsnsr,DeflV,Invols,surfaceZsnsr)
+			// Immediately get the elapsed time.
+			Variable microSec = ModTimerUtil#GetElapsedTime(timerRef)
 			// The surfaceZsnsr minus the minimum Zsnsr should be approximately constant
 			//regardless of where  we are on the surface. Save the past 'N', just for kicks and giggles.
-			mState.pastN[mod(iterNum,N_SURF_DETECT)] = surfaceZsnsr - WaveMin(Zsnsr)
+			Variable trialNumber = mState.CurrentTrial
+			mState.pastNSurfaceLoc[mod(trialNumber,N_SURF_DETECT)] = surfaceZsnsr - WaveMin(Zsnsr)
+			mState.pastNRuntimes[mod(trialNumber,N_SURF_DETECT)] = microSec
 			// Update the iteration numbers
 			mState.CurrentNIters = iterNum+1
 			mState.CurrentTrial = mState.CurrentTrial + 1
