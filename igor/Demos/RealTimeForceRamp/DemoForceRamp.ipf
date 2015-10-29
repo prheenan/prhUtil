@@ -4,6 +4,7 @@
 #include ":::Util:IoUtil"
 #include ":::CypherRealTime:Heenan_Adapters:ForceRampAdapter"
 #include ":::View:ViewUtil"
+#include ":::SurfaceDetector:SurfaceDetector"
 
 Static StrConstant workingDir = "Root:ForceRampDemo"
 Static StrConstant settingsWave = "rampSettings"
