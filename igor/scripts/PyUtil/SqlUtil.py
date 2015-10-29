@@ -99,12 +99,28 @@ def GetMeta(mSqlObj,fileObj):
     return get_state_dict(mTrace[0])
     
 # function to get the source name of *every* file to read.
-def GetSrcFiles(mSqlObj):
+# Is model is not none, only gets files associated with that model
+def GetSrcFiles(mSqlObj,ModelName=None):
     # get every file
     session = mSqlObj._sess
     mCls = mSqlObj._mCls
-    mTraceData = session.query(mCls.TraceData).all()
-    # return just the file names for now
+    if (ModelName is not None):
+        # get the model we care about
+        Models = session.query(mCls.Model)\
+                 .filter(mCls.Model.Name == ModelName)\
+                 .all()
+        # XXX assert this model exists
+        myIdModel = Models[0].idModel
+        # get all the trace model objects
+        mTraceModel = session.query(mCls.TraceModel)\
+                             .filter(mCls.TraceModel.idModel == myIdModel).all()
+        traceId = [obj.idTraceMeta for obj in mTraceModel]
+        mTraceData = session.query(mCls.TraceData)\
+                            .filter(mCls.TraceData.idTraceMeta.in_(traceId))\
+                            .all()        
+    else:
+        # get all the tracedata objects with these ids
+        mTraceData = session.query(mCls.TraceData).all()
     return mTraceData
 
 def InitSqlGetSessionAndClasses(databaseStr=CONNECT_STR):
@@ -113,15 +129,6 @@ def InitSqlGetSessionAndClasses(databaseStr=CONNECT_STR):
     SqlObj.setCls(mClasses)
     return SqlObj
 
-# given a path to a binary file, reads in the HDF5 
-def GetTimeSepForce(binaryFilePath):
-    # make sure we have the right extensions
-    # XXX throw error otherwise?
-    mFile = pGenUtil.ensureEnds(binaryFilePath,HDF5Util.DEFAULT_HDF5_EXTENSION)
-    time = HDF5Util.ReadHDF5FileDataSet(mFile)[:,HDF5Util.COLUMN_TIME]
-    sep = HDF5Util.ReadHDF5FileDataSet(mFile)[:,HDF5Util.COLUMN_SEP]
-    force = HDF5Util.ReadHDF5FileDataSet(mFile)[:,HDF5Util.COLUMN_FORCE]
-    return time,sep,force
 
 # default runner
 def run():

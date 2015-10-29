@@ -13,11 +13,9 @@ IFS=$'\n\t'
 # backup all the utilitty files
 inDir="/Users/patrickheenan/utilities/"
 outDir="/Users/patrickheenan/Dropbox/backup"
-# flags:
-# <a>: archive mode, preserves links 
-# <v>: more verbose
-# <z>: compress during transfer
-rsync -avz $inDir $outDir
+# -u: update
+# -R: use specified directory
+hg pull -u -R ${outDir}
 
 
 

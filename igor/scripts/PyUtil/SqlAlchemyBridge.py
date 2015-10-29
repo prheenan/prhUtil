@@ -20,13 +20,23 @@ from sqlalchemy.orm.attributes import manager_of_class
 from sqlalchemy.orm.properties import ColumnProperty
 import argparse as ap
 
+from decimal import Decimal
+
+# sanitizes input from a database
+# XXX add datetime to seconds?
+def sanitize(attribute):
+    if (type(attribute) is Decimal):
+        return float(attribute)
+    else:
+        return attribute
+
 # from: 
 #http://stackoverflow.com/questions/7239873/recreate-some-sqlalchemy-object
 # essentialy, we want to serialize some class, turn it into a simple dictionary 
 def get_state_dict(instance,name="Generic"):
     cls = type(instance)
     mgr = manager_of_class(cls)
-    myDict = dict((key, getattr(instance, key))
+    myDict = dict((key, sanitize(getattr(instance, key)))
                   for key, attr in mgr.iteritems()
                   if isinstance(attr.property, ColumnProperty))
     # next, we convert the dictionary to a 'namespace',

@@ -82,10 +82,8 @@ Static Function /Wave InitializeDict(mWave,mKeys,[values,dimension])
 	Variable n = DimSize(mKeys,0)
 	Variable nDataWave = Dimsize(mWave,dimension)
 	if (n != nDataWave)
-		// wrong number of keys
-		String mStr
-		sprintf mStr,"Dimensional label wave (N=%d) and data wave (M=%d) do not have matching sizes",n,nDataWave
-		ModErrorUtil#OutOfRangeError(description=mStr)
+		// wrong number of keys; put the correct number in.
+		Redimension /N=(n) mWave
 	EndIf
 	// If the user doesn't specify any values, then we 
 	// just use the default string to populate the dictionary

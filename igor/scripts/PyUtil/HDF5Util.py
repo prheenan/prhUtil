@@ -28,6 +28,16 @@ COLUMN_TIME = 0
 COLUMN_SEP = 1
 COLUMN_FORCE = 2
 
+# given a path to a binary file, reads in the HDF5 
+def GetTimeSepForce(binaryFilePath):
+    # make sure we have the right extensions
+    # XXX throw error otherwise?
+    mFile = pGenUtil.ensureEnds(binaryFilePath,DEFAULT_HDF5_EXTENSION)
+    time = ReadHDF5FileDataSet(mFile)[:,COLUMN_TIME]
+    sep = ReadHDF5FileDataSet(mFile)[:,COLUMN_SEP]
+    force = ReadHDF5FileDataSet(mFile)[:,COLUMN_FORCE]
+    return time,sep,force
+
 def ReadHDF5FileDataSet(inFile,dataSet=DEFAULT_IGOR_DATASET ):
     if (not pGenUtil.isfile(inFile)):
         mErr = ("ReadHDF5File : File {:s} not found.".format(inFile) +

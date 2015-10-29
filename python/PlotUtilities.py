@@ -97,23 +97,33 @@ def xlabel(lab,fontsize=g_font_label,**kwargs):
 def ylabel(lab,fontsize=g_font_label,**kwargs):
     plt.ylabel(lab,fontsize=fontsize,**kwargs)
 
+def zlabel(lab,ax=None,fontsize=g_font_label,**kwargs):
+    if (ax is None):
+        ax = plt.gca()
+    ax.set_zlabel(lab,fontsize=fontsize,**kwargs)
+
 def title(lab,fontsize=g_font_title,**kwargs):
     plt.title(lab,fontsize=fontsize,**kwargs)
 
-def lazyLabel(xlab,ylab,titLab,yrotation=90,frameon=False,loc='best',**kwargs):
+def lazyLabel(xlab,ylab,titLab,yrotation=90,frameon=False,loc='best',
+              zlab=None,**kwargs):
     xlabel(xlab,**kwargs)
     ylabel(ylab,rotation=yrotation,**kwargs)
     title(titLab,**kwargs)
     tickAxisFont(**kwargs)
+    if (zlab is not None):
+        zlabel(zlab,**kwargs)
     legend(frameon=frameon,loc=loc,**kwargs)
 
 def tickAxisFont(fontsize=g_font_label,ax=None):
-    plt.tick_params(axis='both', which='major', labelsize=fontsize)
-    plt.tick_params(axis='both', which='minor', labelsize=fontsize)
     if (ax is None):
         ax = plt.gca()
+    ax.tick_params(axis='both', which='major', labelsize=fontsize)
+    ax.tick_params(axis='both', which='minor', labelsize=fontsize)
     ax.xaxis.set_tick_params(width=g_tick_thickness,length=g_tick_length)
     ax.yaxis.set_tick_params(width=g_tick_thickness,length=g_tick_length)
+    if (hasattr(ax, 'zaxis') and ax.zaxis is not None):
+        ax.zaxis.set_tick_params(width=g_tick_thickness,length=g_tick_length)
 
 def xTickLabels(xRange,labels,rotation='vertical',fontsize=g_font_label,
                 **kwargs):

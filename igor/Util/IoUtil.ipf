@@ -1001,6 +1001,17 @@ Static Function /S MakeSymbolicPath(osPath)
 	return pathName
 End Function
 
+Static Function /S SysPathFromIgor(IgorPath)
+	String IgorPath
+	if (!PathExists(IgorPath))
+		// XXX throw error?
+		return ""
+	EndIf
+	PathInfo $IgorPath
+	// Sets S_Path to the full path
+	return S_Path
+End Function
+
 Static Function PathExists(mPath)
 	String mPath
 	PathInfo $mPath
@@ -1080,6 +1091,9 @@ Function GetFoldersAndFiles(pathName, waveToPop,[extension, recurse, level])
 	          folderIndex += 1
 	       while(ModDefine#True())
 	endif 
+	// /A : Alpahanumeric sort, pp V-596
+	// /R: reverse order
+	Sort /A/R waveToPop,waveToPop
 	KillWaves /Z tmpFolderFile
 End Function
 

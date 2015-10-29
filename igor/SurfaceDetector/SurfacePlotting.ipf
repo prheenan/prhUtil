@@ -208,17 +208,17 @@ Static Function /S PlotInvolsCurve(myDetection,XSurfaceDetect,ySurfaceDetect,[in
 	ModPlotUtil#YLabel("Defl Volts",units=mVoltUnits)
 	// Convert to force and sep 
 	ModPlotUtil#Subplot(3,1,2)
-	Duplicate /O scaledX,sep
-	Duplicate /O scaledY,force,DeflM
-	ModCypherUtil#ConvertY(YSurfaceDetect,inTypeY,force,MOD_Y_TYPE_FORCE_NEWTONS,DeflMeters=DeflM)
-	ModCypherUtil#ConvertX(XSurfaceDetect,inTypeX,sep,MOD_X_TYPE_SEP,DeflM)
+	Duplicate /O scaledX,sepInvols
+	Duplicate /O scaledY,forceInvols,DeflMInvols
+	ModCypherUtil#ConvertY(YSurfaceDetect,inTypeY,forceInvols,MOD_Y_TYPE_FORCE_NEWTONS,DeflMeters=DeflMInvols)
+	ModCypherUtil#ConvertX(XSurfaceDetect,inTypeX,sepInvols,MOD_X_TYPE_SEP,DeflMInvols)
 	// We want to re-scale. The surfaceIdx is an *index*, so we need to re-zero based on whatever separation
 	// that corresponds to (dependent on deflV, see cypher conversion routines) 
-	ModSurfaceDetectorUtil#GetScaledWave(sep,sep,force,force,surfaceIdx)
+	ModSurfaceDetectorUtil#GetScaledWave(sepInvols,sepInvols,forceInvols,forceInvols,surfaceIdx)
 	// Convert the force to pN
 	String mForceUnits = "pN"
 	Make /O/N=0 	xApprForce,yApprForce,xRetrForce,yRetrForce
-	PlotApprRetract(sep,force,mXUnits,mForceUnits,myDetection,xApprForce,yApprForce,xRetrForce,yRetrForce)
+	PlotApprRetract(sepInvols,forceInvols,mXUnits,mForceUnits,myDetection,xApprForce,yApprForce,xRetrForce,yRetrForce)
 	ModPlotUtil#axvline(0,color="g")
 	ModPlotUtil#Xlabel("Separation",units=mXUnits)
 	ModPlotUtil#YLabel("Force",units=mForceUnits)
@@ -228,7 +228,7 @@ Static Function /S PlotInvolsCurve(myDetection,XSurfaceDetect,ySurfaceDetect,[in
 	// XXX check for adhesions? 
 	Variable nmFromZero = 25, nmBeforeZero = 25
 	Make /O/N=0 	xApprForceClose,yApprForceClose,xRetrForceClose,yRetrForceClose
-	PlotApprRetract(sep,force,mXUnits,mForceUnits,myDetection,xApprForceClose,yApprForceClose,xRetrForceClose,yRetrForceClose)
+	PlotApprRetract(sepInvols,forceInvols,mXUnits,mForceUnits,myDetection,xApprForceClose,yApprForceClose,xRetrForceClose,yRetrForceClose)
 	ModPlotUtil#xlim(-1 * nmBeforeZero,nmFromZero)
 	ModPlotUtil#axvline(0,color="g")
 	ModPlotUtil#Xlabel("Separation",units=mXUnits)
@@ -302,10 +302,12 @@ End Function
 
 
 // Given a Zsnsr and DeflV, creates plots showing the approach and retractiong
-Static Function AnalyzeSensorDefl(Zsnsr,DeflVolts,outPath,id,[saveFile,correctForInterference])
+Static Function AnalyzeSensorDefl(Zsnsr,DeflVolts,outPath,id,[saveFile,correctForInterference,detectOut,preprocOut])
 	Wave Zsnsr,DeflVolts
 	Variable id,saveFIle,correctForInterference
 	String Outpath
+	Struct SurfaceDetector & detectOut
+	Struct SurfacePreProcInfo & preProcOut
 	saveFile = ParamIsDefault(saveFile) ? ModDefine#True() : saveFile
 	correctForInterference = ParamIsDefault(correctForInterference) ? ModDefine#True() : correctForInterference
 	// Get the ('real') invols
@@ -329,9 +331,14 @@ Static Function AnalyzeSensorDefl(Zsnsr,DeflVolts,outPath,id,[saveFile,correctFo
 	if (saveFIle)
 		ModPlotUtil#SaveFig(figName=mFig,path=outPath,saveName=  num2str(id) + "_InvolsCurve")
 	endIf
-	// TODO: new figure, plot DeflV vs Separation, show how invols are working. 
 	mFig = ModSurfacePlotting#PlotInvolsCurve(myDetectionObj,Zsnsr,DeflVoltsCorr)
 	if (saveFIle)
 		ModPlotUtil#SaveFig(figname=mFig,path=outPath,saveName= num2str(id) + "ApproachRetrCurve" )
 	endIf
+	if (!ParamIsDefault(detectOut))
+		detectOut = myDetectionObj
+	EndIF
+	if (!ParamIsDefault(preProcOut))
+		preProcOut = preProc
+	EndIf
 End Function
