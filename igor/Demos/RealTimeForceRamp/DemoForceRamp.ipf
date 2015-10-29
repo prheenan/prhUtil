@@ -15,6 +15,10 @@ Static StrConstant settingsWave = "rampSettings"
 // Save a buffer of the last 'N' surface detections...
 Static Constant N_SURF_DETECT = 50
 Static Constant IterPerClick = 15
+// States of the force ramping machine
+Static Constant STATE_FEC_IDLE = 0 
+Static Constant STATE_FEC_SINGLE_ITER_DONE = 1
+Static Constant STATE_FEC_ALL_ITERS_DONE = 2
 
 Structure StateMachine
 	uint32 CurrentState
@@ -26,10 +30,7 @@ Structure StateMachine
 	double pastNRuntimes[N_SURF_DETECT]
 EndStructure
 
-Static Constant STATE_FEC_IDLE = 0 
-Static Constant STATE_FEC_SINGLE_ITER_DONE = 1
-Static Constant STATE_FEC_ALL_ITERS_DONE = 2
-
+// Given an index for the iteration, get the wave names we will user
 Static Function GetCurrentWaveNames(Zsnsr,DeflV,index)
 	String & Zsnsr, &DeflV
 	Variable index
@@ -57,12 +58,13 @@ Static Function Main()
 	Variable heightEach = 0.15
 	Variable widthEach = 0.9
 	Variable startX=0,startY=0
+	// Add a control element for each part of the settings wave.
 	for (i=0; i<nEle; i+=1)
 		String mName = elements[i]
 		ModViewUtil#AddViewEle(mName,widthEach,heightEach,VIEW_SETVAR,startXRel=startX,startYRel=startY,yUpdated=startY,waveSetVar=rampSettings,labelSetVar=mName,PadByList=elements)
 	Endfor
 	ModViewUtil#AddViewEle("Do CTFC",widthEach,heightEach,VIEW_BUTTON,startXRel=startX,startYRel=startY,yUpdated=startY,mProc="DemoForceRampExeButton")
-	// Set up all the timers
+	// Set up all the timers, for testing how long detection takes.
 	ModTImerUtil#ResetTimers()
 	// Make a wave for the state machine (current iteration, etc... ) 
 	Struct StateMachine mState
@@ -98,7 +100,7 @@ Function ForceRampStateMachine()
 		case STATE_FEC_IDLE:	
 			// Then we need to start the FEC, if there are still trials to do
 			if (iterNum < IterPerClick)
-				// Update the state first, then do the CTFC (which calls the state machine)
+				// Update the state *first*, then do the CTFC (which calls the state machine,async)
 				mState.CurrentState = STATE_FEC_SINGLE_ITER_DONE
 				SaveState(mState)				
 				DoCTFC(iterNum)
@@ -109,28 +111,29 @@ Function ForceRampStateMachine()
 			break
 		case STATE_FEC_SINGLE_ITER_DONE:	
 			// Then we need to get the surface location of the wave
-			// First, get the name of the waves, given this iteration.
+			// First, get the name of the waves, given this *trial* ('absolute' number, 0 to inf).
 			String DeflName,ZName
-			GetCurrentWaveNames(ZName,DeflName,iterNum)
+			Variable trialNumber = mState.CurrentTrial
+			GetCurrentWaveNames(ZName,DeflName,trialNumber)
 			Wave Zsnsr = $ZName
 			Wave DeflV = $DeflName
 			// Set up a timer, for our performance
-			Variable Invols,surfaceZsnsr
 			Variable timerRef 
 			if (!ModTimerUtil#GetNewTimer(timerRef))
 				ModErrorUtil#DevelopmentError(description="Problem getting timer...")
 			EndIf
+			// Do the actual detection, get where the surface is, according to this Zsensor measurement.
+			Variable Invols,surfaceZsnsr
 			ModSurfaceDetector#SurfaceDetect(Zsnsr,DeflV,Invols,surfaceZsnsr)
 			// Immediately get the elapsed time.
 			Variable microSec = ModTimerUtil#GetElapsedTime(timerRef)
 			// The surfaceZsnsr minus the minimum Zsnsr should be approximately constant
 			//regardless of where  we are on the surface. Save the past 'N', just for kicks and giggles.
-			Variable trialNumber = mState.CurrentTrial
 			mState.pastNSurfaceLoc[mod(trialNumber,N_SURF_DETECT)] = surfaceZsnsr - WaveMin(Zsnsr)
 			mState.pastNRuntimes[mod(trialNumber,N_SURF_DETECT)] = microSec
 			// Update the iteration numbers
 			mState.CurrentNIters = iterNum+1
-			mState.CurrentTrial = mState.CurrentTrial + 1
+			mState.CurrentTrial = trialNumber + 1
 			// If we did all the trials, then go to a 'finished' state, where we reset.
 			// Otheriwse, go to an Idle state (where we continue getting data.)
 			if (mState.CurrentNIters== IterPerClick)
@@ -138,7 +141,7 @@ Function ForceRampStateMachine()
 			else
 				mState.CurrentState = STATE_FEC_IDLE
 			EndIf
-			// Save the state, then call the state machien again
+			// Save the state, then call the state machine again
 			SaveState(mState)			
 			ForceRampStateMachine()
 			break
