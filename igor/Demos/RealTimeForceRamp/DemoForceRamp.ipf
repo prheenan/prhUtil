@@ -62,11 +62,8 @@ Static Function Main()
 	ModViewUtil#AddViewEle("Do CTFC",widthEach,heightEach,VIEW_BUTTON,startXRel=startX,startYRel=startY,yUpdated=startY,mProc="DemoForceRampExeButton")
 	// Make a wave for the state machine (current iteration, etc... ) 
 	Struct StateMachine mState
-	mState.CurrentState = STATE_FEC_IDLE
-	mState.CurrentNIters = 0
 	mState.CurrentTrial = 0
-	// Save the state out (only way to save global data besides ugly wave... *)
-	SaveState(mState)
+	ResetStateAndSave(mState)
 End Function
 
 Static Function /S GetStateWaveName()
@@ -121,6 +118,8 @@ Function ForceRampStateMachine()
 			// Update the iteration numbers
 			mState.CurrentNIters = iterNum+1
 			mState.CurrentTrial = mState.CurrentTrial + 1
+			// If we did all the trials, then go to a 'finished' state, where we reset.
+			// Otheriwse, go to an Idle state (where we continue getting data.)
 			if (mState.CurrentNIters== IterPerClick)
 				mState.CurrentState = STATE_FEC_ALL_ITERS_DONE
 			else
@@ -133,9 +132,7 @@ Function ForceRampStateMachine()
 		case STATE_FEC_ALL_ITERS_DONE:
 			// Finished with all the iterations (ie: single 'click')
 			// Zero everything out for next time.
-			mState.CurrentNIters = 0 
-			mState.CurrentState = STATE_FEC_IDLE
-			SaveState(mState)						
+			ResetStateAndSave(mState)			
 			break
 		default:
 			ModErrorUtil#DevelopmentError(description="Unknown State.")
@@ -155,11 +152,24 @@ Static Function DoCTFC(i)
 	ModForceRampAdapter#DoRamp(rampSettings,rampWaves)
 End Function
 
+// Sets the state machine to idle, sets the number of iterations to 0
+Static Function ResetStateAndSave(mState)
+	Struct StateMachine & mState
+	mState.CurrentNIters = 0 
+	mState.CurrentState = STATE_FEC_IDLE
+	SaveState(mState)	
+End Function
+
+
 Function DemoForceRampExeButton(LB_Struct) :ButtonControl
 	STRUCT WMButtonAction &LB_Struct
 	switch (LB_Struct.eventcode)
 		case EVENT_BUTTON_MUP_OVER:
-			// State ramp should be idle, go ahead!
+			// Reset State, just to be safe. (In case we cancelled part of the way through)
+			Struct StateMachine mState
+ 			LoadState(mState)
+			ResetStateAndSave(mState)
 			ForceRampStateMachine()
+			break
 	EndSwitch
 End Function
