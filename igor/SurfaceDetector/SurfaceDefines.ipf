@@ -48,7 +48,7 @@ End Function
 Static Function DefOptions(Opt)
 	Struct SurfaceDetectionOptions & Opt
 	opt.correctInterference = ModDefine#True()
-	opt.correctRetract = ModDefine#True()
+	opt.correctRetract = ModDefine#False()
 	opt.savitskyTimeConstantArtifact = DEF_INTERFERENCE_SMOOTH
 End Function
 

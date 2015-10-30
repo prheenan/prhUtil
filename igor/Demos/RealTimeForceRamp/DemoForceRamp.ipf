@@ -14,11 +14,12 @@ Static StrConstant settingsWave = "rampSettings"
 
 // Save a buffer of the last 'N' surface detections...
 Static Constant N_SURF_DETECT = 50
-Static Constant IterPerClick = 15
+Static Constant IterPerClick = 1
 // States of the force ramping machine
 Static Constant STATE_FEC_IDLE = 0 
-Static Constant STATE_FEC_SINGLE_ITER_DONE = 1
-Static Constant STATE_FEC_ALL_ITERS_DONE = 2
+Static Constant STATE_FEC_SURF_DWELL = 1
+Static Constant STATE_FEC_SINGLE_ITER_DONE = 2
+Static Constant STATE_FEC_ALL_ITERS_DONE = 3
 
 Structure StateMachine
 	uint32 CurrentState
@@ -101,7 +102,7 @@ Function ForceRampStateMachine()
 			// Then we need to start the FEC, if there are still trials to do
 			if (iterNum < IterPerClick)
 				// Update the state *first*, then do the CTFC (which calls the state machine,async)
-				mState.CurrentState = STATE_FEC_SINGLE_ITER_DONE
+				mState.CurrentState = STATE_FEC_SURF_DWELL
 				SaveState(mState)				
 				DoCTFC(iterNum)
 			else
@@ -109,6 +110,10 @@ Function ForceRampStateMachine()
 				ModErrorUtil#DevelopmentError()
 			EndIf
 			break
+		case STATE_FEC_SURF_DWELL:
+			mState.CurrentState = STATE_FEC_SINGLE_ITER_DONE
+			SaveState(mState)	
+			break;	
 		case STATE_FEC_SINGLE_ITER_DONE:	
 			// Then we need to get the surface location of the wave
 			// First, get the name of the waves, given this *trial* ('absolute' number, 0 to inf).

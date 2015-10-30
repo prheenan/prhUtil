@@ -34,7 +34,7 @@ Static Function SurfaceDetect(Zsnsr,DeflVolts,Invols,surfaceZsnsr,[Options,Detec
 	Struct SurfacePreProcInfo mProc
 	// we may need to correct the DeflV channel; the 'deflToDetect' reference will hold whatever
 	// we intend to detect on (uncorrected if something like DNA)
-	Wave deflToDetect 
+	Wave deflToDetect = DeflVolts
 	// Determine if we should correct things
 	if (optToUse.correctInterference)
 		// Then correct everything 
@@ -46,8 +46,8 @@ Static Function SurfaceDetect(Zsnsr,DeflVolts,Invols,surfaceZsnsr,[Options,Detec
 	 		Duplicate /O DeflVoltsCorrected,CorrectedDeflVolts
 	 	EndIf
 	else
-		// no need to correct
-		deflToDetect= DeflVolts
+		// no need to correct; deflToDetect already set.
+		
 	EndIf
 	// then call the surface routine with the artifact-corrected version
 	 ModSurfaceDetectorUtil#GetApproachInvols(zsnsr,deflToDetect,invols,surfaceZsnsr,debugStruct=mDetector)
