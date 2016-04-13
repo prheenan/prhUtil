@@ -22,8 +22,8 @@ sudo pip install --upgrade virtualenv
 ## numpy / matplotlib dependencies
 sudo apt-get build-dep python-matplotlib
 ## hdf5 dependencies
-# we need t
-sudo apt-get libhdf5-dev
+# we need this for h5py
+sudo apt-get install libhdf5-serial-dev
 # actual python backages
 sudo pip install --upgrade scipy
 sudo pip install --upgrade matplotlib
