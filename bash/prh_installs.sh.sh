@@ -19,13 +19,13 @@ sudo apt-get install python-pip python-dev build-essential
 sudo pip install --upgrade pip 
 sudo pip install --upgrade virtualenv
 ## get packages we use
-pip install scipy
-pip install matplotlib
-pip install numpy
+sudo pip install scipy
+sudo pip install matplotlib
+sudo pip install numpy
 # for hdf5 stack
-pip install h5py
+sudo pip install h5py
 # for sql stuff 
-pip install sqlalchemy
+sudo pip install sqlalchemy
 # move the utilities folder, if we need to
 mv ~/prhUtil/ ~/utilities/
 
