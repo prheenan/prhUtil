@@ -18,14 +18,15 @@ dateStr=`date +%Y-%m-%d:%H:%M:%S`
 sudo apt-get install python-pip python-dev build-essential 
 sudo pip install --upgrade pip 
 sudo pip install --upgrade virtualenv
-## get packages we use
-sudo pip install scipy
-sudo pip install matplotlib
-sudo pip install numpy
+## get packages we use, need the dependencies
+sudo apt-get build-dep python-matplotlib
+sudo pip install --upgrade scipy
+sudo pip install --upgrade matplotlib
+sudo pip install --upgrade numpy
 # for hdf5 stack
-sudo pip install h5py
+sudo pip install --upgrade h5py
 # for sql stuff 
-sudo pip install sqlalchemy
+sudo pip install --upgrade sqlalchemy
 # move the utilities folder, if we need to
 mv ~/prhUtil/ ~/utilities/
 
