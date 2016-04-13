@@ -13,7 +13,7 @@ import os
 g_font_label = 20
 g_font_title = 22
 g_font_legend = 18
-g_tick_thickness = 2
+g_tick_thickness = 3
 g_tick_length = 12
 
 # based on :http://stackoverflow.com/questions/18699027/write-an-upright-mu-in-matplotlib
@@ -71,7 +71,7 @@ def errorbar(x,y,yerr,label,fmt=None,alpha=0.1,ecolor='r',markersize=3.0,
 def legend(fontsize=g_font_legend,loc=None,frameon=False,**kwargs):
     if (loc is None):
         loc = 'best'
-    plt.legend(fontsize=fontsize,loc=loc,frameon=frameon,**kwargs)
+    return plt.legend(fontsize=fontsize,loc=loc,frameon=frameon,**kwargs)
 
 
 def intLim(vals,xAxis=True,factor=0.5):
@@ -91,29 +91,53 @@ def intLim(vals,xAxis=True,factor=0.5):
     else:
         plt.gca().set_ylim(minV-fudge,maxV+fudge)
 
-def xlabel(lab,fontsize=g_font_label,**kwargs):
-    plt.xlabel(lab,fontsize=fontsize,**kwargs)
+def genLabel(func,label,fontsize=g_font_label,fontweight='bold',**kwargs):
+    func(label,fontsize=fontsize,fontweight=fontweight,**kwargs)
+        
+def xlabel(lab,**kwargs):
+    genLabel(plt.xlabel,lab,**kwargs)
 
-def ylabel(lab,fontsize=g_font_label,**kwargs):
-    plt.ylabel(lab,fontsize=fontsize,**kwargs)
+def ylabel(lab,**kwargs):
+    genLabel(plt.ylabel,lab,**kwargs)
 
-def zlabel(lab,ax=None,fontsize=g_font_label,**kwargs):
+def zlabel(lab,ax=None,**kwargs):
     if (ax is None):
         ax = plt.gca()
-    ax.set_zlabel(lab,fontsize=fontsize,**kwargs)
+    genLabel(ax.set_zlabel,lab,**kwargs)
 
 def title(lab,fontsize=g_font_title,**kwargs):
     plt.title(lab,fontsize=fontsize,**kwargs)
 
-def lazyLabel(xlab,ylab,titLab,yrotation=90,frameon=False,loc='best',
-              zlab=None,**kwargs):
+def lazyLabel(xlab,ylab,titLab,yrotation=90,titleY=1.0,
+              frameon=False,loc='best',
+              useLegend=True,zlab=None,legendBgColor=None,**kwargs):
+    # set the labels and title
     xlabel(xlab,**kwargs)
     ylabel(ylab,rotation=yrotation,**kwargs)
-    title(titLab,**kwargs)
+    title(titLab,y=titleY,**kwargs)
+    # set the font
     tickAxisFont(**kwargs)
+    # if we have a z or a legemd, set those too.
     if (zlab is not None):
         zlabel(zlab,**kwargs)
-    legend(frameon=frameon,loc=loc,**kwargs)
+    if (useLegend):
+        leg = legend(frameon=frameon,loc=loc,**kwargs)
+        if (legendBgColor is not None):
+            setLegendBackground(leg,legendBgColor)
+
+
+def setLegendBackground(legend,color):
+    """
+    Sets the legend background to a particular color
+
+    Args:
+        legend: legend to set
+        color: color to set legend to 
+    
+    Returns:
+        This is a description of what is returned.
+    """
+    legend.get_frame().set_facecolor(color)
 
 def tickAxisFont(fontsize=g_font_label,ax=None):
     if (ax is None):
@@ -133,15 +157,19 @@ def yTickLabels(xRange,labels,rotation='horizontal',fontsize=g_font_label,
                 **kwargs):
     tickLabels(xRange,labels,False,rotation=rotation,fontsize=fontsize,**kwargs)
 
-def tickLabels(xRange,labels,xAxis,**kwargs):
+def tickLabels(xRange,labels,xAxis,tickWidth=g_tick_thickness,**kwargs):
     ax = plt.gca()
     if (xAxis):
         ax.set_xticks(xRange)
         ax.set_xticklabels(labels,**kwargs)
+        mLocs = ['bottom','top']
     else:
         ax.set_yticks(xRange)
         ax.set_yticklabels(labels,**kwargs)
-
+        mLocs = ['left','right']
+    for l in mLocs:
+        ax.spines[l].set_linewidth(tickWidth)
+        ax.spines[l].set_linewidth(tickWidth)
 
 def cmap(num,cmap = plt.cm.gist_earth_r):
     return cmap(np.linspace(0, 1, num))
@@ -161,7 +189,7 @@ def addColorBar(cax,ticks,labels,oritentation='vertical'):
     cbar.ax.set_yticklabels(labels,fontsize=g_font_label)
 
 # add a second axis to ax.
-def secondAxis(ax,label,limits,secondY =True,yColor="Black",scale=None):
+def secondAxis(ax,label,limits,secondY =True,color="Black",scale=None):
     #copies the first axis (ax) and uses it to overlay an axis of limits
     axOpt = dict(fontsize=g_font_label)
     if (scale is None):
@@ -175,17 +203,19 @@ def secondAxis(ax,label,limits,secondY =True,yColor="Black",scale=None):
         ax2.set_ylim(limits)
         # set the y axis to the appropriate label
         lab = ax2.set_ylabel(label,**axOpt)
-        ticks = ax2.get_yticklabels()
+        tickLabels = ax2.get_yticklabels()
+        tickLims =  ax2.get_yticks()
     else:
         ax2 = ax.twiny()
         ax2.set_xscale(scale, nonposy='clip')
         ax2.set_xlim(limits)
         # set the x axis to the appropriate label
         lab = ax2.set_xlabel(label,**axOpt)
-        ticks = ax2.get_xticklabels()
-    [i.set_color(yColor) for i in ticks]
-    lab.set_color(yColor)
-    tickAxisFont()
+        tickLabels = ax2.get_xticklabels()
+        tickLims =  ax2.get_xticks()
+    [i.set_color(color) for i in tickLabels]
+    lab.set_color(color)
+    tickAxisFont(ax=ax2)
     return ax2
 
 def pm(stdOrMinMax,mean=None,fmt=".3g"):
@@ -217,7 +247,21 @@ def savefig(figure,fileName,close=True,tight=True,**kwargs):
     if (close):
         plt.close(figure)
 
-def figure(xSize=10,ySize=8,dpi=100):
+def figure(figsize=None,xSize=10,ySize=8,dpi=100):
+    """
+    wrapper for figure, allowing easier setting I think
+
+    Args:
+        figsize: tuple of (x,y). If none, uses xsize and ysize
+        xSize: x size of figure in inhes
+        ySize: y size of figure in inches
+        dpi: dots per inch
+    Returns:
+        figure it created
+    """
+    if (figsize is not None):
+        xSize = figsize[0]
+        ySize = figsize[1]
     return  plt.figure(figsize=(xSize,ySize),dpi=dpi)
 
 def getNStr(n,space = " "):

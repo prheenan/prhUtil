@@ -3,6 +3,7 @@
 
 \usepackage[hyperref,doi=false,url=false,backref,style=alphabetic,maxbibnames=99,backend=bibtex,citestyle=authoryear]{biblatex}
 \usepackage{gensymb} % for Celsius
+\usepackage{listings}
 
 \usepackage{amssymb} 
 \usepackage{braket}
@@ -69,8 +70,14 @@
 \newcommand{\e}[0]{\\ \hline}
 
 \newcommand{\pMat}[1]{
- \left( \begin{array}
-#1 \end{array} \right)
+ \left[ \begin{array}
+#1 \end{array} \right]
+}
+
+\newcommand{\code}[1]{
+  \begin{lstlisting}[language=Python]
+#1
+\end{lstlisting}
 }
 
 % for making specific references.

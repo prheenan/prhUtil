@@ -21,4 +21,10 @@ syntax: glob
 *.npy
 *.svg
 *.*\#
+*.gz
+*.pptx
+*.jpg
+*.data
 *.orig
+*.ps
+*.dot

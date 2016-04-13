@@ -196,8 +196,7 @@ Static Function GetSurfaceLocationAndInvols(ApproachOrRetractRaw,ApproachOrRetra
 	 // The bounds for where we calculated the invols
 	 toRet.indexInvolsStart = idxStartInvols + startIdx
 	 toRet.indexInvolsEnd = idxEndInvols + startIdx
-	// Where the invols curve intersects the  other curves
-	// The index where the invols curve intersects the 'before' curve
+	 // Save the invols
 	 toRet.invols = 1/oneOverInvols
 	 toRet.oneOverInvols = oneOverInvols  //one over the slope is the invols
 	 toRet.involsIntercept = realInvolIntercept

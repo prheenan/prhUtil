@@ -8,6 +8,19 @@ from scipy.sparse import csc_matrix
 
 
 def getCheckpoint(filePath,orCall,force,*args,**kwargs):
+    """
+    gets cache data from a previous checkpoint
+
+    Args:
+        filePath : path to look for the checkpoint (created at the end
+        orCall: function to call if the file isnt there
+        force: if true, calls the funciton always (refreshes cache)
+        *args : args for the function 'orCall'
+        **kwargs: args for the function 'orCall'
+    
+    Returns:
+       Whatever 'orCall' returns, or the cache.
+    """
     # use the npz fil format, unpack arguments in the order they
     # are returned by 'orCall'. most 'intuitive', maybe less flexible
     print('Checkpoint: {:s} via {:s}'.format(filePath,str(orCall)))
@@ -43,6 +56,17 @@ def saveFile(filePath,dataToSave,useNpy):
             # XXX make protocol specifiable?
             pickle.dump(dataToSave,fh,pickle.HIGHEST_PROTOCOL)
 
+def loadFile(filePath,useNpy):
+    # assuming file exists, loads it. God help you if you dont check existance
+    if (useNpy):
+        return _npyLoad(filePath,unpack)
+    else:
+        # assume we pickle in binary
+        fh = open(filePath,'rb')
+        data = pickle.load(fh)
+        fh.close()
+        return data
+        
 def _checkpointGen(filePath,orCall,force,unpack,useNpy,*args,**kwargs):
     # XXX assume pickling now, ends with 'npz'
     # if the file from 'filePath' exists and 'force' is false, loads the file
@@ -52,14 +76,7 @@ def _checkpointGen(filePath,orCall,force,unpack,useNpy,*args,**kwargs):
     # simple function call (returns the args, or a tuple list of args)
     # use unpack if you aren't dealing with dictionaries or things like that
     if pGenUtil.isfile(filePath) and not force:
-        if (useNpy):
-            return _npyLoad(filePath,unpack)
-        else:
-            # assume we pickle in binary
-            fh = open(filePath,'rb')
-            data = pickle.load(fh)
-            fh.close()
-            return data
+        return loadFile(filePath,useNpy)
     else:
         # couldn't find the file.
         # make sure it exists

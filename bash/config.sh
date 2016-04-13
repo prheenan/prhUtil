@@ -9,3 +9,12 @@ IFS=$'\n\t'
 # datestring, used in many different places...
 dateStr=`date +%Y-%m-%d:%H:%M:%S`
 
+# Description:
+
+# Arguments:
+#### Arg 1: Description
+
+# Returns:
+
+
+

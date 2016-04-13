@@ -36,6 +36,7 @@ Constant UNIQUENAME_PANELWINDOW = 9
 Constant UNIQUENAME_DATAFOLDER = 11
 Constant UNIQUENAME_PATH = 12
 Constant UNIQUENAME_Control = 15
+Constant UNIQUENAME_ANNOTATION = 14 
 // UniqueName: Wave
 Constant UNIQUENAME_WAVE = 1
 Constant CLEANUP_NAME_STRICT = 0
@@ -128,6 +129,12 @@ ThreadSafe Static Function /S AppendedPath(Base,toAppend,[mSep])
 	// XXX make a 'sanitization' routine?
 	toRet = ReplaceString(mSep + mSep,toRet,mSep)
 	return toRet
+End Function
+
+Static Function /S EnsureEndsWith(Base,ensure)
+	// Returns 'base' after making sure it ends with 'ensure'
+	String Base, ensure
+	return ModIoUtil#AppendedPath(Base,"",mSep=ensure)
 End Function
 
 Static Function /S GetFuncName(FuncRefInfoStr)
@@ -649,6 +656,20 @@ Static Function Toc(ticVal,[printTime])
 	return now
 End Function
 
+Static Function /S GetPathFromString(StrV)
+	// Given a string, returns the full, system path
+	// If StrV points to an igor path, uses that
+	// If no such path exists, throws an error
+	String StrV
+	String mPath = StrV
+	if (!FileExists(mPath))
+		// Look for this as an igor path
+		mPath = SysPathFromIgor(StrV)
+		ModErrorUtil#Assert(FileExists(mPath),msg="Couldn't find path")
+	EndIf
+	return mPath
+End Function
+
 Static Function FileExists(mFile)
 	String mFile
 	// For flags, see get folder interactive.
@@ -873,6 +894,17 @@ Static Function /S UniqueGraphName(base,[startSuffix])
 	return UniqueName(base,UNIQUENAME_GRAPH,startSuffix)
 End Function
 
+
+Static Function /S UniqueAnnotationName(graphName,[base,startSuffix])
+	String base,graphName
+	Variable startSuffix
+	if (ParamIsDefault(base))
+		base = "Text"
+	EndIf
+	startSuffix =  ParamIsDefault(startSuffix) ? 0 : startSuffix
+	return UniqueName(base,UNIQUENAME_ANNOTATION,startSuffix,graphName)
+End Function
+
 Static Function /S UniqueControlName(base,[startSuffix])
 	String base
 	Variable startSuffix
@@ -960,7 +992,10 @@ End Function
 	If (ParamIsDefault(Name))
 		Name = NameOfWave(ToSave)
 	EndIf
+	Folder = GetPathFromString(Folder)
 	String FullPath = AppendedPath(Folder,Name)
+	// Make sure we have an itx format
+	FullPath= EnsureEndsWith(FullPath,FILE_EXT_IGOR_TXT)
 	// V-546
 	// /O: Overwrites
 	// /J: saves as tab-delimited format

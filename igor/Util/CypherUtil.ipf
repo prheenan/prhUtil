@@ -559,7 +559,7 @@ Static Function ConvertZsnsrDeflVToSepForce(Zsnsr,DeflV,Sep,RawForce)
 	// Make a duplicate of the raw force as deflMeters, use the constant to convert
 	Duplicate /O RawForce,DeflMeters
 	ModCypherUtil#ConvertY(DeflV,MOD_Y_TYPE_DEFL_VOLTS,RawForce,MOD_Y_TYPE_FORCE_NEWTONS,DeflMeters=DeflMeters)
-	// Convert Sep to Zsnsr
+	// Convert Zsnsr to Sep
 	Duplicate /O sep,Zsnsr
 	ModCypherUtil#ConvertX(Zsnsr,MOD_X_TYPE_Z_SENSOR,Sep,MOD_X_TYPE_SEP,DeflMeters)
 	// No longer need deflM

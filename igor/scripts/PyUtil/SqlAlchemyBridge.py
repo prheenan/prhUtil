@@ -12,9 +12,8 @@ path= home +"/utilities/python"
 import sys
 sys.path.append(path)
 # import the patrick-specific utilities
-import GenUtilities  as pGenUtil
-import PlotUtilities as pPlotUtil
-import CheckpointUtilities as pCheckUtil
+import CypherReader.Util.GenUtilities  as pGenUtil
+import CypherReader.Util.PlotUtilities as pPlotUtil
 
 from sqlalchemy.orm.attributes import manager_of_class
 from sqlalchemy.orm.properties import ColumnProperty
@@ -44,4 +43,14 @@ def get_state_dict(instance,name="Generic"):
     # XXX used named tuple instead?
     nameSpace = ap.Namespace(**myDict)
     return nameSpace
+
+def sqlSerialize(instances):
+    toRet = []
+    try:
+        for i in instances:
+            toRet.append(get_state_dict(i))
+    except TypeError:
+        # we were passed a single element
+        toRet = get_state_dict(instancs)
+    return toRet
 

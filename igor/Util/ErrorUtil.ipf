@@ -240,3 +240,14 @@ Static Function AlertUser(Message,[type])
 	DoAlert /T=("Warning") type,Message
 End Function
 
+
+Static Function Assert(bool,[msg])
+	Variable bool
+	String msg
+	if (ParamIsDefault(msg))
+		msg = ""
+	EndIf
+	if (!bool)
+		ThrowFatalError(ERR_ASSERTION,"Assertion Error",SpecificDesc=msg)
+	EndIf
+End Function

@@ -6,7 +6,8 @@ profile=".profile"
 identikey="pahe3165"
 # supposedly makes it infinite
 export HISTSIZE="GOTCHA"
-
+# add the latex directory to avoid os X 11.11 problems finding binaries
+export PATH=$PATH:/Library/TeX/Distributions/.DefaultTeX/Contents/Programs/texbin
 GOOD_RET=0
 BAS_RET=1
 
@@ -19,6 +20,23 @@ alias g++='g++ ${flags}'
 ARCHFLAGS="-arch x86_64" # Ensure user-installed binaries take precedence expor 
 PATH=/usr/local/bin:/usr/local/mysql/bin/:$PATH # Load .bashrc/mysql if it exists
 utilDir="/Users/patrickheenan/utilities/"
+
+RefCypherDebug()
+{
+    # refreshes the debugging database
+    mysqldump -u root -p CypherAFM | mysql -u root -p DebugCypher
+}
+
+nuterm ()
+{
+    Open -a Terminal .
+}
+
+igordemos()
+{
+    # go to the demo directory...
+    cd /Volumes/group/4Patrick/DemoData/IgorDemos/IgorPythonConvert/Output
+}
 
 bootcamp()
 {
@@ -82,6 +100,12 @@ pynu()
     cp "${utilDir}python/config.py" ./$1.py
 }
 
+pynu_loc()
+{
+    # copy the configuration files with the appropriate imports
+    cp "${utilDir}python/config_local.py" ./$1.py
+}
+
 igornu()
 {
     cp "${utilDir}igor/_config.ipf" ./$1.ipf
@@ -105,7 +129,7 @@ emnu()
 
 edu()
 {
-    cd /Users/patrickheenan/Documents/education/boulder_files/4_fall_2015
+    cd /Users/patrickheenan/Documents/education/boulder_files/5_spring_2016
 }
 
 euler()

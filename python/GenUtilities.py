@@ -128,8 +128,10 @@ def fitInfo(x,y,units=['',''],model=linModel,varStr=['a','b'],
         if (not (np.isfinite(stdev) or stdev<0 or stdev == float('inf'))
             or not simplify):
             tempMStr += "+/-{:.1g}".format(stdev)
-        # always add the units
-        modelStr += tempMStr + "[{:s}]".format(unitTmp)
+        modelStr += tempMStr
+        # add the units (if we have any)
+        if (len(unitTmp) > 0):
+             modelStr += "[{:s}]".format(unitTmp)
     if (full):
         return predicted,modelStr,params,paramsStd,RSQ
     else:
@@ -253,3 +255,17 @@ def ensureEnds(strV,ext):
         return strV + ext
     else:
         return strV
+
+def toLatexStr(numpyArr,fmt="{:s}"):
+    """
+    Returns a numpy array as a string see:
+    tex.stackexchange.com/questions/54990/convert-numpy-array-into-tabular
+    
+    Args:
+        the array
+    Returns:
+        The string to use 
+    """
+    return " \\\\\n".join([" & ".join( (fmt.format(str(c))
+                                        for c in line))
+                           for line in numpyArr])

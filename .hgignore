@@ -1,5 +1,6 @@
 syntax: glob
 
+*.zip
 *.hdf
 *.git*
 *.bak
@@ -26,3 +27,4 @@ syntax: glob
 *.orig
 *.ibw
 *.pxp
+*.ipynb*

@@ -3,11 +3,17 @@
 
 #pragma ModuleName = ModStartUpUtil
 #include ":PlotUtil"
+#include ":Defines"
 
-// Nukes everything in the current experiment, closes all windows and graphs 
-Static Function FreshSlate()
-	ModPlotUtil# ClearAllGraphs()
-	KillDataFolder /Z root:
+// if nukeLocal, Nukes everything in the current experiment, closes all windows and graphs 
+Static Function FreshSlate([nukeLocal])
+	Variable nukeLocal
+	nukeLocal = ParamIsdefault(nukeLocal) ? ModDefine#False() : ModDefine#True()
+	// May ave leftover waves saved (e.g. axhline). kill these)
+	ModPlotUtil#ResetPlotUtil()
+	if (nukeLocal)
+		KillDataFolder /Z root:
+	EndIf
 	// Kill every path
 	KillPath /A 
 End Function

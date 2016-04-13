@@ -15,6 +15,8 @@ sys.path.append(path)
 import GenUtilities  as pGenUtil
 import PlotUtilities as pPlotUtil
 import CheckpointUtilities as pCheckUtil
+import models
+
 
 class WLC_DEF:
     L0 = 650e-9 # meters
@@ -52,10 +54,9 @@ def WlcNonExtensible(kbT,L0,Lp,ext):
     # ext: extension, same units as L0
     return WlcPolyCorrect(kbT,Lp,ext/L0)
 
-def WlcExtensible(kbT,L0,Lp,ext,K0,Force):
+def WlcExtensible(kbT,L0,Lp,ext,K0):
     # see  Wang et al. (1997), extensible WLC
-    thisArg = ext/L0-Force/K0
-    return WlcPolyCorrect(kbT,Lp,thisArg)
+    return models.F_wlc_mod(kbT,Lp,L0,ext,K0)
 
 def FitWlc(extRef,forceRef,kbT=None,Lp=None,L0=None,fitL0=True,fitLp=True,
            K0=None,extensible=False,offsetIdx=None):
@@ -89,9 +90,9 @@ def FitWlc(extRef,forceRef,kbT=None,Lp=None,L0=None,fitL0=True,fitLp=True,
     if (extensible):
         # determine what the function signature is 
         if (fitLp):
-            mFunc = lambda x,L0,Lp:  WlcExtensible(kbT,L0,Lp,x,K0,force)
+            mFunc = lambda x,L0,Lp:  WlcExtensible(kbT,L0,Lp,x,K0)
         else:
-            mFunc = lambda x,L0   :  WlcExtensible(kbT,L0,Lp,x,K0,force)
+            mFunc = lambda x,L0   :  WlcExtensible(kbT,L0,Lp,x,K0)
     else:
         # determine what the function signature is 
         if (fitLp):

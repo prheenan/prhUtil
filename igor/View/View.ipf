@@ -174,8 +174,12 @@ Static Function DisplayNewTrace(mData,mWaveStub,[MedianSize])
  	if (ModViewGlobal#PlotVersusTime(mData))
  		ModPlotUTil#PlotWithFiltered(Ytr,graphName=graphId)
  	else
- 		// use provided X
- 		ModPlotUTil#PlotWithFiltered(Ytr,graphName=graphId,x=Xtr)
+ 		// use provided X, offset to zero
+ 		Duplicate /O Xtr,Xoffset
+ 		// XXX TODO: add in switches for subtract min, etc...
+ 		//Variable mMin = WaveMin(Xtr)
+ 		//xOffset[] = xOffset[p] - mMin
+ 		ModPlotUTil#PlotWithFiltered(Ytr,graphName=graphId,x=xOffset)
  	EndIf
 	 SetCursor(PLOT_Y_TMPWAVE)
  	// Make the graph a little prettier
@@ -188,8 +192,8 @@ Static Function DisplayNewTrace(mData,mWaveStub,[MedianSize])
 	mData.PlotTraceName = PLOT_Y_TMPWAVE
 	mData.CurrentXPath = PathToDisplayX
 	if (DimSize(mTraces,0) > 0)
-		ModPlotUtil#XLim(lowerX,upperX)
-		ModPlotUtil#YLim(lowerY,upperY)	
+		ModPlotUtil#XLim(lowerX,upperX,graphName=GraphID)
+		ModPlotUtil#YLim(lowerY,upperY,graphName=GraphID)	
 	EndIf
 	KillWaves /Z mTraces
 	DoUpdate
@@ -207,7 +211,13 @@ Static Function PlotParamPreview(mData,toPlot,mDoUpdate)
 		Return ModDefine#True()
 	EndIf
 	Variable numVal = toPlot.NumericValue
+	// Offset the x to the min...
 	Variable numValX = ModModelDefines#GetXVal(toPlot)
+	if (!ModViewGlobal#PlotVersusTime(mData))
+		Wave mX = $(mData.CurrentXPath)
+		// XXX TODO: add in switched for min, etc.
+		//numValX -= WaveMin(mX)
+	EndIf
 	Variable numValY = ModModelDefines#GetYVal(toPlot)
 	String mGraph = ModVIewGlobal#GetGraphID(mData)
 	// XXX this is a huge kludge and makes me unhappy,
@@ -1055,7 +1065,8 @@ Function HandleWaveSelect(LB_Struct) : ListboxControl
 		 	// A=MX: Middle (T=Top,C=Center,B=Bottom) (title) 
 		 	String GraphID =  ModViewGlobal#GetGraphID(mData)
 		 	String mFileName = ModIoUtil#GetFileName(mWaveStub)
-		 	TextBox/W=$(GraphID)/C/N=text0/A=MT "FEC For " + mFileName
+		 	// XXX remove title
+		 	//TextBox/W=$(GraphID)/C/N=text0/A=MT "FEC For " + mFileName
 		 	// Reset the parameter ID to the beginning
 		 	mData.SelectedParamID = 0
 		 	ModViewGlobal#SetGlobalData(mData)
@@ -1099,12 +1110,16 @@ Function HandleModelParam(event) : SetVariableControl
 			// Get the closest X index
 			Variable mPoint
 			Wave mPointWave
+			Wave mPointWave = $(mData.PlotTraceName)
 			if (ModViewGlobal#PlotVersusTime(mData))
 				Wave mPointWave = $(mData.PlotTraceName)
+				mPoint = x2pnt(mPointWave,mXValue)
 			Else
-				Wave mPointWave = $(mData.CurrentXPath)			
+				// we are given some other x value...
+				Wave mPointWave = $(mData.CurrentXPath)
+				// find where the index happens..
+				mPoint = ModStatUtil#FindIdxLevelCrossing(mPointWave,mXValue,0,Inf,ModDefine#False())
 			EndIF
-			mPoint = x2pnt(mPointWave,mXValue)
 			Variable nPoints = DimSize(mPointWave,0)
 			mPoint = max(mPoint,0)
 			mPoint = min(mPoint,nPoints-1)

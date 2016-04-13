@@ -32,26 +32,32 @@ def getFilesAndMeta():
     return MyMeta,mFileNames
 
 def plotSpotDist(mLabels,spots,outPath,subtractMean):
-    fig = pPlotUtil.figure(xSize=12,ySize=12)
-    ax = fig.add_subplot(111, projection='3d',)
     colors = ['r', 'g', 'b', 'y','k']
     nColors = len(colors)
     # go to nm
     mLabelsNm = mLabels *  1e9
     mSetSpots = sorted(set(spots))
     labelsBySpot = []
+    rawBySpot = []
     flattenedFromMean = []
     # first, get the spot-wise labelling
     for i,spot in enumerate(mSetSpots):
         # get the indices of the spots
         spotIdx = np.where(abs((spots - spot)) < 1e-9)[0]
         thisSpotLabels = mLabelsNm[spotIdx]
+        meanV = np.mean(thisSpotLabels)
         if (subtractMean):
-            thisSpotLabels -= np.mean(thisSpotLabels)
+            thisSpotLabels -= meanV
         labelsBySpot.append(thisSpotLabels)
         flattenedFromMean.extend(thisSpotLabels)
+        if (subtractMean):
+            rawBySpot.append(thisSpotLabels + meanV)
+        else:
+            rawBySpot.append(thisSpotLabels)        
     #  get the min and max from the labelsBySpot array
     bins = np.linspace(min(flattenedFromMean),max(flattenedFromMean),10)
+    fig = pPlotUtil.figure(xSize=12,ySize=12)
+    ax = fig.add_subplot(111, projection='3d',)
     for i,thisSpotLabels in enumerate(labelsBySpot):
         mColor = colors[i % nColors]
         height,left = np.histogram(thisSpotLabels,bins=bins)
@@ -63,6 +69,26 @@ def plotSpotDist(mLabels,spots,outPath,subtractMean):
                     "Dependence of Surface Location Distribution on Position",
                         zlab="Count")
     pPlotUtil.savefig(fig,outPath + "AllSpots.png")
+    # get a figure showing the mean surface location, assuming
+    # we reshape into an Nx(whatever) array
+    N = 5
+    # -1: infer dimension
+    meanVals = [np.mean(mList) for mList in rawBySpot]
+    meanSurf = np.reshape(meanVals,(-1,N))
+    meanSurf -= np.min(meanSurf)
+    fig = pPlotUtil.figure(ySize=14,xSize=10)
+    ax = fig.add_subplot(111, projection='3d')
+    # convert to nm (XXX assuming grid is 1micron for each)
+    Nx = N
+    Ny = meanSurf.shape[0]
+    x = np.linspace(0, Nx, Nx) * 1e3
+    y = np.linspace(0, Ny, Ny) * 1e3
+    xv, yv = np.meshgrid(x, y)
+    ax.plot_wireframe(xv,yv,meanSurf)
+    pPlotUtil.lazyLabel("X Location [nm]","Y Location [nm]",
+                        "Surface Position Varies with height")
+    pPlotUtil.zlabel("Surface height (relative to min)")
+    pPlotUtil.savefig(fig,outPath + "Surface.png")
     fig = pPlotUtil.figure(ySize=14,xSize=10)
     plt.subplot(2,1,1)
     nPoints = len(flattenedFromMean)
