@@ -14,6 +14,8 @@ dateStr=`date +%Y-%m-%d:%H:%M:%S`
 
 # We assume python is already install on ubuntu
 
+# install emacs( i know, i know)...
+sudo apt-get install emacs
 ## install pip
 sudo apt-get install python-pip python-dev build-essential 
 sudo pip install --upgrade pip 
@@ -28,6 +30,8 @@ sudo apt-get install libhdf5-serial-dev
 sudo pip install --upgrade scipy
 sudo pip install --upgrade matplotlib
 sudo pip install --upgrade numpy
+sudo pip install --upgrade scikit-image
+sudo pip install --upgrade scikit-learn
 # for hdf5 stack
 sudo pip install --upgrade h5py
 # for sql stuff 
