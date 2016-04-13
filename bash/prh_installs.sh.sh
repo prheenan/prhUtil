@@ -18,8 +18,13 @@ dateStr=`date +%Y-%m-%d:%H:%M:%S`
 sudo apt-get install python-pip python-dev build-essential 
 sudo pip install --upgrade pip 
 sudo pip install --upgrade virtualenv
-## get packages we use, need the dependencies
+### get packages we use, need the dependencies
+## numpy / matplotlib dependencies
 sudo apt-get build-dep python-matplotlib
+## hdf5 dependencies
+# we need t
+sudo apt-get libhdf5-dev
+# actual python backages
 sudo pip install --upgrade scipy
 sudo pip install --upgrade matplotlib
 sudo pip install --upgrade numpy
