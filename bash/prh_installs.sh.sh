@@ -27,6 +27,8 @@ function p_pyinstall(){
 
 # install emacs( i know, i know)...
 p_install emacs
+# install sql 
+sudo apt-get install mysql-server
 ## install pip
 p_install python-pip python-dev build-essential 
 p_pyinstall pip 
