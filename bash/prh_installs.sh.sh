@@ -12,30 +12,65 @@ dateStr=`date +%Y-%m-%d:%H:%M:%S`
 # Description:
 # installs (lots of python stuff) patrick uses, assuming on ubuntu
 
-# We assume python is already install on ubuntu
+function p_setup(){
+    # p_setup: call this before installing anything
+    # remove the local cache
+    sudo rm /var/lib/apt/lists/* -vf & 
+    # update apt
+    sudo apt-get update
+}
 
+# We assume python is already install on ubuntu
+function p_install(){
+    # p_install: command to install a 'system' package (e.g. emacs)
+    # flags:
+    # -y: assume yes to all prompts, run non-interactively
+    sudo apt-get install --fix-missing -y "$@"
+    
+}
+
+function p_depend(){
+    # p_depend: command to build dependencies (e.g. for matplotlib)
+    sudo apt-get build-dep "$@"
+}
+
+function p_pyinstall(){
+    # p_pyinstall: command to install a python package
+    sudo pip install --upgrade "$@"
+}
+
+
+
+# setup the install
+p_setup
 # install emacs( i know, i know)...
-sudo apt-get install emacs
+p_install emacs
+# install sql 
+p_install mysql-server
+# get cifs-utils, for mapping network drives
+p_install cifs-utils
+# get windbind so we can recognize windows names
+p_install libnss-winbind
 ## install pip
-sudo apt-get install python-pip python-dev build-essential 
-sudo pip install --upgrade pip 
-sudo pip install --upgrade virtualenv
+p_install python-pip python-dev build-essential 
+p_pyinstall pip 
+p_pyinstall virtualenv
 ### get packages we use, need the dependencies
 ## numpy / matplotlib dependencies
-sudo apt-get build-dep python-matplotlib
+p_depend python-matplotlib
 ## hdf5 dependencies
 # we need this for h5py
-sudo apt-get install libhdf5-serial-dev
+p_install libhdf5-serial-dev
 # actual python backages
-sudo pip install --upgrade scipy
-sudo pip install --upgrade matplotlib
-sudo pip install --upgrade numpy
-sudo pip install --upgrade scikit-image
-sudo pip install --upgrade scikit-learn
+p_pyinstall  scipy
+p_pyinstall  matplotlib
+p_pyinstall  numpy
+p_pyinstall  scikit-image
+p_pyinstall  scikit-learn
 # for hdf5 stack
-sudo pip install --upgrade h5py
+p_pyinstall  h5py
 # for sql stuff 
-sudo pip install --upgrade sqlalchemy
+p_pyinstall  sqlalchemy
 # move the utilities folder, if we need to
 mv ~/prhUtil/ ~/utilities/
 

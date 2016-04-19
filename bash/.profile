@@ -1,5 +1,5 @@
 export PS1="Speak 'Friend' and Enter: "
-home="/Users/patrickheenan/utilities/bash/"
+home="$HOME/utilities/bash/"
 # where the profile is 
 base="$home"
 profile=".profile"
@@ -19,7 +19,7 @@ alias g++='g++ ${flags}'
 
 ARCHFLAGS="-arch x86_64" # Ensure user-installed binaries take precedence expor 
 PATH=/usr/local/bin:/usr/local/mysql/bin/:$PATH # Load .bashrc/mysql if it exists
-utilDir="/Users/patrickheenan/utilities/"
+utilDir="$HOME/utilities/"
 
 RefCypherDebug()
 {
@@ -245,7 +245,7 @@ compute()
 
 ref()
 {
-    source $base/$profile
+    source $base$profile
 }
 
 ed()
@@ -255,7 +255,7 @@ ed()
 
 nu()
 {
-	ed $base/$profile	
+	ed $base$profile	
 	ref
 }
 
