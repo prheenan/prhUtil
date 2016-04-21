@@ -32,6 +32,14 @@ nuterm ()
     Open -a Terminal .
 }
 
+KillPy()
+{
+    # kills running python processes
+    # -9: everything we can
+    # awk is to get the PID
+    kill -9 $(ps aux | grep '[p]ython*' | awk '{print $2}')
+}
+
 igordemos()
 {
     # go to the demo directory...
@@ -243,7 +251,7 @@ ref()
 
 ed()
 {
-    open -a emacs $@;
+    emacs $@ &
 }
 
 nu()
