@@ -97,6 +97,13 @@ mach()
     cd csci_5622_machine_learning/hw/ml-hw
 }
 
+gitInit()
+{
+    git init
+    cp ~/utilities/git/.gitignore .
+
+}
+
 matnu()
 {
     cp "${utilDir}mathematica/config.nb" ./$1.nb
